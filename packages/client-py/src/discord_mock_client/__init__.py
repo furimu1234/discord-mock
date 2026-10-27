@@ -1,9 +1,9 @@
 """Local-only discord.py testing adapters (preview)."""
 
 from .client import (
+    DiscordMockClient,
     DisMockClient,
     DisMockMixin,
-    DiscordMockClient,
     dis_mock_class,
     dis_mock_client,
     disMockClass,

@@ -9,9 +9,9 @@ from discord.ext import commands
 from discord_mock_client import (
     DisMockClient,
     DisMockMixin,
+    dis_mock_client,
     disMockClass,
     disMockClient,
-    dis_mock_client,
 )
 
 

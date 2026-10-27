@@ -1,52 +1,43 @@
-# dev_container_ts_bot を利用した Mock E2E
+# level_bot: upstream dev_container_ts_bot + embedded PostgreSQL
 
-移植元: https://github.com/furimu1234/dev_container_ts_bot
-元のライセンス: [MIT](LICENSE)
+移植元: https://github.com/furimu1234/dev_container_ts_bot （MIT ライセンスは [LICENSE](LICENSE) に保存）
 
-## ディレクトリ構成
+## 保持したもの
 
-元の `packages/bot/src/**`、`packages/db/src/**` と `devcontainer` 設定、Dockerfile、TSConfig、LICENSE などを `examples/dev-container-ts-bot/` に取り込みました。
-モノレポ内のパッケージ名 `@ex/bot` と `@ex/db`、実際の `leveling.ts` / Drizzle データアクセス関数は維持しています。
+- `packages/bot/src/**` と `packages/db/src/**` の構成、実際の `events/leveling.ts`、`Container()`、`getLevel`・`createLeveling`・`updateLeveling`、Drizzle / `pg`。
+- 元の `src/main.ts` も資料として保持。オリジナルの起動コードには未完成の `client.login('')` や移行スクリプトが残るため、デモ用に `src/local.ts` を追加。**デモ Bot に Fake DB は差し込まない**。
+- Node 24 / pnpm 11 用 Dev Container を `.devcontainer/` に維持。元の manifest は `upstream.package.json` と `upstream.pnpm-workspace.yaml` に保存。
 
-### 差分（互換性・テスト用）
+## 修正したバグ
 
-- パッケージ定義・ビルド方法を親 pnpm 11 workspace / Node.js 24 に合わせました。
-- `src/env.ts` は変数の評価を遅延し、テスト時に本番用 `TOKEN` / `POST_URL` を要求しないようにしました。
-- `schema.ts` の `userId` の PostgreSQL 列名が誤って `server_id` だったため、`user_id` に修正しました。
-- `events/leveling.ts` の Bot ユーザーのみ対象になっていた判定を、通常のダミーユーザーを対象とするよう修正しました（元の初回メッセージはレベル2になります）。
-- `src/mock.ts`・`src/runMock.ts` を**追加**し、オリジナルのイベントハンドラーと DB 関数に、テスト専用のインメモリ DB アダプターを接続します。Mock 実行時は実際の PostgreSQL を使いません。
-- 元の `src/main.ts` はそのまま同梱していますが、移植元に本番ログインと DB 初期化の未完成箇所があり、**本テストではこの本番エントリーポイントを起動しません**。実行するのは移植元のイベント・DB 処理を使う Mock 専用の Bot です。
+- PostgreSQL の `userId` 列名が `server_id` と重複していたため `user_id` に修正
+- Bot が人間のメッセージを無視していた `message.author.bot` 判定を修正
+- `Container()` がメッセージごとに新しい `pg.Pool` を生成していた部分を1つのプールに集約
+- `TOKEN` / `POST_URL` の評価タイミングを起動時に変更
 
-## 使用方法
+## ブラウザから動作確認（推奨）
 
-ルートから:
+ルートで:
 
 ```sh
 nix-shell
 pnpm install
 pnpm build
+pnpm demo
+```
+
+`http://127.0.0.1:3000/test` を開き、ダミーユーザーを選んで投稿します。
+
+`pnpm demo` は自動的に (1) インメモリ PGlite、(2) 127.0.0.1 に限った PostgreSQL ソケットサーバー、(3) Discord Mock REST/Gateway、(4) 標準の `discord.js` Bot を起動します。PGlite に `example.lvl` を作成し、通常の `POST_URL` DSN で元の Drizzle / pg に接続させます。実 DB サーバー・Docker は不要です。終了すると DB は消えます。
+
+**元のレベリング Bot は返信を投稿しません。** ブラウザにはダミーユーザーのメッセージと Bot 接続状態が表示されます。Bot 側が `channel.send` を実行する場合、その REST POST は画面へ反映されます。
+
+## E2E
+
+```sh
 pnpm sample:test
 ```
 
-`pnpm sample:test` はテスト内でローカル Mock Server を起動し、実際の discord.js `Client` を接続します。
-`/_mock/dispatch` で送信したダミーユーザーの `MESSAGE_CREATE` が元の `leveling.ts` に届き、元の `getLevel` / `createLeveling` / `updateLeveling` を使ってメモリ上のレベル値が更新されることを確認します。
+別の Mock/DB/Bot を起動し、ブラウザ API から2通投稿して、本物の PostgreSQL クエリでレベル 2 → 3 を確認します。接続先はテストごとに異なります。
 
-このテンプレートには元々実用的なスラッシュコマンドの実装がないため、**旧サンプルの `/ping` の代わりにレベリング動作を検証します。** Voice や DB 実サーバーの統合テストは含みません。
-
-起動を手動で分ける場合:
-
-```sh
-# ターミナル1：Mock Server
-pnpm dev
-
-# ターミナル2：上の CLI が表示したトークンを指定
-export DISCORD_MOCK_URL=http://127.0.0.1:3000
-export DISCORD_MOCK_TOKEN=mock_発行されたトークン
-pnpm sample:bot
-```
-
-ダミーユーザーのイベント送信は `/_mock/dispatch` と管理用シークレットを使います。現段階ではブラウザ上のダミーユーザー操作 UI は未実装です。
-
-移植元の `.devcontainer/` は **Node.js 24 / pnpm 11 に更新**しました。VS Code の Dev Containers で `examples/dev-container-ts-bot/` を開くと、ワークスペースは外側の `discord-mock` ルートをマウントして使う構成です。初回の `pnpm install` は Dev Container 作成時に行いますが、`pnpm build` は引き続き手動です。PostgreSQL コンテナは従来どおり起動しますが、`pnpm sample:test` は DB サーバーに依存しません。**Dev Container 自体の Docker 起動検証は CI では行っていません。**
-
-NixOS の場合は従来どおりルートの `shell.nix` を使えば、Docker / PostgreSQL なしで E2E を実行できます。
+`/admin` はまだ簡易画面です。DM / VC の模擬および Discord 全 API の互換は未実装です。

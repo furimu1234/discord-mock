@@ -8,13 +8,14 @@
     "node": ">=24.17.0"
   },
   "scripts": {
-    "build": "pnpm --filter @discord-mock/web build && pnpm --filter @discord-mock/server build && pnpm --filter @discord-mock/client-js build && pnpm --filter @discord-mock/sample-bot build && pnpm --filter @discord-mock/upstream-sample build",
+    "build": "pnpm --filter @discord-mock/web build && pnpm --filter @discord-mock/server build && pnpm --filter @discord-mock/client-js build && pnpm --filter @discord-mock/level-bot build",
     "dev": "pnpm --filter @discord-mock/server dev",
     "test": "pnpm --filter @discord-mock/web test && pnpm --filter @discord-mock/server test && pnpm --filter @discord-mock/client-js test",
     "test:py": "uv run --project packages/client-py pytest",
     "lint:py": "uv run --project packages/client-py ruff check packages/client-py",
-    "sample:test": "pnpm --filter @discord-mock/upstream-sample test",
-    "sample:bot": "pnpm --filter @discord-mock/upstream-sample start"
+    "sample:test": "pnpm --filter @discord-mock/level-bot test",
+    "sample:bot": "pnpm --filter @discord-mock/level-bot start",
+    "demo": "pnpm --filter @discord-mock/level-bot demo"
   },
   "devDependencies": {
     "typescript": "^5.9.0",

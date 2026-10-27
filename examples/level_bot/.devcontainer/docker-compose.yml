@@ -2,7 +2,7 @@ services:
   app:
     build:
       context: ../../..
-      dockerfile: examples/dev-container-ts-bot/.devcontainer/Dockerfile
+      dockerfile: examples/level_bot/.devcontainer/Dockerfile
     volumes:
       - ../../..:/workspaces/discord-mock:cached
     working_dir: /workspaces/discord-mock

@@ -2,6 +2,6 @@ packages:
   - "apps/*"
   - "packages/client-js"
   - "examples/*"
-  - "examples/dev-container-ts-bot/packages/*"
+  - "examples/level_bot/packages/*"
 allowBuilds:
   esbuild: true

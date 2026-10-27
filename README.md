@@ -90,19 +90,25 @@ flowchart TD
 
 ## サンプル Bot を使った動作テスト
 
-[`examples/dev-container-ts-bot/`](examples/dev-container-ts-bot/MOCK-TEST.md) に、別リポジトリ [`furimu1234/dev_container_ts_bot`](https://github.com/furimu1234/dev_container_ts_bot) の **Bot + DB の2パッケージからなる TypeScript モノレポ** を取り込みました。元の `packages/bot/src` と `packages/db/src` の構成・実際のレベリングイベントおよび Drizzle の DB 関数を保持し、Node.js / pnpm の互換性と既知のエラーだけ修正しています。
+[`examples/level_bot/`](examples/level_bot/MOCK-TEST.md) に、[`furimu1234/dev_container_ts_bot`](https://github.com/furimu1234/dev_container_ts_bot) の **Bot + DB の TypeScript モノレポ** を取り込んでいます。元の `packages/bot/src` と `packages/db/src` の構成を維持したまま、Node.js 24 / pnpm 11 に対応しています。
+
+### ブラウザで本物の Bot をテストする
 
 ```sh
 pnpm install
 pnpm build
+pnpm demo
+```
+
+表示される `http://127.0.0.1:3000/test` を開いてください。`Alice` / `Bob` などのダミーユーザーとして投稿すると、同じ Mock Server の Gateway 経由で **実際の `discord.js Client`** に `MESSAGE_CREATE` が届き、移植したレベリング処理が実行されます。Bot が通常の REST API で送信したメッセージはブラウザのタイムラインにも反映します（レベリング Bot 自身は返信メッセージを送らない設計です）。
+
+**DB は PGlite のインメモリ PostgreSQL を利用**します。`pnpm demo` はループバック TCP 上に通常の PostgreSQL wire protocol を公開して `POST_URL=postgresql://...` 形式の DSN を生成します。Bot 内の `pg.Pool`・Drizzle ORM・`@ex/db` は本物の PostgreSQL と同じ経路を使います。別途 PostgreSQL コンテナを起動する必要はありません。プロセス終了時に DB データは失われます。
+
+```sh
 pnpm sample:test
 ```
 
-`sample:test` は新しいテンプレート Bot が対象です。テスト内で Mock Server を起動し、実際の discord.js `Client` を接続して `MESSAGE_CREATE` を送信、元の `leveling.ts` と `@ex/db` の関数が呼ばれてレベルが更新されることを検証します。**テスト中に PostgreSQL の実サーバー・本番 Discord トークンは必要ありません。** DB 部分はテスト専用のインメモリアダプターです。
-
-移植元の `src/main.ts` は未完成の実 DB / Discord 接続部分があるため、Mock 用に `src/mock.ts` を追加してそこから実際のイベント・DB 関数を使用します。移植元は `/ping` コマンドを持っていないため、以前の簡易サンプルの `/ping` ではなく、移植元のメッセージ・レベリングを検証します。前の最小サンプルは `examples/sample-bot/` に残していますが、`sample:test` の実行対象ではありません。
-
-詳細な変更点・手動起動方法は [移植版のガイド](examples/dev-container-ts-bot/MOCK-TEST.md) を参照してください。
+こちらは独立した Mock Server + DB + Bot の E2E を自動起動して終了し、レベル更新を本物の `pg` 接続で確認します。ブラウザの `pnpm demo` と同じセッションを使いません。手動起動、変更履歴、制約は [level_bot ガイド](examples/level_bot/MOCK-TEST.md) を参照してください。
 
 ## 開発者向け：初期セットアップ
 

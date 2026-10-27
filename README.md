@@ -3,7 +3,7 @@
 **discord-mock** は、Discord Bot を自分の PC または自分で管理する VPS 上で手動・自動テストするための、セルフホスト型 Mock 環境です。**SaaS として公開・提供しません。** 本番の Discord API・認証情報を使用せず、ローカルで生成したダミーデータとテスト用トークンを扱います。
 
 > [!IMPORTANT]
-> **現在は開発途中です。** REST / Gateway の基本接続、メッセージ操作の一部、テスト用 Interaction とその応答記録を実装しています。一方、`/test` と `/admin` は **プレビュー画面**で、ダミーユーザーのログイン・管理 UI、DM、実際に聴ける VC 音声などはまだ利用できません。全 Discord API との互換性を保証するものでもありません。
+> **現在は開発途中です。** REST / Gateway の基本接続、メッセージ操作の一部、テスト用 Interaction とその応答記録を実装しています。`/test` は **操作可能なテスト画面**になり、ダミーユーザーの切り替え、テキスト投稿、Slash Command 発火、Bot 投稿のリアルタイム同期を行えます。`/admin` はまだ簡易案内画面で、管理 CRUD・DM・実際に聴ける VC 音声などは未実装です。全 Discord API との互換性を保証するものでもありません。
 
 ## アーキテクチャ
 
@@ -11,7 +11,7 @@
 
 | ディレクトリ | 言語 | 役割 |
 | --- | --- | --- |
-| `apps/web/` | TypeScript | ブラウザで開くテスト画面・管理画面。**現段階はサーバーに組み込まれた静的プレビュー** |
+| `apps/web/` | TypeScript | ブラウザで開くテスト画面・管理画面。ローカル Bot テスト画面（投稿・ユーザー切替・SSE 更新）と管理画面案内 |
 | `apps/server/` | TypeScript | CLI、HTTP REST、Gateway WebSocket、Mock 状態管理、JSON 保存 |
 | `packages/client-js/` | TypeScript | 既存 `discord.js Client` / `SapphireClient` のインスタンス・継承アダプター |
 | `packages/client-py/` | Python | 既存 `discord.Client` / `commands.Bot` のインスタンス・継承アダプター |
@@ -40,7 +40,7 @@ flowchart LR
         REST["REST: /api/v10/..."]
         GW["Gateway: /gateway（WebSocket）"]
         AdminAPI["独自テスト API: /_mock/..."]
-        Web["apps/web: /test・/admin プレビュー"]
+        Web["apps/web: /test 操作 UI・/admin 案内"]
         State[("Mock のメモリ上の状態")]
         JSON[("任意のローカル JSON ファイル")]
 
@@ -63,7 +63,7 @@ flowchart LR
     UT["UT / テストハーネス"] -->|"管理用シークレット"| AdminAPI
 ```
 
-- **Web 画面は別ポートの Web サーバーとしては起動しません。** 現在は `apps/server` が TypeScript で定義された HTML プレビューを返します。
+- **Web 画面は別ポートの Web サーバーとしては起動しません。** 現在は `apps/server` が TypeScript で定義されたローカル HTML と同一オリジンの JavaScript を返します。
 - Mock Server は既定で `127.0.0.1:3000` に待ち受けます。Bot 側の REST / Gateway 接続先も Mock を指定します。
 - JSON の永続化は `DISCORD_MOCK_STATE_PATH` 指定時のみ有効で、現状は主にメッセージ更新の保存に対応しています。Interaction の応答など、すべてのランタイム状態が永続化されるわけではありません。
 - Voice Gateway・UDP / RTP による実際の音声通信は未実装です。
@@ -201,8 +201,8 @@ pnpm --filter @discord-mock/server dev -- --port 3001
 
 | URL（既定のポート 3000） | 用途 |
 | --- | --- |
-| `http://127.0.0.1:3000/test` | テスト画面（現時点ではプレビュー） |
-| `http://127.0.0.1:3000/admin` | 管理画面（現時点ではプレビュー） |
+| `http://127.0.0.1:3000/test` | テスト画面（投稿・ユーザー切り替え・Bot からの応答表示） |
+| `http://127.0.0.1:3000/admin` | 管理画面（現時点では案内画面） |
 | `http://127.0.0.1:3000/health` | ヘルスチェック |
 | `http://127.0.0.1:3000/api/v10/...` | 対応済みの Mock REST API |
 | `ws://127.0.0.1:3000/gateway` | Mock Gateway WebSocket |
@@ -259,7 +259,7 @@ nix shell nixpkgs#nodejs_24 -c node discord-mock.cjs
 
 ### 3. ブラウザで開く・終了する
 
-CLI に表示された URL をブラウザで開きます。既定では `http://127.0.0.1:3000/test`（テスト画面）と `http://127.0.0.1:3000/admin`（管理画面）です。現段階ではどちらも機能実装前のプレビューです。終了は起動ターミナルの `Ctrl+C` です。
+CLI に表示された URL をブラウザで開きます。既定では `http://127.0.0.1:3000/test`（テスト画面）と `http://127.0.0.1:3000/admin`（管理画面）です。`/test` は操作可能です。Bot と DB を一括で起動して検証する場合は `pnpm demo` を使用してください。`/admin` の管理操作は今後実装予定です。終了は起動ターミナルの `Ctrl+C` です。
 
 Mock の API に Bot を接続する際は、CLI に表示された **`mock_` で始まるテスト用トークン**だけを使用し、Discord 本番の Bot トークンは使用しないでください。管理用シークレットも第三者に共有しないでください。
 
@@ -294,6 +294,6 @@ Python の `discord.py` / `commands.Bot` は、[`packages/client-py/README.md`](
 
 - サーバーは**ループバックアドレスのみ**で待ち受けます。VPS では SSH ポートフォワーディングや自分で管理する VPN を利用してください。公衆インターネットへ直接公開しないでください。
 - **実装済み（部分対応）:** REST による Gateway 情報取得・Guild / Channel / Message、Gateway の Hello / Identify / Ready / Heartbeat / Guild Create、ダミー Interaction の発行・コールバック保存。
-- **未実装または未検証:** ダミーユーザーログイン UI、管理 UI の CRUD、DM、細かなロール・権限判定、完全な Slash Command / Button / Select Menu、Sapphire Piece の一連の動作、全 Discord API・Gateway の互換性、VC の Voice Gateway / UDP / RTP・ブラウザで聴ける音声。
+- **未実装または未検証:** ダミーユーザーの新規登録・複雑なロール操作、管理 UI の CRUD、DM、細かなロール・権限判定、完全な Slash Command / Button / Select Menu、Sapphire Piece の一連の動作、全 Discord API・Gateway の互換性、VC の Voice Gateway / UDP / RTP・ブラウザで聴ける音声。
 - npm / PyPI のクライアント公開は別々に管理しますが、**現時点の公開ワークフローは無効**です。
 - Discord 公式の**公開 API 仕様**を参照した独自実装を前提とし、非公開 API のリバースエンジニアリングは行いません。OSS 配布の規約確認については [`AGENTS.md`](AGENTS.md) を参照してください。

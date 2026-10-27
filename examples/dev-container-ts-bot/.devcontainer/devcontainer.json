@@ -1,18 +1,19 @@
 {
-  "name": "example",
+  "name": "discord-mock upstream example (Node 24)",
   "dockerComposeFile": "docker-compose.yml",
-	"service": "app",
-	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-  "postCreateCommand": "pnpm i",
+  "service": "app",
+  "workspaceFolder": "/workspaces/discord-mock",
+  "postCreateCommand": "pnpm install",
   "customizations": {
     "vscode": {
       "extensions": [
         "biomejs.biome",
-        //"ms-vscode.vscode-typescript-next",
         "ms-azuretools.vscode-docker",
         "PKief.material-icon-theme"
-
-      ]
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
     }
   }
 }

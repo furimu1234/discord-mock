@@ -1,25 +1,16 @@
 services:
   app:
-    container_name: app
     build:
-      context: ..
-      dockerfile: .devcontainer/Dockerfile
-
+      context: ../../..
+      dockerfile: examples/dev-container-ts-bot/.devcontainer/Dockerfile
     volumes:
-      - ../..:/workspaces:cached
-    working_dir: /workspace
+      - ../../..:/workspaces/discord-mock:cached
+    working_dir: /workspaces/discord-mock
     environment:
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_USER: postgres
-        POSTGRES_DB: postgres
-        POSTGRES_HOSTNAME: db
-    ports:
-        - "4981:4983"
-
+      POSTGRES_HOSTNAME: db
     command: sleep infinity
-
   db:
-    image: postgres:latest
+    image: postgres:17
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -27,6 +18,5 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
-
 volumes:
-    postgres-data:
+  postgres-data:

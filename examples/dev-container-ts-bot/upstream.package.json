@@ -1,0 +1,38 @@
+{
+  "name": "example_app",
+  "description": "dev containerを使って開発するdiscordbotのサンプル",
+  "private": true,
+  "version": "0.1.0",
+  "author": "example",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "pnpm run --filter \"./packages/**\" --parallel dev",
+    "drizzle": "pnpm --filter db run drizzle",
+    "generate": "pnpm --filter db run generate",
+    "type-check": "pnpm --filter @ll/* type-check",
+    "build": "pnpm --filter ./packages/db build && pnpm --filter ./packages/bot build"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"@types/node": "^20.17.32",
+		"dotenv-cli": "^8.0.0",
+		"tsx": "^4.0.0",
+		"typescript": "^5.4.0"
+	},
+	"workspaces": [
+		"packages/*"
+	],
+	"dependencies": {
+		"discord.js": "^14.19.2",
+		"dotenv": "^16.5.0",
+		"drizzle-kit": "^0.31.0",
+		"drizzle-orm": "^0.43.1",
+		"pg": "^8.15.6",
+		"pino": "^9.6.0",
+		"pino-pretty": "^13.0.0"
+	}
+}

@@ -219,3 +219,14 @@
 - **イベント注入と Discord プロトコル互換は別物**である。完全な `Message` / `Interaction` / コマンドパーサー、Gateway 接続、REST/Voice の差し替えが未実装の段階ではその限界をユーザーに明示する。
 - 通常の SDK `login()` / `run()` は Discord 本番に接続する可能性がある。Mock の接続機構ができるまでは使わず、必要に応じてテスト環境の外向きネットワークを遮断する。
 - 変更時は実 SDK のクラスを用いた単体・互換テストを JS / Python の両方で実施し、`spec/` の共通契約との整合を確認する。
+
+## 16. TypeScript / Corepack / manual build / platform support
+
+- `apps/web`、`apps/server`、`packages/client-js` のアプリケーションソースは **TypeScript** に統一する。Python クライアントは Python のまま。
+- 開発時は pnpm workspace と Corepack（導入されている場合）を使用し、`pnpm install`、`pnpm build`、`pnpm test` を実行する。
+- `pnpm dev` や実行時にビルドを暗黙的に行わない。開発者・配布担当者が必要なときに手動でビルドする。
+- ビルド成果物は `dist/` に出力。**配布物の実行には pnpm・Corepack・tsc・esbuild・node_modules を要求しない**。現時点では Node.js ランタイムは必要。単一ネイティブバイナリと混同しない。
+- Windows・Linux・macOS で Node.js 実行をサポートする。NixOS は Nixpkgs の Node.js を使用して実行する。対応OS以外のバイナリをそのままコピーすれば動くとは保証しない。
+- JS SDK の公開 `ClientOptions.rest.api` / `RESTOptions.api` を利用し、REST の接続先をループバックへ切り替える。Mock は Gateway URL 取得 REST と同一のホストでローカル WebSocket URL を返す。
+- Python discord.py の `Route.BASE` は **SDK 非公開実装の互換境界**であり、公式安定 API ではない。テスト専用で一時的・可逆的にパッチする場合は他プロセス・他 Client と共有せず、SDK バージョン・戻し処理を必ずテストする。Discord 本体の非公開 API を解析しないというルールは継続する。
+- 未実装の音声・DM・コマンドを互換済みと宣伝しない。本番 Discord へのフォールバックを追加しない。

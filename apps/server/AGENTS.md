@@ -1,11 +1,8 @@
 # Mock Server 開発ルール
-
-ルートの `AGENTS.md` を必ず守る。
-
-- Discord 公式の公開仕様に基づいて REST / Gateway / Voice / Interaction の互換動作を段階的に独自実装する。
-- 本番 Discord API / Gateway / Voice に接続しない。未対応経路の本番フォールバックは禁止。
-- デフォルトは `127.0.0.1` 待受とし、公衆向け無認証公開を導入しない。
-- Web・JS・Python クライアントに共通する契約は `spec/` に記述する。実装変更時は関係する互換テストを更新する。
-- JSON 保存・ダミーユーザーのセッション・権限・DM の分離はサーバー側で強制する。
-- この段階で動くのは HTTP のヘルスチェックと UI プレビューだけであり、Discord 互換サーバーとは呼ばない。
-- 関連変更では `pnpm --filter @discord-mock/server test` を実行する。
+- ルートの `AGENTS.md` と本ルールに従う。
+- TypeScript で REST と Gateway を実装する。必要な公開 Discord API 仕様のみ参照し、非公開 API の解析はしない。
+- 本番 Discord トークン・URL・通信を受け付けない。localhost 以外へのバインドを禁止する。
+- REST に未実装のエンドポイントがある場合は明示的に 404 とし、本番へフォールバックしない。
+- Gateway は JSON encoding の基礎接続（Hello / Identify / Ready / Heartbeat）から段階的に拡充する。voice 音声互換は未対応であることを明記する。
+- `pnpm build` は手動。配布後は `node apps/server/dist/discord-mock.cjs` で実行し、pnpm 不要。
+- API を追加したときは `spec/` と JS・Python のテストを同じ PR で更新する。

@@ -1,80 +1,61 @@
 # discord-mock
 
-Discord Bot を手動・自動でテストするための **ローカル / 自己管理 VPS 専用** Mock 環境です。
-**SaaS として提供しません。** 開発方針・規約遵守ルールは [AGENTS.md](AGENTS.md) に記載しています。
+ローカル / 自己管理 VPS 専用の Discord Bot テスト環境。**SaaS として公開しません。**
 
-## モノレポ構成
+## Monorepo
 
-```text
-discord-mock/
-├── AGENTS.md                      # 全体の仕様・セキュリティ・Discord 規約
-├── package.json                   # pnpm スクリプト
-├── pnpm-workspace.yaml            # JS のみワークスペース管理
-├── apps/
-│   ├── web/                       # テスト / 管理画面（現在プレビューのみ）
-│   └── server/                    # Mock Server / CLI（現在ローカルHTTPのみ）
-├── packages/
-│   ├── client-js/                 # npm 向け JS クライアント（未公開）
-│   └── client-py/                 # PyPI 向け Python クライアント（未公開）
-├── spec/                          # 全言語共通 API 契約
-├── tests/                         # 将来の横断互換テスト
-└── .github/workflows/
-    ├── test-web.yml
-    ├── test-js.yml
-    ├── test-py.yml
-    ├── publish-npm.yml
-    └── publish-pypi.yml
-```
-
-各ディレクトリの `AGENTS.md` はルートのルールを補完し、上書きしません。
-
-## 起動（現在は構成確認用プレビュー）
-
-Node.js 24.17+ / pnpm 11 を使用:
-
-```bash
-pnpm install
-pnpm dev
-# 必要なら: pnpm --filter @discord-mock/server dev -- --port 3001
-```
-
-CLI は `127.0.0.1:3000` に待ち受け、テスト画面 `/test`、管理画面 `/admin`、ヘルスチェック `/health` を提供します。
-公開 IP では待ち受けません。VPS では SSH ポートフォワーディングなどの非公開アクセス経路を使用してください。
-
-## テスト
-
-```bash
-pnpm test                           # Web / Server / JS の単体テスト
-cd packages/client-py
-uv sync
-uv run ruff check .
-uv run pytest
-```
-
-Python は pnpm ワークスペースに含めず、独立した `pyproject.toml` / uv プロジェクトとして管理します。
-
-## 開発状況と公開方針
-
-**現在はモノレポの土台と HTTP ヘルスチェックのみ動作します。** Discord REST API / Gateway / Voice、ダミーユーザー管理、DM、VC 音声、Bot のソース変更なしテストは未実装です。
-
-- JS と Python のバージョンは個別管理します: 例 `js-v1.3.0` / `py-v1.2.0`。
-- CI は変更のあった領域に応じて Web・JS・Python を個別に検証します。
-- npm / PyPI の公開ワークフローは配置済みですが、**リリースは既定で無効**です。公開する段階で `ENABLE_CLIENT_RELEASE=true` の GitHub Actions リポジトリ変数、Trusted Publisher、リリース用 Environment、package metadata（JS の `private` フラグ解除と名前の確保など）を設定してください。
-- Trusted Publishing には GitHub-hosted Runner と OIDC を使用します。自己管理 VPS の実行環境と、パッケージ公開時の CI 実行環境は別物です。
-- Discord 公式 API の公開仕様から必要なレスポンス形式を独自に実装します。非公開 API や公式クライアント内部を解析しません。OSS 配布前には Discord Developer Support に互換サーバーの配布可否を確認する方針です。
-
-## 既存 Bot SDK を使った UT アダプター
-
-現段階では、元のインスタンスや派生クラスを維持したまま **SDK の公開イベントハンドラーにテスト用イベントを注入**できます。
-
-| 対象 | 既存インスタンスを渡す | 継承する |
+| 場所 | 実装言語 | 役割 |
 | --- | --- | --- |
-| discord.js `Client` | `disMockClient(client)` | `class UtBot extends disMockMixin(MyBot) {}` |
-| Sapphire `SapphireClient` | `disMockClient(client)` | `class UtSapphire extends disMockMixin(MySapphire) {}` |
-| discord.py `Client` | `disMockClient(client)` | `class UtClient(DisMockMixin, MyClient): ...` |
-| discord.py `commands.Bot` | `disMockClient(bot)` | `class UtBot(DisMockMixin, MyBot): ...` |
+| apps/web | TypeScript | 管理・テスト画面（現状はプレビュー） |
+| apps/server | TypeScript | Mock REST / Gateway サーバー、CLI |
+| packages/client-js | TypeScript | discord.js / Sapphire SDK テストアダプター |
+| packages/client-py | Python | discord.py テストアダプター |
+| spec | OpenAPI / Markdown | 共通 API 契約 |
+| tests | - | 将来のクライアント横断テスト |
 
-継承クラスファクトリも使用できます: JS は `disMockClientClass(MyBot)`、Python は `disMockClass(MyBot)`。
-使い方は [JS SDK アダプター](packages/client-js/README.md) および [Python SDK アダプター](packages/client-py/README.md) を参照。
+## 開発時の前提条件（Windows / Ubuntu / macOS / NixOS）
 
-> **重要:** これは `login()` / REST / Gateway / Voice の代替ではなく、コマンド実行・SDK の Message / Interaction オブジェクトの完全互換は未実装です。通常の SDK `login()` は本番 Discord へ接続する可能性があるので Mock テストでは呼ばないでください。
+Node.js 24.17+、Corepack または pnpm 11。**開発時は pnpm 必須**、Python 側は uv を使用します。
+
+```sh
+# corepack コマンドがなければ Corepack を別途導入
+corepack enable
+corepack pnpm install
+corepack pnpm build
+corepack pnpm test
+corepack pnpm dev
+```
+
+ビルドは**明示的に `pnpm build` を実行**したときのみ。通常の `pnpm dev` / `pnpm test` では勝手にビルドしません。
+
+## ビルド済み成果物を使う（pnpm 不要）
+
+`pnpm build` が生成した `apps/server/dist/discord-mock.cjs` は依存を束ねた Node.js スクリプトです。実行先に Node.js 24+ がインストールされていれば **pnpm / Corepack / TypeScript / node_modules は不要**です。
+
+```sh
+node apps/server/dist/discord-mock.cjs
+node apps/server/dist/discord-mock.cjs --port 3001
+```
+
+Windows / Ubuntu / macOS では各 OS 用の Node.js を利用してください。**NixOS は Nixpkgs の Node.js 24 を利用**し、必要なら `nix shell nixpkgs#nodejs_24 -c node apps/server/dist/discord-mock.cjs` で起動します。これらはそれぞれ **Node.js 実行環境を別途必要とする方式**です。OS に依存しないネイティブ単体実行ファイルを配布する機能ではありません。
+
+CLI はローカル URL、生成された `mock_` トークン、管理用シークレットを表示します。公衆 IP にはバインドできません。VPN / SSH ポートフォワード等でアクセスしてください。
+
+## SDK の接続先差し替え
+
+JavaScript / Sapphire: `disMockClient(client)` が `client.rest.options.api` を Mock URL へ変更し、`utClient.connect("mock_...")` が通常のログイン経路から Mock REST・Gateway に接続します。
+
+Python: `disMockClient(client)` のラップおよび `DisMockMixin` に加え、`with mock_routes(local_url)` で REST の `Route.BASE` を一時変更し、`client.start("mock_...")` をそのブロックで実行できます。**この Python の変更は SDK 内部のバージョン依存箇所・プロセス全体への変更**で、並列利用はできません。実 Discord トークンは使わず、外向き通信もネットワーク的に遮断してください。
+
+## 現在の実装範囲
+
+REST: Gateway URL・Bot 自分自身・Guild / Channel / Message の一部。
+Gateway: Hello / Identify / Ready / Guild Create / Heartbeat / Resume の一部。
+
+**未対応:** 実音声を届ける Voice Gateway / UDP / RTP、DM、ダミーユーザーログイン、Interaction の一連のコマンド／ボタン処理、全 Discord REST 互換、Sapphire の Piece 完全起動。これらを実装済みと誤認させないでください。
+
+独自 Mock 管理 API `/_mock/state` と `/_mock/dispatch` には CLI の管理用シークレットが必要です。データを保存する場合は `DISCORD_MOCK_STATE_PATH` で JSON パスを指定します。
+
+## パッケージ公開
+
+npm / PyPI は独立タグ・独立公開。公開ワークフローはデフォルト無効。設定する前に [AGENTS.md](AGENTS.md) の規約／ライセンス条件、Discord Developer Support への確認方針を参照してください。

@@ -1,28 +1,17 @@
 {
   "name": "@discord-mock/client-js",
-  "version": "0.0.0",
-  "description": "Local-only test-side client for discord-mock (preview)",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": {
-      "types": "./src/index.d.ts",
-      "default": "./src/index.mjs"
-    }
-  },
-  "types": "./src/index.d.ts",
-  "files": ["src", "README.md"],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/furimu1234/discord-mock.git",
-    "directory": "packages/client-js"
-  },
-  "engines": { "node": ">=24.17.0" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {".": {"types": "./dist/index.d.ts", "default": "./dist/index.js"}},
+  "files": ["dist", "README.md"],
+  "engines": {"node": ">=24.17.0"},
   "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/index.js && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.build.json",
     "test": "node --test tests/*.test.mjs"
   },
-  "devDependencies": {
-    "@sapphire/framework": "5.5.1",
-    "discord.js": "14.27.0"
-  }
+  "devDependencies": {"discord.js": "14.27.0", "@sapphire/framework": "5.5.1"}
 }

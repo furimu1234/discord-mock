@@ -1,21 +1,17 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
-import { createMockClient } from "../src/index.mjs";
+import {test} from "node:test";
+import {createMockClient, disMockClient} from "../dist/index.js";
 
-test("does not accept remote or production Discord base URLs", () => {
-  assert.throws(() => createMockClient({ baseUrl: "https://discord.com" }), /local HTTP/);
-  assert.throws(() => createMockClient({ baseUrl: "http://example.com" }), /local HTTP/);
+test("blocks production REST base URLs", () => {
+  assert.throws(() => createMockClient({baseUrl:"https://discord.com"}), /loopback/);
 });
-
-test("queries local mock health without a real network request", async () => {
-  let requested;
-  const client = createMockClient({
-    baseUrl: "http://127.0.0.1:3000",
-    fetchImpl: async (url) => {
-      requested = url.href;
-      return { ok: true, json: async () => ({ status: "ok", service: "discord-mock" }) };
-    },
-  });
-  assert.deepEqual(await client.health(), { status: "ok", service: "discord-mock" });
-  assert.equal(requested, "http://127.0.0.1:3000/health");
+test("configures sdk REST route and keeps the same instance", () => {
+  const fake = { emit() {}, rest: {options: {api:"https://discord.com/api"}} };
+  const wrapped = disMockClient(fake);
+  assert.equal(wrapped.client, fake);
+  assert.equal(fake.rest.options.api, "http://127.0.0.1:3000/api");
+});
+test("never permits a real token for connect", async () => {
+  const fake = { emit() {}, login() { throw new Error("should not run"); }, rest: {options: {api:""}} };
+  await assert.rejects(disMockClient(fake).connect("real_discord_token"), /synthetic/);
 });

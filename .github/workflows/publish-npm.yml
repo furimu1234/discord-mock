@@ -1,32 +1,25 @@
-name: Publish JS to npm (disabled until release readiness)
+name: Publish JS to npm (manual release enable)
 on:
   push:
     tags: ["js-v*"]
-permissions:
-  contents: read
+permissions: {contents: read}
 jobs:
   publish:
     if: ${{ vars.ENABLE_CLIENT_RELEASE == 'true' }}
     runs-on: ubuntu-latest
     environment: npm
-    permissions:
-      contents: read
-      id-token: write
+    permissions: {contents: read, id-token: write}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+        with: {node-version: "24", registry-url: "https://registry.npmjs.org"}
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11.0.0
-          run_install: false
+        with: {version: "11.0.0", run_install: false}
       - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build
       - run: pnpm --filter @discord-mock/client-js test
-      - name: Check release metadata
-        run: |
-          node -e 'const p=require("./packages/client-js/package.json"); if(p.private || process.env.GITHUB_REF_NAME!=="js-v"+p.version) process.exit(1);'
+      - name: Verify release version and package state
+        run: node -e 'const p=require("./packages/client-js/package.json"); if(p.private||process.env.GITHUB_REF_NAME!=="js-v"+p.version) process.exit(1)'
       - name: Publish with npm Trusted Publishing
         working-directory: packages/client-js
         run: npm publish --access public

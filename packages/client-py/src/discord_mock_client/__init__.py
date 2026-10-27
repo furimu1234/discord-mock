@@ -9,13 +9,15 @@ from .client import (
     disMockClass,
     disMockClient,
 )
+from .routes import mock_routes
 
 __all__ = [
     "DisMockClient",
     "DisMockMixin",
     "DiscordMockClient",
-    "disMockClass",
-    "disMockClient",
     "dis_mock_class",
     "dis_mock_client",
+    "disMockClass",
+    "disMockClient",
+    "mock_routes",
 ]

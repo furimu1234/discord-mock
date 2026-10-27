@@ -1,38 +1,25 @@
 name: Test Web and Mock Server
 on:
   pull_request:
-    paths:
-      - "apps/web/**"
-      - "apps/server/**"
-      - "spec/**"
-      - "tests/**"
-      - "package.json"
-      - "pnpm-workspace.yaml"
-      - ".github/workflows/test-web.yml"
+    paths: ["apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "tsconfig.base.json", "pnpm-workspace.yaml", ".github/workflows/test-web.yml"]
   push:
     branches: [main]
-    paths:
-      - "apps/web/**"
-      - "apps/server/**"
-      - "spec/**"
-      - "tests/**"
-      - "package.json"
-      - "pnpm-workspace.yaml"
-      - ".github/workflows/test-web.yml"
-permissions:
-  contents: read
+    paths: ["apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "tsconfig.base.json", "pnpm-workspace.yaml", ".github/workflows/test-web.yml"]
+permissions: {contents: read}
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: {os: [ubuntu-latest, windows-latest, macos-latest]}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
+        with: {node-version: "24"}
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11.0.0
-          run_install: false
+        with: {version: "11.0.0", run_install: false}
       - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @discord-mock/server typecheck
       - run: pnpm --filter @discord-mock/web test
       - run: pnpm --filter @discord-mock/server test

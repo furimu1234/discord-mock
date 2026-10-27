@@ -1,63 +1,22 @@
-# discord-mock-client — discord.py integration
+# Python Discord Mock Client
 
-**discord.Client**、**commands.Bot**、ユーザー定義の Bot クラスを、インスタンスを渡す方法と継承する方法の双方で利用できます。discord.py の公開 `dispatch()` を使います。
-
-> 現時点では **既存のイベントハンドラーにテストイベントを送る仕組み** と、Mock の `/health` のみ対応しています。REST / Gateway / Voice の接続先差し替え、commands.Bot のコマンド解析を含む完全再現、SDK の内部 `Message` / `Interaction` オブジェクトの生成は **未実装**です。
-
-## 1. 既存インスタンスを渡す
+`discord.py` の `discord.Client` / `commands.Bot` を既存どおり継承できます。`disMockClient` は既存 Client にイベント注入を行い、`mock_routes` は SDK の REST URL をテスト期間だけ Mock へ向けます。
 
 ```python
 import asyncio
 import discord
-from discord_mock_client import disMockClient
+from discord_mock_client import disMockClient, mock_routes
 
 client = discord.Client(intents=discord.Intents.none())
-ut_client = disMockClient(client, base_url="http://127.0.0.1:3000")
+ut_client = disMockClient(client)
 
-@client.event
-async def on_mock_test(payload):
-    print(payload)
-
-async def run_test():
-    # login()/start()/run() ではなく、ローカルのイベント処理だけを実行する。
-    async with client:
-        ut_client.dispatch("mock_test", {"userId": "dummy-1"})
-        await asyncio.sleep(0.1)
-
-asyncio.run(run_test())
+async def test_run():
+    # 必ず mock_routes の内側で Login / Gateway 接続を始める
+    with mock_routes("http://127.0.0.1:3000"):
+        await client.start("mock_ここにCLI発行トークン")
+# asyncio.run(test_run()) は手動停止が必要。個別の UT では別タスクで起動。
 ```
 
-## 2. 独自 commands.Bot の継承
+`discord.http.Route.BASE` は **discord.py の実装詳細**で、ライブラリの公開安定APIではありません。上書きは **プロセス全体**に及ぶため、別の Discord Client と混在してはいけません。この操作は開発・テストプロセスに限定し、`with` を抜けると必ず復元します。変更が入った SDK バージョンへの対応は個別に確認します。REST / Gateway の基礎動作以外は未対応です。
 
-```python
-import discord
-from discord.ext import commands
-from discord_mock_client import DisMockMixin, disMockClass
-
-class MyBot(commands.Bot):
-    def custom_method(self):
-        return "original"
-
-# 推奨: 明示的な Mixin による継承
-class UtBot(DisMockMixin, MyBot):
-    pass
-
-bot = UtBot(command_prefix="!", intents=discord.Intents.none())
-assert isinstance(bot, MyBot)
-assert bot.mock.client is bot
-
-# または動的な継承クラスファクトリ
-class UtBot2(disMockClass(MyBot)):
-    pass
-```
-
-Mixin は `MyBot.__init__` を差し替えません。Python の `@bot.event` / `on_...` の処理は通常の discord.py に任せます。関数形式には `dis_mock_client`、クラス形式には `dis_mock_class` のスネークケース別名もあります。
-
-## 注意
-
-- イベント名は `"message"` のように指定し、`"on_message"` は使用しません。
-- `dispatch` は discord.py のイベントスケジュール処理です。非同期コンテキストが必要です。
-- `commands.Bot` の `on_message` やコマンド処理は、discord.py が期待するネイティブ `discord.Message` と適切な状態を要求します。単なる dict によるコマンド実行互換性は未提供です。
-- **通常の `client.login()`, `client.run()`, `client.start()` は本番 Discord にアクセスする可能性があるため、Mock テスト中に呼ばないでください。** ラッパーは SDK の接続メソッドを上書きしません。ネットワーク遮断はテスト実行環境で実施してください。
-- `cd packages/client-py && uv sync && uv run ruff check . && uv run pytest` で discord.py 実クラスとのテストを実行します。
-- PyPI 公開は未実施です。
+`DisMockMixin` と `disMockClass` のクラス継承 API も継続して利用できます。**Voice / Slash command / DM / 権限管理の完全な実装はまだありません。**

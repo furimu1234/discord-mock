@@ -24,5 +24,5 @@ def test_patch_restores_on_error_and_blocks_remote() -> None:
     with pytest.raises(ValueError, match="loopback"), mock_routes("https://discord.com"):
         pass
     with pytest.raises(ZeroDivisionError), mock_routes():
-        1 / 0
+        raise ZeroDivisionError('intentional')
     assert Route.BASE == original

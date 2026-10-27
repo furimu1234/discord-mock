@@ -15,9 +15,9 @@ __all__ = [
     "DisMockClient",
     "DisMockMixin",
     "DiscordMockClient",
-    "dis_mock_class",
-    "dis_mock_client",
     "disMockClass",
     "disMockClient",
+    "dis_mock_class",
+    "dis_mock_client",
     "mock_routes",
 ]

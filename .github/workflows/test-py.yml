@@ -1,0 +1,31 @@
+name: Test Python Client
+on:
+  pull_request:
+    paths:
+      - "packages/client-py/**"
+      - "apps/server/**"
+      - "spec/**"
+      - "tests/**"
+      - ".github/workflows/test-py.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/client-py/**"
+      - "apps/server/**"
+      - "spec/**"
+      - "tests/**"
+      - ".github/workflows/test-py.yml"
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --project packages/client-py
+      - run: uv run --project packages/client-py ruff check packages/client-py
+      - run: uv run --project packages/client-py pytest packages/client-py/tests

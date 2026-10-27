@@ -1,0 +1,20 @@
+name: Test JavaScript Client
+on:
+  pull_request:
+    paths: ["packages/client-js/**", "apps/server/**", "spec/**", "tests/**", "package.json", "tsconfig.base.json", "pnpm-workspace.yaml", ".github/workflows/test-js.yml"]
+  push:
+    branches: [main]
+    paths: ["packages/client-js/**", "apps/server/**", "spec/**", "tests/**", "package.json", "tsconfig.base.json", "pnpm-workspace.yaml", ".github/workflows/test-js.yml"]
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "24"}
+      - uses: pnpm/action-setup@v4
+        with: {version: "11.0.0", run_install: false}
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter @discord-mock/client-js test

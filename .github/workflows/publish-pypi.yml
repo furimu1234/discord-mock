@@ -1,0 +1,40 @@
+name: Publish Python to PyPI (disabled until release readiness)
+on:
+  push:
+    tags: ["py-v*"]
+permissions:
+  contents: read
+jobs:
+  build:
+    if: ${{ vars.ENABLE_CLIENT_RELEASE == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --project packages/client-py
+      - run: uv run --project packages/client-py ruff check packages/client-py
+      - run: uv run --project packages/client-py pytest packages/client-py/tests
+      - name: Check release version
+        run: |
+          python -c 'import os, tomllib; p=tomllib.load(open("packages/client-py/pyproject.toml","rb")); assert os.environ["GITHUB_REF_NAME"]=="py-v"+p["project"]["version"]'
+      - run: uv build --project packages/client-py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-dists
+          path: packages/client-py/dist/
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-dists
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

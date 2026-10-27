@@ -185,3 +185,58 @@
 - [Discord Developer Policy](https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy)
 - [Discord Terms of Service](https://discord.com/terms)
 - [Discord Developer Support お問い合わせ](https://support-dev.discord.com/hc/en-us/requests/new)
+
+## 14. Monorepo 構成・言語別開発ルール
+
+**単一 Git リポジトリのモノレポ**として運用する。3 リポジトリへ分割したり、`AGENTS.md` を外部同期したりしない。
+
+| ディレクトリ | 役割 |
+| --- | --- |
+| `apps/web/` | ブラウザのテスト画面・管理画面 |
+| `apps/server/` | ローカル CLI、Mock REST / Gateway / Voice（必要な部分を段階実装） |
+| `packages/client-js/` | JavaScript テストクライアント・SDK アダプター（npm 独立公開予定） |
+| `packages/client-py/` | Python テストクライアント・SDK アダプター（PyPI 独立公開予定） |
+| `spec/` | 全実装の共通 API 契約と互換仕様 |
+| `tests/` | 両クライアント・サーバー横断の統合 / 互換テスト |
+| `.github/workflows/` | 領域別 CI と JS / Python の独立リリース |
+
+- **JS:** Node.js 22+ と pnpm 11、`pnpm-workspace.yaml`。Web・Server・client-js の workspace を管理する。
+- **Python:** `packages/client-py/pyproject.toml` をルートに持つ独立した uv プロジェクト。`uv` / `ruff` / `pytest` を使用する。Python を pnpm workspace に入れない。
+- 共通仕様に変更があれば **Web / Server / JS / Python で影響するテストと仕様を同じ PR で更新**する。実装していないテストを動作済みと報告しない。
+- 作業対象にある `AGENTS.md` はルート規則への追加要件とする。ルートの規約・セキュリティ要件と矛盾する場合はルートを優先する。
+- JS と Python のバージョン・配布は独立（例: `js-v1.3.0` / `py-v1.2.0`）。公開は OIDC による Trusted Publishing を使い、コード検証と規約確認後に明示的に有効化する。
+- CI の公開 job は GitHub-hosted Runner を使う。開発用のローカル / VPS 限定という本体の制約は変更しない。
+- `main` への直接 push・無断マージをしない。
+
+## 15. 既存 Bot SDK の継承・ラップ方式
+
+`discord.js Client`、`@sapphire/framework SapphireClient`、`discord.py Client`、`discord.ext.commands.Bot` および利用者が作成した派生クラスについて、**インスタンスを渡すラッパーと元のクラスを継承するアダプターの両方**を用意する。
+
+- JavaScript: `disMockClient(existingClient)`、`class UtBot extends disMockMixin(MyBot) {}`、`disMockClientClass(MyBot)` を公開する。
+- Python: `disMockClient(existing_client)`、`class UtBot(DisMockMixin, MyBot): ...`、`class UtBot(disMockClass(MyBot)): ...` を公開する。
+- 元のオブジェクトの同一性、`isinstance` / `instanceof`、コンストラクター引数、独自メソッド、既存イベント登録を保持する。
+- イベント注入は SDK の公開インターフェース（JS の `emit` / Python の `dispatch`）を利用する。未公開メンバーに依存したオブジェクト偽造や強制接続先変更を行わない。
+- **イベント注入と Discord プロトコル互換は別物**である。完全な `Message` / `Interaction` / コマンドパーサー、Gateway 接続、REST/Voice の差し替えが未実装の段階ではその限界をユーザーに明示する。
+- 通常の SDK `login()` / `run()` は Discord 本番に接続する可能性がある。Mock の接続機構ができるまでは使わず、必要に応じてテスト環境の外向きネットワークを遮断する。
+- 変更時は実 SDK のクラスを用いた単体・互換テストを JS / Python の両方で実施し、`spec/` の共通契約との整合を確認する。
+
+## 16. TypeScript / Corepack / manual build / platform support
+
+- `apps/web`、`apps/server`、`packages/client-js` のアプリケーションソースは **TypeScript** に統一する。Python クライアントは Python のまま。
+- 開発時は pnpm workspace と Corepack（導入されている場合）を使用し、`pnpm install`、`pnpm build`、`pnpm test` を実行する。
+- `pnpm dev` や実行時にビルドを暗黙的に行わない。開発者・配布担当者が必要なときに手動でビルドする。
+- ビルド成果物は `dist/` に出力。**配布物の実行には pnpm・Corepack・tsc・esbuild・node_modules を要求しない**。現時点では Node.js ランタイムは必要。単一ネイティブバイナリと混同しない。
+- Windows・Linux・macOS で Node.js 実行をサポートする。NixOS は Nixpkgs の Node.js を使用して実行する。対応OS以外のバイナリをそのままコピーすれば動くとは保証しない。
+- JS SDK の公開 `ClientOptions.rest.api` / `RESTOptions.api` を利用し、REST の接続先をループバックへ切り替える。Mock は Gateway URL 取得 REST と同一のホストでローカル WebSocket URL を返す。
+- Python discord.py の `Route.BASE` は **SDK 非公開実装の互換境界**であり、公式安定 API ではない。テスト専用で一時的・可逆的にパッチする場合は他プロセス・他 Client と共有せず、SDK バージョン・戻し処理を必ずテストする。Discord 本体の非公開 API を解析しないというルールは継続する。
+- 未実装の音声・DM・コマンドを互換済みと宣伝しない。本番 Discord へのフォールバックを追加しない。
+
+## 17. NixOS のプロジェクト専用開発シェル
+
+- `shell.nix` をリポジトリ直下に配置し、`nix-shell` に入ったときのみ Node.js 24・pnpm 11・Python 3.13・uv が利用できるようにする。
+- ユーザーの NixOS 開発環境は `26.05.12658.1f607aa79b63`、nixpkgs は `1f607aa79b6356ed45d3cd3c8079c196e79efa2c`（README に記載）。
+- `environment.systemPackages`・`configuration.nix` の変更や、`npm install -g` / `corepack enable` によるシステム全体のツール追加を前提にしない。
+- Nixpkgs の pnpm 11 を使い、`pnpm_config_pm_on_fail=ignore` で packageManager に記載された別のパッチバージョンを自動ダウンロードしない。
+- uv は Nix が提供する Python に限定し、`UV_PYTHON` と `UV_PYTHON_DOWNLOADS=never` を devShell 内で設定する。
+- シェル入場時の `pnpm install`・`uv sync`・`pnpm build` の自動実行は禁止する。依存関係とビルドは開発者が明示的に行う。
+- `shell.nix` はホストの `<nixpkgs>` を使用するため、記録した nixpkgs リビジョンが固定されていると誤認させない。

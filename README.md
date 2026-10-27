@@ -88,6 +88,18 @@ flowchart TD
 
 この例で `/_mock/...` は **discord-mock 独自のテスト管理 API** であり、Discord 公式 API のエンドポイントではありません。テスト管理 API には、CLI が起動時に表示する `x-discord-mock-secret` が必要です。
 
+## サンプル Bot を使った動作テスト
+
+[`examples/sample-bot/`](examples/sample-bot/README.md) に、**TypeScript 製の `discord.js` サンプル Bot** を用意しています。Bot はダミーユーザーからの `/ping` に `Pong! 🦈` と返信します。
+
+初回セットアップの `pnpm install` と手動ビルドの `pnpm build` を実行した後、以下のコマンドだけでローカル REST / Gateway を通した E2E テストを行えます。
+
+```sh
+pnpm sample:test
+```
+
+テスト内で Mock Server と Bot を自動起動し、`/ping` 相当の `INTERACTION_CREATE` を発火して、コールバック応答が期待どおりかを検証し、両者を停止します。**実 Discord への接続は必要ありません。** 手動起動は `pnpm dev` と `pnpm sample:bot`（Mock のテストトークンを環境変数で渡す）で行えます。詳細は上記サンプルの README を参照してください。
+
 ## 開発者向け：初期セットアップ
 
 ### 共通の前提
@@ -154,6 +166,14 @@ corepack pnpm build
 Corepack を使用しない場合は、別途 pnpm 11 を用意し、`pnpm install` と `pnpm build` を実行します。Python 側を開発する場合は uv をインストールした後に `uv sync --project packages/client-py` を実行します。
 
 > **PR #2 をレビューしている間の補足:** 現在の変更は `main` に未マージです。クローン後、必要に応じて `git fetch origin docs/initial-agents-guidelines-20261027` と `git switch docs/initial-agents-guidelines-20261027` を実行して、この README と実装がある作業ブランチへ移動してください。
+
+### VS Code のターミナル（NixOS / Linux）
+
+このリポジトリには [`.vscode/settings.json`](.vscode/settings.json) を用意しています。**Linux の VS Code でこのフォルダーをワークスペースとして開くと、新しい統合ターミナルは `nix-shell` から起動します。** ターミナルを開くたびに手動で `nix-shell` と入力する必要はありません。
+
+`shell.nix` の pnpm への不要な `nodejs` override を廃止し、`evaluation warning: pnpm: Override nodejs-slim instead of nodejs` を解消しています。起動ごとの案内文も表示しません。VS Code 以外の通常のターミナルでは従来どおり `nix-shell` を実行します。
+
+NixOS 以外の Linux で Nix が入っていない場合は、VS Code のターミナルプロファイルを手動で別のものに切り替えてください。Windows・macOS のターミナル設定は変更しません。
 
 ### 開発サーバーの起動と停止
 

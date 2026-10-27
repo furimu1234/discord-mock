@@ -1,0 +1,11 @@
+{
+  "terminal.integrated.profiles.linux": {
+    "discord-mock (nix-shell)": {
+      "path": "nix-shell",
+      "args": [],
+      "overrideName": true
+    }
+  },
+  "terminal.integrated.defaultProfile.linux": "discord-mock (nix-shell)",
+  "terminal.integrated.cwd": "${workspaceFolder}"
+}

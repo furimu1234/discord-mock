@@ -3,12 +3,12 @@ import { randomBytes } from "node:crypto";
 import { readFile, mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { WebSocketServer, WebSocket, type RawData } from "ws";
-import { renderPage } from "../../web/src/page.js";
+import { renderPage, renderBrowserScript } from "../../web/src/page.js";
 
 export type MockUser = { id: string; username: string; discriminator: string; avatar: null; bot: boolean };
 export type MockChannel = { id: string; guild_id: string; name: string; type: number; position: number; permission_overwrites: unknown[] };
 export type MockMessage = { id: string; channel_id: string; content: string; author: MockUser; timestamp: string; edited_timestamp: null; tts: boolean; mention_everyone: boolean; mentions: unknown[]; mention_roles: string[]; attachments: unknown[]; embeds: unknown[]; pinned: boolean; type: number; flags: number };
-export type MockState = { user: MockUser; guild: { id: string; name: string; owner_id: string; roles: unknown[]; channels: MockChannel[] }; messages: Record<string, MockMessage[]> };
+export type MockState = { user: MockUser; users?: MockUser[]; guild: { id: string; name: string; owner_id: string; roles: unknown[]; channels: MockChannel[] }; messages: Record<string, MockMessage[]> };
 
 const LOCAL = new Set(["127.0.0.1", "::1"]);
 const FALLBACK_CHANNEL = "123456789000000002";
@@ -18,6 +18,10 @@ function initialState(): MockState {
   const guildId = "123456789000000000";
   return {
     user,
+    users: [
+      { id: "123456789000000099", username: "Alice", discriminator: "0", avatar: null, bot: false },
+      { id: "123456789000000098", username: "Bob", discriminator: "0", avatar: null, bot: false },
+    ],
     guild: {
       id: guildId, name: "Mock Guild", owner_id: "123456789000000099",
       roles: [{ id: guildId, name: "@everyone", color: 0, hoist: false, position: 0, permissions: "0", managed: false, mentionable: false }],
@@ -69,10 +73,46 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
       if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
     }
   }
+  if (!Array.isArray(state.users) || !state.users.length) state.users = initialState().users;
   let nextId = BigInt(Date.now()) * 4_194_304n;
   const nextSnowflake = () => String(++nextId);
   const peers = new Set<{ ws: WebSocket; seq: number; identified: boolean; session: string }>();
-  const interactions = new Map<string, { token: string; response?: Record<string, unknown> }>();
+  const interactions = new Map<string, { token: string; response?: Record<string, unknown>; channelId?: string }>();
+  type BrowserSession = { selectedUserId: string; csrf: string };
+  const browserSessions = new Map<string, BrowserSession>();
+  const subscribers = new Set<ServerResponse>();
+  function notifyBrowser() {
+    for (const subscriber of subscribers) subscriber.write("event: changed\ndata: {}\n\n");
+  }
+  function getSession(req: IncomingMessage): BrowserSession | undefined {
+    const id = /(?:^|;\s*)discord_mock_session=([a-f0-9]{48})(?:;|$)/.exec(req.headers.cookie ?? "")?.[1];
+    return id ? browserSessions.get(id) : undefined;
+  }
+  function view(session: BrowserSession) {
+    return {
+      guild: state.guild,
+      users: state.users ?? [],
+      messages: state.messages,
+      selectedUserId: session.selectedUserId,
+      botConnections: [...peers].filter((peer) => peer.identified).length,
+    };
+  }
+  function makeMessage(channelId: string, content: string, author: MockUser): MockMessage {
+    return {
+      id: nextSnowflake(), channel_id: channelId, content, author,
+      timestamp: new Date().toISOString(), edited_timestamp: null, tts: false,
+      mention_everyone: false, mentions: [], mention_roles: [], attachments: [], embeds: [],
+      pinned: false, type: 0, flags: 0,
+    };
+  }
+  function dispatchMessage(msg: MockMessage) {
+    (state.messages[msg.channel_id] ??= []).push(msg);
+    broadcast("MESSAGE_CREATE", {
+      ...msg, guild_id: state.guild.id,
+      member: { roles: [], joined_at: new Date().toISOString(), flags: 0, user: msg.author },
+    });
+    notifyBrowser();
+  }
   async function persist() {
     if (!dataPath) return;
     await mkdir(dirname(dataPath), { recursive: true });
@@ -107,8 +147,80 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
     try {
       if (method === "GET" && path === "/health") { send(res, 200, { status: "ok", service: "discord-mock" }); return; }
       if (method === "GET" && ["/", "/test", "/admin"].includes(path) && !isApi) {
-        res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" });
+        res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'", "x-content-type-options": "nosniff" });
         res.end(renderPage()); return;
+      }
+      if (method === "GET" && path === "/_ui/client.js") {
+        res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+        res.end(renderBrowserScript()); return;
+      }
+      if (path.startsWith("/_ui/")) {
+        if (method === "GET" && path === "/_ui/session") {
+          let session = getSession(req);
+          if (!session) {
+            const id = randomBytes(24).toString("hex");
+            session = { selectedUserId: state.users![0].id, csrf: randomBytes(24).toString("hex") };
+            browserSessions.set(id, session);
+            res.setHeader("set-cookie", "discord_mock_session=" + id + "; HttpOnly; SameSite=Strict; Path=/_ui");
+          }
+          send(res, 200, { csrf: session.csrf, selectedUserId: session.selectedUserId, users: state.users });
+          return;
+        }
+        const session = getSession(req);
+        if (!session) { error(res, 401, "Open /test to start a local browser session"); return; }
+        if (method === "GET" && path === "/_ui/state") { send(res, 200, view(session)); return; }
+        if (method === "GET" && path === "/_ui/events") {
+          res.writeHead(200, {
+            "content-type": "text/event-stream; charset=utf-8",
+            "cache-control": "no-cache, no-transform",
+            "x-content-type-options": "nosniff",
+          });
+          res.write(": connected\n\n");
+          subscribers.add(res);
+          const keepAlive = setInterval(() => res.write(": ping\n\n"), 25000);
+          req.once("close", () => { clearInterval(keepAlive); subscribers.delete(res); });
+          return;
+        }
+        if (method !== "POST") { error(res, 405, "Method not allowed"); return; }
+        if (req.headers["x-discord-mock-csrf"] !== session.csrf) { error(res, 403, "Invalid browser CSRF token"); return; }
+        const body = await jsonBody(req);
+        if (path === "/_ui/identity") {
+          const user = state.users?.find((u) => u.id === body.user_id);
+          if (!user) { error(res, 400, "Unknown dummy user"); return; }
+          session.selectedUserId = user.id;
+          send(res, 200, { selectedUserId: user.id }); return;
+        }
+        if (path === "/_ui/messages") {
+          const channel = state.guild.channels.find((c) => c.id === body.channel_id && c.type === 0);
+          if (!channel || typeof body.content !== "string" || !body.content.trim() || body.content.length > 2000) {
+            error(res, 400, "Invalid channel or message"); return;
+          }
+          const actor = state.users!.find((u) => u.id === session.selectedUserId)!;
+          const msg = makeMessage(channel.id, body.content, actor);
+          dispatchMessage(msg);
+          await persist();
+          send(res, 201, msg); return;
+        }
+        if (path === "/_ui/interaction") {
+          const channel = state.guild.channels.find((c) => c.id === body.channel_id && c.type === 0);
+          if (!channel || typeof body.name !== "string" || !/^[\w-]{1,32}$/.test(body.name)) {
+            error(res, 400, "Invalid command or channel"); return;
+          }
+          const actor = state.users!.find((u) => u.id === session.selectedUserId)!;
+          const id = nextSnowflake(), interactionToken = "mock_interaction_" + randomBytes(18).toString("hex");
+          interactions.set(id, { token: interactionToken, channelId: channel.id });
+          broadcast("INTERACTION_CREATE", {
+            id, application_id: APP_ID, type: 2, data: { id: nextSnowflake(), type: 1, name: body.name, options: [] },
+            guild_id: state.guild.id, channel_id: channel.id, channel,
+            token: interactionToken, version: 1,
+            member: { user: actor, roles: [], permissions: "0", joined_at: new Date().toISOString(), flags: 0 },
+            app_permissions: "0", locale: "ja", guild_locale: "ja",
+            entitlements: [], authorizing_integration_owners: { "0": state.guild.id },
+            context: 0, attachment_size_limit: 8_388_608,
+          });
+          send(res, 201, { id }); return;
+        }
+        error(res, 404, "Unknown browser route"); return;
       }
       if (method === "GET" && path === "/_mock/state") {
         if (req.headers["x-discord-mock-secret"] !== adminSecret) { error(res, 403, "Invalid mock admin secret"); return; }
@@ -180,6 +292,10 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
           error(res, 400, "Unsupported interaction response type"); return;
         }
         item.response = reply;
+        if (reply.type === 4 && typeof (reply.data as { content?: unknown } | undefined)?.content === "string" && item.channelId) {
+          dispatchMessage(makeMessage(item.channelId, (reply.data as { content: string }).content, state.user));
+          await persist();
+        }
         if (new URL(req.url ?? "/", "http://localhost").searchParams.get("with_response") === "true") {
           send(res, 200, { interaction: { id: callback[1], type: reply.type, response_message_id: null }, resource: null });
         } else {
@@ -203,14 +319,8 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
         if (method === "POST") {
           const body = await jsonBody(req);
           if (typeof body.content !== "string" || body.content.length > 2000) { error(res, 400, "Invalid content"); return; }
-          const msg: MockMessage = {
-            id: nextSnowflake(), channel_id: messages[1], content: body.content, author: state.user,
-            timestamp: new Date().toISOString(), edited_timestamp: null, tts: false,
-            mention_everyone: false, mentions: [], mention_roles: [], attachments: [], embeds: [],
-            pinned: false, type: 0, flags: 0,
-          };
-          (state.messages[messages[1]] ??= []).push(msg); await persist();
-          broadcast("MESSAGE_CREATE", { ...msg, guild_id: state.guild.id }); send(res, 200, msg); return;
+          const msg = makeMessage(messages[1], body.content, state.user);
+          dispatchMessage(msg); await persist(); send(res, 200, msg); return;
         }
       }
       error(res, 404, "Not implemented in discord-mock");
@@ -235,6 +345,7 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
         if (obj.op === 2) {
           if (obj.d?.token !== token) { ws.close(4004, "invalid mock token"); return; }
           peer.identified = true;
+          notifyBrowser();
           ws.send(JSON.stringify({ op: 0, t: "READY", s: ++peer.seq, d: {
             v: 10, user: state.user, guilds: [{ id: state.guild.id, unavailable: true }],
             session_id: peer.session, resume_gateway_url: wsUrl(), application: { id: APP_ID, flags: 0 },
@@ -257,7 +368,7 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
         }
       } catch { ws.close(4002, "invalid gateway payload"); }
     });
-    ws.on("close", () => peers.delete(peer));
+    ws.on("close", () => { peers.delete(peer); notifyBrowser(); });
   });
   function wsUrl() { const a = server.address() as {port:number}; return `ws://${host === "::1" ? "[::1]" : host}:${a.port}/gateway`; }
   await new Promise<void>((resolve, reject) => {
@@ -269,6 +380,9 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
   return {
     server, url, token, adminSecret,
     async close() {
+      for (const subscriber of subscribers) subscriber.end();
+      subscribers.clear();
+      browserSessions.clear();
       for (const peer of peers) peer.ws.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
       await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

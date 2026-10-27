@@ -1,0 +1,17 @@
+{
+  "name": "discord-mock-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.0.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "pnpm --filter @discord-mock/server dev",
+    "test": "pnpm -r test",
+    "test:web": "pnpm --filter @discord-mock/web test",
+    "test:server": "pnpm --filter @discord-mock/server test",
+    "test:js": "pnpm --filter @discord-mock/client-js test",
+    "test:py": "uv run --project packages/client-py pytest",
+    "lint:py": "uv run --project packages/client-py ruff check packages/client-py"
+  }
+}

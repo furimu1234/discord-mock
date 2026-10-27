@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info:
+  title: discord-mock local management API (preview)
+  version: 0.0.0
+  description: >
+    A local-only health endpoint for the monorepo scaffold. This specification
+    does NOT claim compatibility with Discord REST, Gateway, or Voice yet.
+servers:
+  - url: http://127.0.0.1:3000
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Check local Mock server status
+      responses:
+        "200":
+          description: Health response
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                  service:
+                    type: string
+                    const: discord-mock
+                additionalProperties: false

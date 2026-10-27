@@ -1,0 +1,14 @@
+{
+  "name": "@discord-mock/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "discord-mock": "./bin/discord-mock.mjs"
+  },
+  "scripts": {
+    "dev": "node bin/discord-mock.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": { "node": ">=22" }
+}

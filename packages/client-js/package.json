@@ -1,0 +1,18 @@
+{
+  "name": "@discord-mock/client-js",
+  "version": "0.0.0",
+  "description": "Local-only test-side client for discord-mock (preview)",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "files": ["src", "README.md"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/furimu1234/discord-mock.git",
+    "directory": "packages/client-js"
+  },
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

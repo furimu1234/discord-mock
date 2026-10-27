@@ -185,3 +185,25 @@
 - [Discord Developer Policy](https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy)
 - [Discord Terms of Service](https://discord.com/terms)
 - [Discord Developer Support お問い合わせ](https://support-dev.discord.com/hc/en-us/requests/new)
+
+## 14. Monorepo 構成・言語別開発ルール
+
+**単一 Git リポジトリのモノレポ**として運用する。3 リポジトリへ分割したり、`AGENTS.md` を外部同期したりしない。
+
+| ディレクトリ | 役割 |
+| --- | --- |
+| `apps/web/` | ブラウザのテスト画面・管理画面 |
+| `apps/server/` | ローカル CLI、Mock REST / Gateway / Voice（必要な部分を段階実装） |
+| `packages/client-js/` | JavaScript テストクライアント・SDK アダプター（npm 独立公開予定） |
+| `packages/client-py/` | Python テストクライアント・SDK アダプター（PyPI 独立公開予定） |
+| `spec/` | 全実装の共通 API 契約と互換仕様 |
+| `tests/` | 両クライアント・サーバー横断の統合 / 互換テスト |
+| `.github/workflows/` | 領域別 CI と JS / Python の独立リリース |
+
+- **JS:** Node.js 22+ と pnpm 11、`pnpm-workspace.yaml`。Web・Server・client-js の workspace を管理する。
+- **Python:** `packages/client-py/pyproject.toml` をルートに持つ独立した uv プロジェクト。`uv` / `ruff` / `pytest` を使用する。Python を pnpm workspace に入れない。
+- 共通仕様に変更があれば **Web / Server / JS / Python で影響するテストと仕様を同じ PR で更新**する。実装していないテストを動作済みと報告しない。
+- 作業対象にある `AGENTS.md` はルート規則への追加要件とする。ルートの規約・セキュリティ要件と矛盾する場合はルートを優先する。
+- JS と Python のバージョン・配布は独立（例: `js-v1.3.0` / `py-v1.2.0`）。公開は OIDC による Trusted Publishing を使い、コード検証と規約確認後に明示的に有効化する。
+- CI の公開 job は GitHub-hosted Runner を使う。開発用のローカル / VPS 限定という本体の制約は変更しない。
+- `main` への直接 push・無断マージをしない。

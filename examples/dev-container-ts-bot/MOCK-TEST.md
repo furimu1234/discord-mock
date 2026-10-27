@@ -47,4 +47,6 @@ pnpm sample:bot
 
 ダミーユーザーのイベント送信は `/_mock/dispatch` と管理用シークレットを使います。現段階ではブラウザ上のダミーユーザー操作 UI は未実装です。
 
-元の devcontainer 構成は**参考用として保存**しています。Discord Mock のルートプロジェクトで開発する際は NixOS の `shell.nix` を使用し、Docker / PostgreSQL は不要です。
+移植元の `.devcontainer/` は **Node.js 24 / pnpm 11 に更新**しました。VS Code の Dev Containers で `examples/dev-container-ts-bot/` を開くと、ワークスペースは外側の `discord-mock` ルートをマウントして使う構成です。初回の `pnpm install` は Dev Container 作成時に行いますが、`pnpm build` は引き続き手動です。PostgreSQL コンテナは従来どおり起動しますが、`pnpm sample:test` は DB サーバーに依存しません。**Dev Container 自体の Docker 起動検証は CI では行っていません。**
+
+NixOS の場合は従来どおりルートの `shell.nix` を使えば、Docker / PostgreSQL なしで E2E を実行できます。

@@ -1,5 +1,5 @@
 import type {
-	Interaction,
+	ChatInputCommandInteraction,
 	RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from 'discord.js';
 import type { Container as ContainerInstance } from './container';
@@ -10,7 +10,7 @@ export type ContainerRef = Ref<
 	Awaited<ReturnType<typeof ContainerInstance> | undefined>
 >;
 
-export type commandExecute = (interaction: Interaction) => Promise<void>;
+export type commandExecute = (interaction: ChatInputCommandInteraction) => Promise<void>;
 export type slashCommands = RESTPostAPIChatInputApplicationCommandsJSONBody[];
 
 export interface AutoConfigInstantServer {

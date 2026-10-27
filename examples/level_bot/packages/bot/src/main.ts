@@ -1,75 +1,58 @@
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
+import { loadCommands, commandsCollection } from './commands/main.js';
+import { Container, container } from './container.js';
+import { execute as onLevelingMessage } from './events/leveling.js';
+import { slashCommandRegister } from './utils/register.js';
 
-import type { Logger } from 'pino';
+export function createBotClient(): Client {
+  return new Client({
+    intents: [
+      GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildMessageReactions,
+    ],
+    partials: [
+      Partials.GuildMember, Partials.User, Partials.Reaction,
+      Partials.Message, Partials.Channel,
+    ],
+    waitGuildTimeout: 500,
+  });
+}
 
-import path from 'node:path';
-import { loadCommands } from './commands/main';
+async function initializeBot(client: Client<true>): Promise<void> {
+  container.current = Container();
+  const logger = container.current.logger;
+  logger.info('=============BOT START=============');
+  logger.info(client.user.displayName);
+  const commands = await loadCommands();
+  await slashCommandRegister(client, commands);
+}
 
-import { schema } from '@ex/db';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/postgres-js/migrator';
-import { Pool } from 'pg';
-import { Container, container } from './container';
-import { loadEvents } from './loadEvents';
-import { slashCommandRegister } from './utils/register';
+/** Register handlers before connecting and wait for asynchronous Ready setup. */
+export async function runClient(client: Client, connect: () => Promise<unknown>) {
+  client.setMaxListeners(30);
+  const failures: unknown[] = [];
+  client.on(Events.Error, (error) => {
+    failures.push(error);
+    console.error('[level_bot]', error.message);
+  });
+  const reportFailure = (error: unknown) => {
+    client.emit(Events.Error, error instanceof Error ? error : new Error(String(error)));
+  };
+  client.on(Events.MessageCreate, (message) => {
+    void onLevelingMessage(message).catch(reportFailure);
+  });
+  client.on(Events.InteractionCreate, (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    const execute = commandsCollection.get(interaction.commandName);
+    if (execute) void execute(interaction).catch(reportFailure);
+  });
 
-const client = new Client({
-	intents: [
-		GatewayIntentBits.Guilds,
-		GatewayIntentBits.GuildMessages,
-		GatewayIntentBits.GuildVoiceStates,
-		GatewayIntentBits.GuildMembers,
-		GatewayIntentBits.GuildMessageReactions,
-	],
-	partials: [
-		Partials.GuildMember,
-		Partials.User,
-		Partials.Reaction,
-		Partials.Message,
-		Partials.Channel,
-	],
-});
-client.setMaxListeners(30);
-
-let logger: Logger<never, boolean>;
-
-loadEvents(client, path.resolve(path.dirname(__filename), './events'));
-
-client.once(Events.ClientReady, async () => {
-	container.current = Container();
-
-	logger = container.current.logger;
-
-	if (client.user) {
-		logger.info('=============BOT START=============');
-		logger.info(client.user?.displayName);
-		const commands = await loadCommands();
-		await slashCommandRegister(client.user, commands);
-
-		//再起動前からVCに入ってた場合、最後に保存された起動時間と保存されてるVC入室時間をもとにexpとレベルを計算する
-	}
-});
-
-client.on(Events.Error, async (error) => {
-	console.error(error);
-});
-
-export const runClient = async (client: Client) => {
-	const pool = new Pool({
-		connectionString: process.env.PG_URL,
-	});
-
-	const db = drizzle<typeof schema>(pool, {
-		schema: schema,
-	});
-
-	await migrate(db, {
-		migrationsFolder: path.resolve(
-			path.dirname(__filename),
-			'../../../db/drizzle',
-		),
-		migrationsSchema: path.resolve(path.dirname(__filename), '../../db/schema'),
-	});
-
-	client.login('');
-};
+  const initialized = new Promise<void>((resolve, reject) => {
+    client.once(Events.ClientReady, (readyClient) => {
+      void initializeBot(readyClient).then(resolve, reject);
+    });
+  });
+  await Promise.all([Promise.resolve().then(connect), initialized]);
+  return { failures };
+}

@@ -1,8 +1,6 @@
-import { type InferSelectModel, and, eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { SchemaDB } from '../client';
 import { lvl } from '../schema';
-
-type values = InferSelectModel<typeof lvl>;
 
 /**
  * ユーザのレベルを更新する

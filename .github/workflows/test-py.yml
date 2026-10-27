@@ -4,6 +4,11 @@ on:
     paths:
       - "packages/client-py/**"
       - "apps/server/**"
+      - "apps/web/**"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - "tsconfig.base.json"
       - "spec/**"
       - "tests/**"
       - ".github/workflows/test-py.yml"
@@ -12,6 +17,11 @@ on:
     paths:
       - "packages/client-py/**"
       - "apps/server/**"
+      - "apps/web/**"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - "tsconfig.base.json"
       - "spec/**"
       - "tests/**"
       - ".github/workflows/test-py.yml"
@@ -26,6 +36,14 @@ jobs:
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with: {node-version: "24"}
+      - uses: pnpm/action-setup@v4
+        with: {version: "11.0.0", run_install: false}
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm --filter @discord-mock/web build
+      - run: pnpm --filter @discord-mock/server build
       - run: uv sync --project packages/client-py
       - run: uv run --project packages/client-py ruff check packages/client-py
+      - run: uv run --project packages/client-py ruff format --check packages/client-py
       - run: uv run --project packages/client-py pytest packages/client-py/tests

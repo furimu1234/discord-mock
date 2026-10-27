@@ -1,7 +1,6 @@
-import { Client, Events, GatewayIntentBits, Partials } from 'discord.js';
 import { disMockClient } from '@discord-mock/client-js';
-import { Container, container } from './container';
-import { execute as onLevelingMessage } from './events/leveling';
+import { container } from './container.js';
+import { createBotClient, runClient } from './main.js';
 
 /**
  * Local runner only: the application handler and DB access code are the
@@ -16,30 +15,9 @@ export async function startLevelBot(baseUrl: string, token: string, postgresDsn:
     throw new Error('A PostgreSQL connection string is required');
   }
   process.env.POST_URL = postgresDsn;
-  const client = new Client({
-    intents: [
-      GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.GuildVoiceStates, GatewayIntentBits.GuildMembers,
-      GatewayIntentBits.GuildMessageReactions,
-    ],
-    partials: [
-      Partials.GuildMember, Partials.User, Partials.Reaction,
-      Partials.Message, Partials.Channel,
-    ],
-    waitGuildTimeout: 500,
-  });
-  client.setMaxListeners(30);
-  container.current = Container();
-  const failures: unknown[] = [];
-  client.on(Events.Error, (error) => { failures.push(error); console.error('[level_bot]', error); });
-  client.on(Events.MessageCreate, (message) => {
-    void onLevelingMessage(message).catch((error) => {
-      failures.push(error);
-      client.emit(Events.Error, error);
-    });
-  });
+  const client = createBotClient();
   try {
-    await disMockClient(client, { baseUrl }).connect(token);
+    const { failures } = await runClient(client, () => disMockClient(client, { baseUrl }).connect(token));
     return {
       client,
       failures,

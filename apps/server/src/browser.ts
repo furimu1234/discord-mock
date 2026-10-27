@@ -1,0 +1,182 @@
+import { randomBytes } from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import type { BrowserState, SessionResponse } from "../../web/src/types.js";
+import type { MockEnvironment } from "./environment.js";
+import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
+
+interface BrowserSession {
+  selectedUserId: string;
+  csrf: string;
+}
+
+/** Browser identity is independent of the admin API's secret. */
+export class BrowserRoutes {
+  private readonly sessions = new Map<string, BrowserSession>();
+  private readonly subscribers = new Set<ServerResponse>();
+
+  constructor(
+    private readonly environment: MockEnvironment,
+    private readonly botConnectionCount: () => number,
+  ) {
+    environment.on("changed", this.notifySubscribers);
+  }
+
+  private readonly notifySubscribers = (): void => {
+    for (const subscriber of this.subscribers) {
+      subscriber.write("event: changed\ndata: {}\n\n");
+    }
+  };
+
+  private getSession(request: IncomingMessage): BrowserSession | undefined {
+    const sessionId = /(?:^|;\s*)discord_mock_session=([a-f0-9]{48})(?:;|$)/
+      .exec(request.headers.cookie ?? "")?.[1];
+    return sessionId ? this.sessions.get(sessionId) : undefined;
+  }
+
+  private openSession(request: IncomingMessage, response: ServerResponse): void {
+    let session = this.getSession(request);
+    if (!session) {
+      const sessionId = randomBytes(24).toString("hex");
+      session = {
+        selectedUserId: this.environment.state.users[0].id,
+        csrf: randomBytes(24).toString("hex"),
+      };
+      this.sessions.set(sessionId, session);
+      response.setHeader(
+        "set-cookie",
+        `discord_mock_session=${sessionId}; HttpOnly; SameSite=Strict; Path=/_ui`,
+      );
+    }
+
+    const result: SessionResponse = {
+      csrf: session.csrf,
+      selectedUserId: session.selectedUserId,
+      users: this.environment.state.users,
+    };
+    sendJson(response, 200, result);
+  }
+
+  private view(session: BrowserSession): BrowserState {
+    const { guild, users, messages } = this.environment.state;
+    return {
+      guild,
+      users,
+      messages,
+      commands: this.environment.availableCommands(),
+      selectedUserId: session.selectedUserId,
+      botConnections: this.botConnectionCount(),
+    };
+  }
+
+  private subscribe(request: IncomingMessage, response: ServerResponse): void {
+    response.writeHead(200, {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      "x-content-type-options": "nosniff",
+    });
+    response.write(": connected\n\n");
+    this.subscribers.add(response);
+    const keepAlive = setInterval(() => response.write(": ping\n\n"), 25_000);
+    request.once("close", () => {
+      clearInterval(keepAlive);
+      this.subscribers.delete(response);
+    });
+  }
+
+  async handle({ request, response, method, path }: RouteContext): Promise<void> {
+    if (method === "GET" && path === "/_ui/session") {
+      this.openSession(request, response);
+      return;
+    }
+
+    const session = this.getSession(request);
+    if (!session) {
+      sendError(response, 401, "Open /test to start a local browser session");
+      return;
+    }
+    if (method === "GET" && path === "/_ui/state") {
+      sendJson(response, 200, this.view(session));
+      return;
+    }
+    if (method === "GET" && path === "/_ui/events") {
+      this.subscribe(request, response);
+      return;
+    }
+    if (method !== "POST") {
+      sendError(response, 405, "Method not allowed");
+      return;
+    }
+    if (request.headers["x-discord-mock-csrf"] !== session.csrf) {
+      sendError(response, 403, "Invalid browser CSRF token");
+      return;
+    }
+
+    const body = await readJsonBody(request);
+    const { state } = this.environment;
+
+    if (path === "/_ui/identity") {
+      const user = state.users.find((user) => user.id === body.user_id);
+      if (!user) {
+        sendError(response, 400, "Unknown dummy user");
+        return;
+      }
+      session.selectedUserId = user.id;
+      sendJson(response, 200, { selectedUserId: user.id });
+      return;
+    }
+
+    if (path === "/_ui/messages") {
+      const channel = state.guild.channels.find((channel) => channel.id === body.channel_id && channel.type === 0);
+      if (
+        !channel ||
+        typeof body.content !== "string" ||
+        !body.content.trim() ||
+        body.content.length > 2000
+      ) {
+        sendError(response, 400, "Invalid channel or message");
+        return;
+      }
+      const actor = state.users.find((user) => user.id === session.selectedUserId);
+      if (!actor) throw new Error("Browser session has no dummy user");
+      const message = await this.environment.postMessage(channel.id, body.content, actor);
+      sendJson(response, 201, message);
+      return;
+    }
+
+    if (path === "/_ui/interaction") {
+      const channel = state.guild.channels.find((channel) => channel.id === body.channel_id && channel.type === 0);
+      if (!channel) {
+        sendError(response, 400, "Invalid command or channel");
+        return;
+      }
+      const command = this.environment.availableCommands().find((command) =>
+        body.command_id !== undefined ? command.id === body.command_id : command.name === body.name,
+      );
+      if (!command) {
+        sendError(response, 404, "Unknown registered command");
+        return;
+      }
+      const actor = state.users.find((user) => user.id === session.selectedUserId);
+      if (!actor) throw new Error("Browser session has no dummy user");
+      const interaction = this.environment.createInteraction({
+        actor,
+        channelId: channel.id,
+        commandName: command.name,
+        commandId: command.id,
+        commandGuildId: command.guild_id,
+        showReplyInTimeline: true,
+      });
+      sendJson(response, 201, { id: interaction.id });
+      return;
+    }
+
+    sendError(response, 404, "Unknown browser route");
+  }
+
+  close(): void {
+    this.environment.off("changed", this.notifySubscribers);
+    for (const subscriber of this.subscribers) subscriber.end();
+    this.subscribers.clear();
+    this.sessions.clear();
+  }
+}

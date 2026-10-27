@@ -12,6 +12,7 @@ test("discord.js Client inherits all existing methods and uses local API route",
     assert.ok(bot instanceof MyBot);
     assert.equal(bot.myMethod(), 42);
     assert.equal(bot.mock.client, bot);
+    assert.strictEqual(bot.mock, bot.mock);
     assert.equal(bot.rest.options.api, "http://127.0.0.1:3000/api");
     const events = [];
     bot.on("testEvent", (v) => events.push(v));

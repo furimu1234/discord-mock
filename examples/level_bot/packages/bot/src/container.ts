@@ -2,8 +2,8 @@ import { MakeDataStore, schema } from '@ex/db';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import pino from 'pino';
-import { ENV } from './env.ts';
-import type { ContainerRef } from './types.ts';
+import { ENV } from './env.js';
+import type { ContainerRef } from './types.js';
 
 export const Container = () => {
   const logger = pino({

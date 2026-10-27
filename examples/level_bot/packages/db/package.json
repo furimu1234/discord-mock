@@ -4,14 +4,22 @@
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
+  "types": "./src/index.ts",
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/index.js"
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/index.js",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "drizzle-orm": "^0.43.1",
     "pg": "^8.15.6"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.11"
   }
 }

@@ -1,0 +1,11 @@
+{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@discord-mock/client-js": ["../../../../packages/client-js/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

@@ -68,9 +68,30 @@ flowchart LR
 - JSON の永続化は `DISCORD_MOCK_STATE_PATH` 指定時のみ有効で、現状は主にメッセージ更新の保存に対応しています。Interaction の応答など、すべてのランタイム状態が永続化されるわけではありません。
 - Voice Gateway・UDP / RTP による実際の音声通信は未実装です。
 
+### ソースコードの読み方
+
+`apps/server/src/server.ts` は起動・終了とルーティングを担当します。各処理は次のファイルに分かれています。
+
+| ファイル（`apps/server/src/` 内） | 責務 |
+| --- | --- |
+| `models.ts` / `fixtures.ts` | 状態の型と初期ダミーデータ |
+| `environment.ts` | ブラウザ・管理 API・Bot REST に共通のメッセージ／Interaction 操作 |
+| `persistence.ts` | JSON の読込と一時ファイル経由の保存 |
+| `browser.ts` | テスト用セッション・CSRF・ブラウザ API・SSE |
+| `admin.ts` / `rest.ts` | 管理用シークレットで保護する API と Bot 向け REST |
+| `gateway.ts` | WebSocket 接続と Gateway イベント配信 |
+| `database.ts` / `database-routes.ts` | 任意の DB 参照プロバイダーと、独立したローカルセッションで保護する読み取り API |
+| `http.ts` | JSON リクエスト・応答と Origin 判定 |
+
+Web は `apps/web/src/page.ts`（HTML）、`styles.css`（見た目）、`browser.ts`（型付き DOM 操作）、`types.ts`（ブラウザ API の表示用の型）に分かれています。ブラウザの処理も通常の TypeScript として型チェックします。
+
+DB 画面は `apps/web/src/database.ts`、PGlite の参照実装は `examples/level_bot/src/database-inspector.ts` に分けています。
+
+ルートの `pnpm build` は Web の JavaScript を先に生成し、その内容と CSS をサーバー配布物へ組み込みます。個別にビルドする場合も Web → Server の順で実行してください。配布後は従来どおり `discord-mock.cjs` 単体で起動できます。`pnpm test` はビルド済みのブラウザ処理を DOM フィクスチャで検証し、実ブラウザによる表示確認は行いません。
+
 ### テスト実行フロー（Mermaid）
 
-以下は **現在実装している最小限の Interaction 経路**です。管理 API を使ってダミーユーザーの操作イベントを生成し、Bot が返したコールバック応答を確認します。ブラウザ上でコマンドを選択・実行する UI はまだありません。
+以下は **現在実装している管理 API の Interaction 経路**です。ブラウザでは `/` による登録済みコマンドの一覧・選択・実行も利用できます。
 
 ```mermaid
 flowchart TD
@@ -97,18 +118,48 @@ flowchart TD
 ```sh
 pnpm install
 pnpm build
-pnpm demo
+pnpm app
 ```
 
-表示される `http://127.0.0.1:3000/test` を開いてください。`Alice` / `Bob` などのダミーユーザーとして投稿すると、同じ Mock Server の Gateway 経由で **実際の `discord.js Client`** に `MESSAGE_CREATE` が届き、移植したレベリング処理が実行されます。Bot が通常の REST API で送信したメッセージはブラウザのタイムラインにも反映します（レベリング Bot 自身は返信メッセージを送らない設計です）。
+`pnpm app` は Web・Mock REST/Gateway・PGlite を起動します。表示された `TOKEN=mock_...` をリポジトリ直下の `.env` に設定してください（[`.env.example`](.env.example) を参照）。
 
-**DB は PGlite のインメモリ PostgreSQL を利用**します。`pnpm demo` はループバック TCP 上に通常の PostgreSQL wire protocol を公開して `POST_URL=postgresql://...` 形式の DSN を生成します。Bot 内の `pg.Pool`・Drizzle ORM・`@ex/db` は本物の PostgreSQL と同じ経路を使います。別途 PostgreSQL コンテナを起動する必要はありません。プロセス終了時に DB データは失われます。
+```dotenv
+# discord用
+#TOKEN=<本番用トークン>
+
+# テスト用（pnpm app が表示した値）
+TOKEN=mock_ここを払い出された値に置換
+```
+
+別のターミナルで、同じリポジトリから Bot を起動します。
+
+```sh
+pnpm bot
+```
+
+表示される `http://127.0.0.1:3000/test` を開いてください。`Alice` / `Bob` などのダミーユーザーとして投稿すると、Mock Gateway 経由で **実際の `discord.js Client`** に `MESSAGE_CREATE` が届き、レベリング処理が実行されます。Bot が通常の REST API で送信したメッセージもブラウザに反映します（レベル更新処理では返信を投稿しません）。Bot だけを終了・再起動しても app と DB は動き続けます。
+
+Bot の Ready 初期化で `BOT START` を出力し、サンプルコマンドを Mock REST に登録します。入力欄に `/` を入れると登録済みコマンドが表示され、文字を続けると絞り込めます。クリック、または ↑↓ と Enter / Tab で補完し、送信すると Bot の応答が表示されます。日本語のコマンド名も利用できます。現在は引数なし CHAT_INPUT の登録・実行に対応しています。対応 REST・JSON・制約は [コマンド仕様](spec/commands.md) を参照してください。
+
+コマンド返信の上には「ユーザー さんが /コマンド名 を使用しました」を表示します。応答を待つ間にユーザーを切り替えても、実行した人の表示を維持します。
+
+サイドバーの **データベース**（または左端の **DB**）から `/database` を開くと、キー入力なしでテーブルのレコードを確認できます。左側で `example` → `lvl` などのテーブルを選択してください。列名・型・主キー、検索、列見出しによる並び替え、ページ切替、更新ボタンを備えた読み取り専用画面です。Bot が使う同じ PGlite を参照します。DB 用のローカルセッションは自動作成し、ダミーユーザーや Bot の `TOKEN` とは分離します。詳細は [DB ビュー仕様](spec/database.md) を参照してください。
+
+**トークンは `.discord-mock-data/credentials.json` に保存**されます。ファイルまたは `token` フィールドがなければ生成し、既存の `mock_` トークンがあれば再利用します。壊れた JSON や本番用トークンは上書きせずエラーにします。`.env` の読み込みは既存の環境変数を上書きしません。Bot は `TOKEN` を優先し、旧 `DISCORD_MOCK_TOKEN` も後方互換用に受け付けます。
+
+**DB は PGlite のインメモリ PostgreSQL を利用**します。通常の PostgreSQL wire protocol をループバック TCP に公開し、接続先を `.discord-mock-data/runtime.json` に書き出します。Bot はこの接続先を使って本物の `pg.Pool`・Drizzle ORM・`@ex/db` を動かすため、通常は `POST_URL` の設定も PostgreSQL コンテナも不要です。app を終了すると DB データは消えますが、トークン JSON は残ります。
+
+両コマンドは起動時にルートの `.env` を読みます。`DISCORD_MOCK_PORT` で app のポート、`DISCORD_MOCK_DATA_DIR` で JSON の保存先を変更できます。`runtime.json` は正常終了時に削除します。同じ保存先の app は排他ロックで二重起動を拒否します。強制終了で `app.lock` や `credentials.json.lock` が残った場合は、関連プロセスが停止済みであることを確認してからそのロックファイルだけを削除してください。既定の保存先と `.env` は Git 管理対象外です。
+
+`pnpm bot` も同じ保存先の `bot.lock` で重複起動を拒否し、終了時・起動失敗時にロックを解放します。強制終了で残った場合の復旧は app のロックと同じです。同じ Bot を複数の SDK 接続から動かすと各イベントが複数回処理され得るため、通常は1つだけ起動してください。同じ Interaction の初期返信は、複数接続から同時に届いても最初の1件だけを保存・表示します。
+
+app を使わず手動で接続先を指定する場合は、`TOKEN`・`DISCORD_MOCK_URL`・`POST_URL` を設定します。HTTP と DB はループバックのみ許可します。起動中 app の `runtime.json` がある場合はその DB 接続先を優先します。`pnpm demo` による Mock・DB・Bot の一括起動も引き続き利用できます。各コマンドはビルドを自動実行しません。
 
 ```sh
 pnpm sample:test
 ```
 
-こちらは独立した Mock Server + DB + Bot の E2E を自動起動して終了し、レベル更新を本物の `pg` 接続で確認します。ブラウザの `pnpm demo` と同じセッションを使いません。手動起動、変更履歴、制約は [level_bot ガイド](examples/level_bot/MOCK-TEST.md) を参照してください。
+こちらは独立した Mock Server + DB + Bot の E2E を自動起動して終了し、レベル更新を本物の `pg` 接続で確認します。Bot の別プロセス起動と再起動、app 再起動時のトークン再利用も検証します。手動起動中の app とは別の保存先・ポートを使います。制約は [level_bot ガイド](examples/level_bot/MOCK-TEST.md) を参照してください。
 
 ## 開発者向け：初期セットアップ
 
@@ -209,15 +260,29 @@ pnpm --filter @discord-mock/server dev -- --port 3001
 
 **`pnpm dev` はビルド済みファイルを起動するだけ**です。TypeScript を編集した場合は `pnpm build` を実行し、サーバーを再起動してください。停止する場合はターミナルで `Ctrl+C` を押します。
 
-### テスト・型チェック
+### 静的チェック・テスト
 
-ビルド済みの状態から以下を実行できます。
+依存関係をインストールした後、ビルドせずに次の静的チェックを実行できます。
 
 ```sh
+pnpm check       # 全 workspace の型チェック + Biome lint
+pnpm typecheck   # 型チェックのみ
+pnpm lint        # lint のみ（dist と node_modules は対象外）
+pnpm check:py    # Python の Ruff lint・整形チェック（uv が必要）
+```
+
+型チェックは Web・Server・JS クライアントに加え、サンプル app / Bot 本体 / DB / Drizzle 設定も対象です。Bot と DB はルートの TypeScript 設定を継承し、esbuild に合わせた ESM / Bundler 設定を使用します。非公開の `@ex/db` は workspace 内のソース型を公開し、JS クライアントの型テストもソースから検査するため、型チェックのためにビルドする必要はありません。VS Code は `node_modules/typescript/lib` の workspace TypeScript を参照します。
+
+Biome は既存のサンプル設定と同じ `1.9.4` を開発依存として使用します。配布済み CLI バイナリだけで実行できるため、Biome のインストールスクリプトは `allowBuilds` で明示的に無効化しています。CI でも JS の型・lint と Python の lint・整形を確認します。
+
+依存関係の peer 不一致は `strictPeerDependencies` によってインストール時にエラーにします。PGlite `0.5.11` と、その版を要求する `@electric-sql/pglite-socket` `0.2.14` を組み合わせています。
+
+実行テストは手動でビルドした後に実行してください。
+
+```sh
+pnpm build
 pnpm test
-pnpm --filter @discord-mock/server typecheck
-pnpm --filter @discord-mock/client-js typecheck
-uv run --project packages/client-py ruff check packages/client-py
+pnpm sample:test
 uv run --project packages/client-py pytest packages/client-py/tests
 ```
 
@@ -263,6 +328,8 @@ CLI に表示された URL をブラウザで開きます。既定では `http:/
 
 Mock の API に Bot を接続する際は、CLI に表示された **`mock_` で始まるテスト用トークン**だけを使用し、Discord 本番の Bot トークンは使用しないでください。管理用シークレットも第三者に共有しないでください。
 
+単独 CLI も、起動ディレクトリの `.discord-mock-data/credentials.json` からトークンを再利用します。`DISCORD_MOCK_TOKEN_PATH` でこのファイルを変更できます。`startMock()` をコードから呼ぶ場合は `tokenPath` を明示したときだけ永続化し、省略するとテストごとに新しいトークンを生成します。
+
 ### データを JSON に保存したい場合
 
 保存先を指定しなければメッセージ等の状態は基本的にメモリ上に保持され、再起動時に初期化されます。JSON 保存先を指定すると、対応済みの状態更新が保存されます。
@@ -293,7 +360,7 @@ Python の `discord.py` / `commands.Bot` は、[`packages/client-py/README.md`](
 ## セキュリティと今後の実装
 
 - サーバーは**ループバックアドレスのみ**で待ち受けます。VPS では SSH ポートフォワーディングや自分で管理する VPN を利用してください。公衆インターネットへ直接公開しないでください。
-- **実装済み（部分対応）:** REST による Gateway 情報取得・Guild / Channel / Message、Gateway の Hello / Identify / Ready / Heartbeat / Guild Create、ダミー Interaction の発行・コールバック保存。
+- **実装済み（部分対応）:** REST による Gateway 情報取得・Guild / Channel / Message、Gateway の Hello / Identify / Ready / Heartbeat / Guild Create、引数なし Slash Command の登録・一覧 UI・実行・コールバック保存。
 - **未実装または未検証:** ダミーユーザーの新規登録・複雑なロール操作、管理 UI の CRUD、DM、細かなロール・権限判定、完全な Slash Command / Button / Select Menu、Sapphire Piece の一連の動作、全 Discord API・Gateway の互換性、VC の Voice Gateway / UDP / RTP・ブラウザで聴ける音声。
 - npm / PyPI のクライアント公開は別々に管理しますが、**現時点の公開ワークフローは無効**です。
 - Discord 公式の**公開 API 仕様**を参照した独自実装を前提とし、非公開 API のリバースエンジニアリングは行いません。OSS 配布の規約確認については [`AGENTS.md`](AGENTS.md) を参照してください。

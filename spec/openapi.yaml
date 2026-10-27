@@ -3,8 +3,8 @@ info:
   title: discord-mock local management API (preview)
   version: 0.0.0
   description: >
-    A local-only health endpoint for the monorepo scaffold. This specification
-    does NOT claim compatibility with Discord REST, Gateway, or Voice yet.
+    Local-only health, browser test and read-only database endpoints. Discord REST compatibility
+    is documented separately in commands.md; this file does not define Discord's API.
 servers:
   - url: http://127.0.0.1:3000
 paths:
@@ -28,3 +28,342 @@ paths:
                     type: string
                     const: discord-mock
                 additionalProperties: false
+  /_ui/state:
+    get:
+      operationId: getBrowserState
+      summary: Read state visible to the current dummy-user session
+      security:
+        - browserSession: []
+      responses:
+        "200":
+          description: Includes commands available in the current guild; guild commands override global names
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [guild, users, messages, selectedUserId, botConnections, commands]
+                properties:
+                  guild:
+                    type: object
+                  users:
+                    type: array
+                    items:
+                      type: object
+                  messages:
+                    type: object
+                  selectedUserId:
+                    type: string
+                  botConnections:
+                    type: integer
+                    minimum: 0
+                  commands:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BrowserCommand"
+        "401":
+          description: Browser session required
+  /_ui/interaction:
+    post:
+      operationId: invokeBrowserCommand
+      summary: Invoke a registered command as the session's selected dummy user
+      security:
+        - browserSession: []
+          browserCsrf: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel_id]
+              anyOf:
+                - required: [command_id]
+                - required: [name]
+              properties:
+                channel_id:
+                  type: string
+                command_id:
+                  type: string
+                name:
+                  type: string
+                  description: Legacy registered-name lookup; command_id takes precedence
+      responses:
+        "201":
+          description: INTERACTION_CREATE dispatched using the registered command ID
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id:
+                    type: string
+        "400":
+          description: Invalid text channel
+        "401":
+          description: Browser session required
+        "403":
+          description: Invalid CSRF token or Origin
+        "404":
+          description: Command is not registered or is unavailable in this guild
+  /_admin/session:
+    get:
+      operationId: getAdminSession
+      summary: Inspect the independent local DB session and DB availability
+      responses:
+        "200":
+          description: Does not create a session; csrf is returned only when authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSession"
+    post:
+      operationId: createAdminSession
+      summary: Open or reuse a local read-only database session without a key
+      description: >
+        Empty JSON with x-discord-mock-local: 1 opens a local DB session.
+        Host must name a loopback listener on the actual port; Origin and
+        Sec-Fetch-Site must indicate same-origin access when supplied.
+        The legacy secret body remains available for test automation.
+      parameters:
+        - name: x-discord-mock-local
+          in: header
+          description: Required with an empty body; prevents simple cross-origin form submissions
+          schema:
+            type: string
+            const: "1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                secret:
+                  type: string
+                  writeOnly: true
+      responses:
+        "200":
+          description: Sets HttpOnly SameSite=Strict admin cookie, valid for one hour, Path=/_admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSession"
+        "403":
+          description: Missing local header, invalid legacy key, or disallowed Host/Origin/Fetch Metadata
+        "415":
+          description: JSON Content-Type required
+        "429":
+          description: Maximum active sessions reached
+    delete:
+      operationId: deleteAdminSession
+      summary: Revoke the local DB session and expire its cookie
+      security:
+        - adminSession: []
+          adminCsrf: []
+      responses:
+        "200":
+          description: Session revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authenticated]
+                properties:
+                  authenticated:
+                    const: false
+        "403":
+          description: Invalid session, CSRF token or Origin
+  /_admin/database/tables:
+    get:
+      operationId: getDatabaseTables
+      summary: List user base tables from this app's DB provider
+      security:
+        - adminSession: []
+        - adminKey: []
+      responses:
+        "200":
+          description: Excludes system schemas and views
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tables]
+                properties:
+                  tables:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DatabaseTable"
+        "403":
+          description: Administrator access required
+        "503":
+          description: No DB provider installed; use pnpm app
+  /_admin/database/rows:
+    get:
+      operationId: getDatabaseRows
+      summary: Read a bounded page; SQL text and connection URLs are never accepted
+      security:
+        - adminSession: []
+        - adminKey: []
+      parameters:
+        - name: schema
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: table
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000000
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: search
+          in: query
+          description: Case-insensitive literal substring in a row's JSON representation
+          schema:
+            type: string
+            maxLength: 200
+            default: ""
+        - name: sort
+          in: query
+          description: Existing column name; defaults to primary key order
+          schema:
+            type: string
+            maxLength: 128
+            default: ""
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        "200":
+          description: Filtered row count, actual clamped offset, and values in column order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatabasePage"
+        "400":
+          description: Invalid query
+        "403":
+          description: Administrator access required
+        "404":
+          description: Unknown user table or sort column
+        "503":
+          description: No DB provider installed
+        "500":
+          description: Database read failed; no SQL or connection details returned
+components:
+  securitySchemes:
+    browserSession:
+      type: apiKey
+      in: cookie
+      name: discord_mock_session
+    browserCsrf:
+      type: apiKey
+      in: header
+      name: x-discord-mock-csrf
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: discord_mock_admin
+    adminCsrf:
+      type: apiKey
+      in: header
+      name: x-discord-mock-admin-csrf
+    adminKey:
+      type: apiKey
+      in: header
+      name: x-discord-mock-secret
+  schemas:
+    AdminSession:
+      type: object
+      required: [authenticated, databaseAvailable]
+      properties:
+        authenticated:
+          type: boolean
+        databaseAvailable:
+          type: boolean
+        csrf:
+          type: string
+    DatabaseTable:
+      type: object
+      required: [schema, name, columnCount]
+      properties:
+        schema:
+          type: string
+        name:
+          type: string
+        columnCount:
+          type: integer
+          minimum: 0
+    DatabaseColumn:
+      type: object
+      required: [name, type, nullable, primaryKey]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        nullable:
+          type: boolean
+        primaryKey:
+          type: boolean
+    DatabasePage:
+      type: object
+      required: [schema, table, columns, rows, totalRows, offset, limit, truncated]
+      properties:
+        schema:
+          type: string
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatabaseColumn"
+        rows:
+          type: array
+          items:
+            type: array
+            items:
+              type: [string, number, boolean, "null"]
+        totalRows:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        truncated:
+          type: boolean
+    BrowserCommand:
+      type: object
+      required: [id, name, description]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string

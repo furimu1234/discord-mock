@@ -1,20 +1,3 @@
 {
-	"compilerOptions": {
-		"outDir": "./dist",
-		"rootDir": "./src",
-		"declaration": true,
-		"declarationMap": false,
-		"sourceMap": true,
-		"emitDecoratorMetadata": true,
-		"experimentalDecorators": true,
-		"module": "commonjs",
-		"target": "ES2020",
-		"moduleResolution": "Node",
-		"esModuleInterop": true,
-		"skipLibCheck": true,
-		"strict": true,
-		"noEmit": false
-	},
-	"include": ["src/**/*.ts"],
-	"exclude": ["node_modules", "dist", "**/*.test.ts", "*.json"]
+  "extends": "./tsconfig.json"
 }

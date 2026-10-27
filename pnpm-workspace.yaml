@@ -3,5 +3,7 @@ packages:
   - "packages/client-js"
   - "examples/*"
   - "examples/level_bot/packages/*"
+strictPeerDependencies: true
 allowBuilds:
+  '@biomejs/biome': false
   esbuild: true

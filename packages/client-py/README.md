@@ -10,10 +10,13 @@ from discord_mock_client import disMockClient, mock_routes
 client = discord.Client(intents=discord.Intents.none())
 ut_client = disMockClient(client)
 
+
 async def test_run():
     # 必ず mock_routes の内側で Login / Gateway 接続を始める
     with mock_routes("http://127.0.0.1:3000"):
         await client.start("mock_ここにCLI発行トークン")
+
+
 # asyncio.run(test_run()) は手動停止が必要。個別の UT では別タスクで起動。
 ```
 
@@ -30,3 +33,5 @@ await ut_client.start("mock_...")  # SDK停止まで待機。テストではタ�
 ```
 
 `ut_client.routes()` でも一時的な REST ルート差し替えを利用できます。この `start` は experimental で、特に discord.py の Gateway 圧縮やイベントモデルの完全互換は未検証です。
+
+`tests/test_commands.py` では、実 `CommandTree.sync()` / `fetch_commands()` による引数なしコマンドのグローバル・Guild 登録をローカル Mock で検証します。先にルートで `pnpm build` してください。Node またはサーバー配布物がなければ、この REST 統合テストのみ skip します。CI では必要なビルドを明示的に行います。Python の Gateway 経由でのコマンド実行までは検証していません。

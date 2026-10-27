@@ -212,7 +212,7 @@ export function renderBrowserScript(): string {
       if (!content) return;
       $("send").disabled = true;
       try {
-        if (/^\\/[\\w-]{1,32}$/.test(content)) {
+        if (/^\/[\w-]{1,32}$/.test(content)) {
           await request("/_ui/interaction", "POST", { channel_id: ui.selectedChannelId, name: content.slice(1) });
         } else {
           await request("/_ui/messages", "POST", { channel_id: ui.selectedChannelId, content });

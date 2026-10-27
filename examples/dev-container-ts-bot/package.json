@@ -6,6 +6,6 @@
   "scripts": {
     "build": "pnpm --filter @ex/db build && pnpm --filter @ex/bot build",
     "test": "node --test tests/*.test.mjs",
-    "start": "node packages/bot/dist/run.mjs"
+    "start": "node packages/bot/dist/runMock.mjs"
   }
 }

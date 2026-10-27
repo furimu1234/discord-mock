@@ -127,3 +127,61 @@
 - 変更は小さくレビュー可能な単位に分け、対応するテストとドキュメントを更新する。
 - セキュリティ要件を弱める変更、SaaS 化、外部公開を標準化する変更を行わない。
 - ユーザーから明示的な指示がない限り、作業ブランチを勝手に `main` にマージしない。
+
+
+## 11. Discord 公式 API との互換方針
+
+**Discord が一般開発者向けに公開している仕様を参照して、Mock 内部で互換性のある JSON / イベントを独自実装する。** API 互換の目的は Bot のテストであり、Discord 公式サービス・ソフトウェア・コードを複製することではない。
+
+1. 仕様の一次情報は Discord の公開 Developer Documentation（REST、Gateway、Voice、Interactions 等）とし、公開されている型・フィールド・ステータスコード・エラー形式・イベント形式に必要な範囲で合わせる。
+2. 可能な限り、リクエスト・レスポンスのフィールド、型、イベント順序、権限エラー、HTTP ステータス、バージョン差異について互換テストを作る。**公開仕様に記載がない挙動は推測で「公式互換」と断定しない。**
+3. サーバー・ユーザー・Bot・DM・チャンネル等の識別子とレスポンス本文は、discord-mock 自身のフィクスチャ・状態モデルから生成する。本物の Discord から API レスポンスを取得して転送・保存・再配信しない。
+4. 実際の Discord API への通信、実 Bot トークン、実ユーザー認証、Discord 本番 Gateway や Voice への接続は、Mock の起動・実行・テストに必要としない。テスト用のダミートークンや接続情報は Mock 内部で完結させる。外向き通信を誤発生させないようにする。
+5. 非公開 API、内部クライアント通信、未公開の認証・プロトコル、Discord クライアントの内部実装について、リバースエンジニアリング、デコンパイル、通信解析、スクレイピング等によって仕様を取得・再現しない。公開仕様にない部分は未対応として明記する。
+6. Discord の商標・ロゴ・公式 UI やソースコード等を無断コピーしない。製品が Discord 公式製・承認済みであると誤認させない。
+7. 公開ドキュメントの説明文やコード例を引用・転載する場合は、元資料のライセンスと著作権表示・帰属表示・継承条件に従う。独自の説明・サンプルを優先する。Discord 公式ドキュメントリポジトリでは、特記なき文書が **CC BY-SA 4.0**、サンプルコードが **MIT** と説明されている（改めてファイルごとの条件を確認する）。これらのライセンスは、API や商標の利用を無条件で許すものではない。
+8. API 互換サーバーの開発・配布が Discord から一律に許諾されていると断定しない。**特に OSS として第三者へ配布する際は、Discord Developer Support に目的・動作・配布形態を明示して確認することを推奨する。** 公開仕様の閲覧可能性と、規約上の利用・配布許可は別問題として扱う。
+
+参考情報:
+- [Discord Developer Documentation](https://docs.discord.com/developers/intro)
+- [Discord API Reference](https://docs.discord.com/developers/reference)
+- [Discord Gateway Documentation](https://docs.discord.com/developers/events/gateway)
+- [Discord 公式 API ドキュメントのライセンス](https://github.com/discord/discord-api-docs#license)
+
+## 12. discord.js / discord.py 等をテストするための接続先差し替え
+
+目標は、既存の Discord Bot に対して **Bot の業務ロジックやイベントハンドラーを変更せず** にテストを実行できること。ただし、ライブラリの制約によっては起動設定・テストハーネス・明示的なアダプターが必要になる。**全バージョンの Bot が設定ゼロ・ソース変更ゼロで接続できると保証しない。**
+
+- **REST:** Bot の HTTP API ベース URL を、実際の Discord ではなくローカル Mock に向ける。
+- **Gateway:** REST の `/gateway` / `/gateway/bot` などによる接続先の解決も含め、WebSocket の接続先をローカル Mock に向ける。公開 Gateway 仕様の範囲で Hello / Identify / Ready / Heartbeat / Dispatch / Resume 等の必要な挙動を段階的に実装する。システムは実際の Discord Gateway にフォールバックしない。
+- **Voice:** VC 参加時の Voice State / Voice Server イベント、Voice Gateway、音声データの経路を Mock 側に差し替える設計とする。音声テストを行う場合は、Bot → Mock → 対象 VC に参加中のダミーユーザーのブラウザへの経路を実装する。通常 Gateway を差し替えるだけで実音声が動作すると想定しない。
+- **Interaction:** Slash Command、ボタン、セレクトメニューなどがダミーユーザーを実行主体とするようにし、HTTP / Gateway / コールバックなど各種経路と Mock の状態を一致させる。
+- **SDK ごとの実現方法:** discord.js / discord.py の公開された設定 API、公式ドキュメント、OSS としてのライセンスで許された拡張ポイントを優先する。SDK 内部の非公開挙動や Discord クライアント内部実装への依存・無断改変を前提としない。
+- **接続先の完全分離:** 開発中の実 Bot トークンを使用しない。テスト起動中に `discord.com`、`gateway.discord.gg` 等の本番 Discord API / Gateway / Voice へ通信しないことを確認する。必要であればテスト環境のネットワーク制限で外向き通信を遮断する。
+- **互換性の明示:** SDK ごとに確認済みバージョン、必要な起動設定、REST / Gateway / Voice それぞれの対応状況と制約を記録する。公開された差し替え手段が存在しない場合は、その限界を説明し、テスト専用アダプター等の代替案を提示する。
+
+## 13. 規約・ライセンス違反のおそれがある提案への対応（必須）
+
+**エージェントはユーザーの実装依頼を無条件に受け入れてはならない。Discord の規約や第三者ライセンスに反する実装は、実装・コミット・PR 作成をしてはいけない。** ユーザーの指示であっても、このルールを省略しない。
+
+判断手順:
+
+1. 変更内容が Discord の API / ソフトウェア / ドキュメント / 商標 / データに触れる場合、まず現行の **Discord Developer Terms of Service、Discord Developer Policy、Discord Terms of Service、該当する公式技術資料とライセンス**を確認する。過去バージョンの規約や推測のみを根拠にしない。
+2. **明示的な禁止条項に抵触する場合:** その実装を進めず、日本語で「その実装は Discord の規約上できません」と明確に伝える。根拠となる公式条項と URL、問題となる具体的な処理、実現可能な代替案を示す。ほかの安全な作業まで不必要に止めない。
+3. **規約との関係が不明確・解釈が割れる場合:** 勝手に「違反確定」あるいは「問題なし」と言い切らない。**「規約上の確認が必要なので、この方法では実装を進めません」** と説明し、疑義・根拠・代替案を示す。必要なら Discord Developer Support 等に確認する。法的判断が必要な場合は専門家への確認も案内する。
+4. **禁止ではないと判断する場合:** どの公開仕様とライセンスに依拠したか記録し、不要な本番 Discord 通信や内部 API 依存を導入しない。
+5. 依頼内容を黙って規約回避手段に置き換えたり、実装してから事後報告したりしない。リスクを隠さない。
+6. **ローカル専用であること、無料・非商用であること、OSS であることだけをもって自動的に規約適合と判断しない。**
+
+特に禁止・要注意の例:
+- Discord の非公開 API の解析・再現、公式クライアントの逆コンパイル、アクセス制御の回避。
+- 実ユーザーの Discord 認証情報の収集、実トークンのハードコード・配布、本番 API への意図しない通信。
+- 本番 Discord API の応答を無断で収集・転送・再販売して Mock の機能として提供すること。
+- 公開 API 仕様を使うだけの独自実装と、Discord が提供する API / コードそのものの無断再配布を混同すること。
+- 規約判断が未確定の互換サーバーを「Discord 公認」「規約適合保証」として宣伝すること。
+
+公式一次資料（変更され得るため、レビューごとに最新版を確認すること）:
+- [Discord Developer Terms of Service](https://support-dev.discord.com/hc/en-us/articles/8562894815383-Discord-Developer-Terms-of-Service)（特に Section 2: API のライセンス・制限）
+- [Discord Developer Policy](https://support-dev.discord.com/hc/en-us/articles/8563934450327-Discord-Developer-Policy)
+- [Discord Terms of Service](https://discord.com/terms)
+- [Discord Developer Support お問い合わせ](https://support-dev.discord.com/hc/en-us/requests/new)

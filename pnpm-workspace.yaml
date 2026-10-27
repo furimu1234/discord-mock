@@ -1,3 +1,5 @@
 packages:
   - "apps/*"
   - "packages/client-js"
+allowBuilds:
+  esbuild: true

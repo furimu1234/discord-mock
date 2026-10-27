@@ -6,8 +6,8 @@ Do not use this context manager concurrently with production clients.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 from urllib.parse import urlsplit
 
 _active = False

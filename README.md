@@ -13,6 +13,49 @@
 | spec | OpenAPI / Markdown | 共通 API 契約 |
 | tests | - | 将来のクライアント横断テスト |
 
+## NixOS 開発環境（nix-shell）
+
+現在の開発マシンで取得した NixOS のバージョン情報:
+
+```json
+{
+  "nixosVersion": "26.05.12658.1f607aa79b63",
+  "nixpkgsRevision": "1f607aa79b6356ed45d3cd3c8079c196e79efa2c"
+}
+```
+
+リポジトリ直下の [`shell.nix`](shell.nix) に NixOS 向け開発ツールを定義しています。リポジトリに移動して **`nix-shell` と入力するだけ**で Node.js 24・pnpm 11・Python 3.13・uv がそのシェル内で利用可能になります。
+
+```sh
+cd discord-mock
+nix-shell
+
+# ここから nix-shell 内。ツールのパスが自動的に適用される
+node --version
+pnpm --version
+python3 --version
+uv --version
+
+# 依存関係のセットアップは最初に必要なときだけ手動実行
+pnpm install
+uv sync --project packages/client-py
+
+# ビルドも手動
+pnpm build
+pnpm test
+uv run --project packages/client-py pytest
+
+# nix-shell を抜ける（元のシェル環境へ戻る）
+exit
+```
+
+- **NixOS の `environment.systemPackages`、`configuration.nix`、ユーザー全体の PATH は変更しません。** `node` / `pnpm` / `python3` / `uv` の追加は `nix-shell` の実行環境だけに適用します。
+- `nix-shell` に入るだけでは `pnpm install`・`uv sync`・`pnpm build` は実行しません。依存ファイル（`node_modules`・Python の `.venv`）は手動セットアップ後もローカル作業ディレクトリに残ります。
+- NixOS の uv には `UV_PYTHON` と `UV_PYTHON_DOWNLOADS=never` を設定し、Python 実行環境を Nixpkgs のものに限定します。通常は `corepack enable` は不要です（Nix の読み取り専用ストアを変更しません）。
+- `pnpm` のバージョンは Nixpkgs の pnpm 11 系を使用し、プロジェクトの `packageManager` に記載された別のパッチバージョンを自動で取得しません。
+- この `shell.nix` は、ホストで構成済みの `<nixpkgs>` を利用します。上記の nixpkgs リビジョンは **開発環境の記録**であり、このファイルでそのリビジョンを固定しているわけではありません。利用可能なパッケージバージョンはホストの Nixpkgs 設定によって変わることがあります。
+- `<nixpkgs>` が見つからない場合、`nix-shell` を使うための Nix チャネル / `NIX_PATH` を構成してください。こちらもグローバルなパッケージの導入は不要です。
+
 ## 開発時の前提条件（Windows / Ubuntu / macOS / NixOS）
 
 Node.js 24.17+、Corepack または pnpm 11。**開発時は pnpm 必須**、Python 側は uv を使用します。
@@ -52,7 +95,9 @@ Python: `disMockClient(client)` のラップおよび `DisMockMixin` に加え�
 REST: Gateway URL・Bot 自分自身・Guild / Channel / Message の一部。
 Gateway: Hello / Identify / Ready / Guild Create / Heartbeat / Resume の一部。
 
-Interaction の最小 Mock 管理 API にも対応しました。\n\n**未対応:** 実音声を届ける Voice Gateway / UDP / RTP、DM、ダミーユーザーログイン、Interaction の完全なコマンド／ボタン処理、全 Discord REST 互換、Sapphire の Piece 完全起動。これらを実装済みと誤認させないでください。
+Interaction の最小 Mock 管理 API にも対応しました。
+
+**未対応:** 実音声を届ける Voice Gateway / UDP / RTP、DM、ダミーユーザーログイン、Interaction の完全なコマンド／ボタン処理、全 Discord REST 互換、Sapphire の Piece 完全起動。これらを実装済みと誤認させないでください。
 
 独自 Mock 管理 API `/_mock/state` と `/_mock/dispatch` には CLI の管理用シークレットが必要です。データを保存する場合は `DISCORD_MOCK_STATE_PATH` で JSON パスを指定します。
 

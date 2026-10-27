@@ -230,3 +230,13 @@
 - JS SDK の公開 `ClientOptions.rest.api` / `RESTOptions.api` を利用し、REST の接続先をループバックへ切り替える。Mock は Gateway URL 取得 REST と同一のホストでローカル WebSocket URL を返す。
 - Python discord.py の `Route.BASE` は **SDK 非公開実装の互換境界**であり、公式安定 API ではない。テスト専用で一時的・可逆的にパッチする場合は他プロセス・他 Client と共有せず、SDK バージョン・戻し処理を必ずテストする。Discord 本体の非公開 API を解析しないというルールは継続する。
 - 未実装の音声・DM・コマンドを互換済みと宣伝しない。本番 Discord へのフォールバックを追加しない。
+
+## 17. NixOS のプロジェクト専用開発シェル
+
+- `shell.nix` をリポジトリ直下に配置し、`nix-shell` に入ったときのみ Node.js 24・pnpm 11・Python 3.13・uv が利用できるようにする。
+- ユーザーの NixOS 開発環境は `26.05.12658.1f607aa79b63`、nixpkgs は `1f607aa79b6356ed45d3cd3c8079c196e79efa2c`（README に記載）。
+- `environment.systemPackages`・`configuration.nix` の変更や、`npm install -g` / `corepack enable` によるシステム全体のツール追加を前提にしない。
+- Nixpkgs の pnpm 11 を使い、`pnpm_config_pm_on_fail=ignore` で packageManager に記載された別のパッチバージョンを自動ダウンロードしない。
+- uv は Nix が提供する Python に限定し、`UV_PYTHON` と `UV_PYTHON_DOWNLOADS=never` を devShell 内で設定する。
+- シェル入場時の `pnpm install`・`uv sync`・`pnpm build` の自動実行は禁止する。依存関係とビルドは開発者が明示的に行う。
+- `shell.nix` はホストの `<nixpkgs>` を使用するため、記録した nixpkgs リビジョンが固定されていると誤認させない。

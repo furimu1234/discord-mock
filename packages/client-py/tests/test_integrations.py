@@ -3,8 +3,8 @@
 import asyncio
 
 import discord
-from discord.ext import commands
 import pytest
+from discord.ext import commands
 
 from discord_mock_client import (
     DisMockClient,

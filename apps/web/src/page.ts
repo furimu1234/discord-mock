@@ -155,7 +155,7 @@ export function renderBrowserScript(): string {
       intro.append(node("p", "", "ダミーユーザーの投稿は Bot へ配信されます。Bot からの投稿もここに表示されます。"));
       target.append(intro);
       const messages = state.messages[ui.selectedChannelId] || [];
-      if (!messages.length) target.append(node("p", "empty", "まだメッセージはありません。最初の投稿を送信してください。"));
+      if (!messages.length) target.append(node("p", "empty", "まだメッセージはありません。最初の投稿を送信してください。 /コマンド名 でスラッシュコマンドも実行できます。"));
       for (const m of messages) {
         const item = node("article", "message");
         const avatar = node("div", "avatar" + (m.author.bot ? " bot" : ""), (m.author.username || "?").slice(0, 1).toUpperCase());
@@ -212,7 +212,11 @@ export function renderBrowserScript(): string {
       if (!content) return;
       $("send").disabled = true;
       try {
-        await request("/_ui/messages", "POST", { channel_id: ui.selectedChannelId, content });
+        if (/^\\/[\\w-]{1,32}$/.test(content)) {
+          await request("/_ui/interaction", "POST", { channel_id: ui.selectedChannelId, name: content.slice(1) });
+        } else {
+          await request("/_ui/messages", "POST", { channel_id: ui.selectedChannelId, content });
+        }
         $("message-input").value = "";
         await refresh();
       } catch (error) { showError(error.message); }

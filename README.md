@@ -90,15 +90,19 @@ flowchart TD
 
 ## サンプル Bot を使った動作テスト
 
-[`examples/sample-bot/`](examples/sample-bot/README.md) に、**TypeScript 製の `discord.js` サンプル Bot** を用意しています。Bot はダミーユーザーからの `/ping` に `Pong! 🦈` と返信します。
-
-初回セットアップの `pnpm install` と手動ビルドの `pnpm build` を実行した後、以下のコマンドだけでローカル REST / Gateway を通した E2E テストを行えます。
+[`examples/dev-container-ts-bot/`](examples/dev-container-ts-bot/MOCK-TEST.md) に、別リポジトリ [`furimu1234/dev_container_ts_bot`](https://github.com/furimu1234/dev_container_ts_bot) の **Bot + DB の2パッケージからなる TypeScript モノレポ** を取り込みました。元の `packages/bot/src` と `packages/db/src` の構成・実際のレベリングイベントおよび Drizzle の DB 関数を保持し、Node.js / pnpm の互換性と既知のエラーだけ修正しています。
 
 ```sh
+pnpm install
+pnpm build
 pnpm sample:test
 ```
 
-テスト内で Mock Server と Bot を自動起動し、`/ping` 相当の `INTERACTION_CREATE` を発火して、コールバック応答が期待どおりかを検証し、両者を停止します。**実 Discord への接続は必要ありません。** 手動起動は `pnpm dev` と `pnpm sample:bot`（Mock のテストトークンを環境変数で渡す）で行えます。詳細は上記サンプルの README を参照してください。
+`sample:test` は新しいテンプレート Bot が対象です。テスト内で Mock Server を起動し、実際の discord.js `Client` を接続して `MESSAGE_CREATE` を送信、元の `leveling.ts` と `@ex/db` の関数が呼ばれてレベルが更新されることを検証します。**テスト中に PostgreSQL の実サーバー・本番 Discord トークンは必要ありません。** DB 部分はテスト専用のインメモリアダプターです。
+
+移植元の `src/main.ts` は未完成の実 DB / Discord 接続部分があるため、Mock 用に `src/mock.ts` を追加してそこから実際のイベント・DB 関数を使用します。移植元は `/ping` コマンドを持っていないため、以前の簡易サンプルの `/ping` ではなく、移植元のメッセージ・レベリングを検証します。前の最小サンプルは `examples/sample-bot/` に残していますが、`sample:test` の実行対象ではありません。
+
+詳細な変更点・手動起動方法は [移植版のガイド](examples/dev-container-ts-bot/MOCK-TEST.md) を参照してください。
 
 ## 開発者向け：初期セットアップ
 
@@ -165,7 +169,7 @@ corepack pnpm build
 
 Corepack を使用しない場合は、別途 pnpm 11 を用意し、`pnpm install` と `pnpm build` を実行します。Python 側を開発する場合は uv をインストールした後に `uv sync --project packages/client-py` を実行します。
 
-> **PR #2 をレビューしている間の補足:** 現在の変更は `main` に未マージです。クローン後、必要に応じて `git fetch origin docs/initial-agents-guidelines-20261027` と `git switch docs/initial-agents-guidelines-20261027` を実行して、この README と実装がある作業ブランチへ移動してください。
+> サンプル Bot の移植が未マージの場合は、対応する PR の作業ブランチをチェックアウトしてからビルドしてください。
 
 ### VS Code のターミナル（NixOS / Linux）
 

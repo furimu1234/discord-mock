@@ -1,0 +1,17 @@
+{
+  "name": "@ex/db",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/index.js"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.43.1",
+    "pg": "^8.15.6"
+  }
+}

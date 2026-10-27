@@ -11,22 +11,22 @@ test("REST is loopback-only, returns local gateway and synthetic resources", asy
   const mock=await startMock({port:0});
   try {
     const headers = {authorization:`Bot ${mock.token}`};
-    assert.equal((await fetch(mock.url+"/api/v10/users/@me")).status,401);
-    const me=await (await fetch(mock.url+"/api/v10/users/@me",{headers})).json();
+    assert.equal((await fetch(`${mock.url}/api/v10/users/@me`)).status,401);
+    const me=await (await fetch(`${mock.url}/api/v10/users/@me`,{headers})).json();
     assert.equal(me.bot,true);
-    const gateway=await (await fetch(mock.url+"/api/v10/gateway/bot",{headers})).json();
+    const gateway=await (await fetch(`${mock.url}/api/v10/gateway/bot`,{headers})).json();
     assert.match(gateway.url,/^ws:\/\/127\.0\.0\.1:/);
-    const msg=await (await fetch(mock.url+"/api/v10/channels/123456789000000002/messages",{
+    const msg=await (await fetch(`${mock.url}/api/v10/channels/123456789000000002/messages`,{
       method:"POST",headers:{...headers,"content-type":"application/json"},body:JSON.stringify({content:"test"}),
     })).json();
     assert.equal(msg.content,"test");
-    assert.equal((await fetch(mock.url+"/_mock/state")).status,403);
+    assert.equal((await fetch(`${mock.url}/_mock/state`)).status,403);
   } finally {await mock.close();}
 });
 
 test("Gateway Hello/Identify/Heartbeat/Ready/GuildCreate", async () => {
   const mock=await startMock({port:0});
-  const socket=new WebSocket(mock.url.replace(/^http/,"ws")+"/gateway");
+  const socket=new WebSocket(`${mock.url.replace(/^http/,"ws")}/gateway`);
   try {
     const events=[];
     const ready = new Promise((resolve,reject)=>{

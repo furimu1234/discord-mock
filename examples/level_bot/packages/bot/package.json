@@ -1,0 +1,24 @@
+{
+  "name": "@ex/bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/local.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outdir=dist --out-extension:.js=.mjs",
+    "start": "node ../../dist/bot.mjs",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@ex/db": "workspace:*",
+    "@discord-mock/client-js": "workspace:*",
+    "discord.js": "14.27.0",
+    "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.43.1",
+    "pg": "^8.15.6",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.14"
+  }
+}

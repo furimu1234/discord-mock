@@ -1,4 +1,5 @@
 {
+  "typescript.tsdk": "node_modules/typescript/lib",
   "terminal.integrated.profiles.linux": {
     "discord-mock (nix-shell)": {
       "path": "nix-shell",

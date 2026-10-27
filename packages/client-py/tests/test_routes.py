@@ -28,8 +28,9 @@ def test_patch_restores_on_error_and_blocks_remote() -> None:
     with pytest.raises(ValueError, match="loopback"), mock_routes("https://discord.com"):
         pass
     with pytest.raises(ZeroDivisionError), mock_routes():
-        raise ZeroDivisionError('intentional')
+        raise ZeroDivisionError("intentional")
     assert Route.BASE == original
+
 
 def test_adapter_start_rejects_real_discord_token() -> None:
     client = discord.Client(intents=discord.Intents.none())

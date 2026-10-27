@@ -8,17 +8,25 @@
     "node": ">=24.17.0"
   },
   "scripts": {
-    "build": "pnpm --filter @discord-mock/web build && pnpm --filter @discord-mock/server build && pnpm --filter @discord-mock/client-js build && pnpm --filter @discord-mock/sample-bot build",
+    "build": "pnpm --filter @discord-mock/web build && pnpm --filter @discord-mock/server build && pnpm --filter @discord-mock/client-js build && pnpm --filter @discord-mock/level-bot build",
     "dev": "pnpm --filter @discord-mock/server dev",
+    "app": "pnpm --filter @discord-mock/level-bot app",
+    "bot": "pnpm --filter @discord-mock/level-bot start",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "biome lint --error-on-warnings apps packages/client-js biome.json tsconfig.base.json package.json .vscode/settings.json && pnpm --filter @discord-mock/level-bot lint",
+    "check": "pnpm typecheck && pnpm lint",
+    "check:py": "uv run --project packages/client-py ruff check packages/client-py && uv run --project packages/client-py ruff format --check packages/client-py",
     "test": "pnpm --filter @discord-mock/web test && pnpm --filter @discord-mock/server test && pnpm --filter @discord-mock/client-js test",
     "test:py": "uv run --project packages/client-py pytest",
     "lint:py": "uv run --project packages/client-py ruff check packages/client-py",
-    "sample:test": "pnpm --filter @discord-mock/sample-bot test",
-    "sample:bot": "pnpm --filter @discord-mock/sample-bot start"
+    "sample:test": "pnpm --filter @discord-mock/level-bot test",
+    "sample:bot": "pnpm --filter @discord-mock/level-bot start",
+    "demo": "pnpm --filter @discord-mock/level-bot demo"
   },
   "devDependencies": {
-    "typescript": "^5.9.0",
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^24.0.0",
     "esbuild": "^0.25.0",
-    "@types/node": "^24.0.0"
+    "typescript": "^5.9.0"
   }
 }

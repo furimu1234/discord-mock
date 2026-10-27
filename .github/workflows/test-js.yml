@@ -1,10 +1,10 @@
 name: Test JavaScript Client
 on:
   pull_request:
-    paths: ["packages/client-js/**", "examples/sample-bot/**", "apps/server/**", "spec/**", "tests/**", "package.json", "tsconfig.base.json", "pnpm-workspace.yaml", ".github/workflows/test-js.yml"]
+    paths: ["packages/client-js/**", "examples/level_bot/**", "apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-js.yml"]
   push:
     branches: [main]
-    paths: ["packages/client-js/**", "examples/sample-bot/**", "apps/server/**", "spec/**", "tests/**", "package.json", "tsconfig.base.json", "pnpm-workspace.yaml", ".github/workflows/test-js.yml"]
+    paths: ["packages/client-js/**", "examples/level_bot/**", "apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-js.yml"]
 permissions: {contents: read}
 jobs:
   test:
@@ -16,7 +16,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: {version: "11.0.0", run_install: false}
       - run: pnpm install --no-frozen-lockfile
+      - run: pnpm check
       - run: pnpm build
       - run: pnpm --filter @discord-mock/client-js test
       - run: pnpm sample:test
-      - run: pnpm --filter @discord-mock/sample-bot typecheck

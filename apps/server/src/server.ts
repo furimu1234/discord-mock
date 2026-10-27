@@ -72,6 +72,7 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
   let nextId = BigInt(Date.now()) * 4_194_304n;
   const nextSnowflake = () => String(++nextId);
   const peers = new Set<{ ws: WebSocket; seq: number; identified: boolean; session: string }>();
+  const interactions = new Map<string, { token: string; response?: Record<string, unknown> }>();
   async function persist() {
     if (!dataPath) return;
     await mkdir(dirname(dataPath), { recursive: true });
@@ -120,6 +121,40 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
         broadcast(body.event, body.data ?? {});
         send(res, 200, { dispatched: body.event }); return;
       }
+      if (method === "POST" && path === "/_mock/interaction") {
+        if (req.headers["x-discord-mock-secret"] !== adminSecret) { error(res, 403, "Invalid mock admin secret"); return; }
+        const body = await jsonBody(req);
+        const userId = typeof body.user_id === "string" && /^\d{17,20}$/.test(body.user_id)
+          ? body.user_id : "123456789000000099";
+        const channelId = typeof body.channel_id === "string" && state.guild.channels.some((c) => c.id === body.channel_id)
+          ? body.channel_id : FALLBACK_CHANNEL;
+        const customId = typeof body.custom_id === "string" ? body.custom_id : undefined;
+        const commandName = typeof body.name === "string" && /^[\w-]{1,32}$/.test(body.name)
+          ? body.name : "mock";
+        if (customId && customId.length > 100) { error(res, 400, "Invalid custom ID"); return; }
+        const id = nextSnowflake();
+        const interactionToken = "mock_interaction_" + randomBytes(18).toString("hex");
+        const actor: MockUser = { id: userId, username: "MockUser", discriminator: "0", avatar: null, bot: false };
+        const interaction = {
+          id, application_id: APP_ID, type: customId ? 3 : 2,
+          data: customId
+            ? { component_type: 2, custom_id: customId }
+            : { id: nextSnowflake(), type: 1, name: commandName, options: [] },
+          guild_id: state.guild.id, channel_id: channelId, token: interactionToken,
+          version: 1, member: { user: actor, roles: [], permissions: "0", joined_at: new Date().toISOString(), flags: 0 },
+          app_permissions: "0", locale: "ja", guild_locale: "ja",
+        };
+        interactions.set(id, { token: interactionToken });
+        broadcast("INTERACTION_CREATE", interaction);
+        send(res, 200, { id, data: interaction }); return;
+      }
+      const resultPath = path.match(/^\/_mock\/interactions\/(\d+)$/);
+      if (method === "GET" && resultPath) {
+        if (req.headers["x-discord-mock-secret"] !== adminSecret) { error(res, 403, "Invalid mock admin secret"); return; }
+        const result = interactions.get(resultPath[1]);
+        result ? send(res, 200, { replied: !!result.response, response: result.response ?? null }) : error(res, 404, "Unknown interaction");
+        return;
+      }
       if (!isApi) { error(res, 404, "Unknown mock route"); return; }
       if (req.headers.authorization !== `Bot ${token}`) { error(res, 401, "Use the synthetic token printed by discord-mock"); return; }
       const wsUrl = `ws://${host === "::1" ? "[::1]" : host}:${(server.address() as {port:number}).port}/gateway`;
@@ -127,6 +162,22 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
         send(res, 200, path === "/gateway" ? { url: wsUrl } : {
           url: wsUrl, shards: 1, session_start_limit: { total: 1000, remaining: 1000, reset_after: 86_400_000, max_concurrency: 1 },
         }); return;
+      }
+      const callback = path.match(/^\/interactions\/(\d+)\/([^/]+)\/callback$/);
+      if (method === "POST" && callback) {
+        const item = interactions.get(callback[1]);
+        if (!item || item.token !== callback[2]) { error(res, 404, "Unknown interaction"); return; }
+        const reply = await jsonBody(req);
+        if (!Number.isInteger(reply.type) || ![4,5,6,7,9].includes(reply.type as number)) {
+          error(res, 400, "Unsupported interaction response type"); return;
+        }
+        item.response = reply;
+        if (new URL(req.url ?? "/", "http://localhost").searchParams.get("with_response") === "true") {
+          send(res, 200, { interaction: { id: callback[1], type: reply.type, response_message_id: null }, resource: null });
+        } else {
+          res.writeHead(204, { "cache-control": "no-store" }); res.end();
+        }
+        return;
       }
       if (method === "GET" && path === "/users/@me") { send(res, 200, state.user); return; }
       if (method === "GET" && path === "/oauth2/applications/@me") { send(res, 200, { id: APP_ID, name: "MockBot", bot: state.user, flags: 0, description: "" }); return; }

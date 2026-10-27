@@ -52,7 +52,7 @@ Python: `disMockClient(client)` のラップおよび `DisMockMixin` に加え�
 REST: Gateway URL・Bot 自分自身・Guild / Channel / Message の一部。
 Gateway: Hello / Identify / Ready / Guild Create / Heartbeat / Resume の一部。
 
-**未対応:** 実音声を届ける Voice Gateway / UDP / RTP、DM、ダミーユーザーログイン、Interaction の一連のコマンド／ボタン処理、全 Discord REST 互換、Sapphire の Piece 完全起動。これらを実装済みと誤認させないでください。
+Interaction の最小 Mock 管理 API にも対応しました。\n\n**未対応:** 実音声を届ける Voice Gateway / UDP / RTP、DM、ダミーユーザーログイン、Interaction の完全なコマンド／ボタン処理、全 Discord REST 互換、Sapphire の Piece 完全起動。これらを実装済みと誤認させないでください。
 
 独自 Mock 管理 API `/_mock/state` と `/_mock/dispatch` には CLI の管理用シークレットが必要です。データを保存する場合は `DISCORD_MOCK_STATE_PATH` で JSON パスを指定します。
 

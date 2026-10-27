@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import WebSocket from "ws";
+import { Script } from "node:vm";
 
 const require = createRequire(import.meta.url);
 const { startMock } = require("../dist/server.cjs");
@@ -26,6 +27,7 @@ test("Browser dummy user and message routes require a session + CSRF", { timeout
     assert.match(html, /id="message-form"/);
     const source = await (await fetch(mock.url + "/_ui/client.js")).text();
     assert.match(source, /EventSource/);
+    assert.doesNotThrow(() => new Script(source), "Browser JavaScript should parse successfully");
     assert.match(source, /textContent/);
     assert.doesNotMatch(source, /innerHTML/);
     assert.equal((await fetch(mock.url + "/_ui/state")).status, 401);

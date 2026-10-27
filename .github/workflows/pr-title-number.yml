@@ -1,0 +1,38 @@
+name: PRタイトルにPR番号を付与
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - edited
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  append-pr-number:
+    runs-on: ubuntu-latest
+    steps:
+      # PR 内のコードは checkout / 実行しない（権限を持つ workflow のため）。
+      - name: PRタイトル末尾の番号を補正
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const baseTitle = pr.title.replace(/\s*\(#\d+\)\s*$/, '').trim();
+            const expectedTitle = `${baseTitle} (#${pr.number})`;
+
+            if (pr.title === expectedTitle) {
+              core.info('正しいPR番号が既に付いています。');
+              return;
+            }
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              title: expectedTitle,
+            });
+            core.info(`PRタイトルを更新しました: ${expectedTitle}`);

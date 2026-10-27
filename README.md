@@ -30,7 +30,7 @@ discord-mock/
 
 ## 起動（現在は構成確認用プレビュー）
 
-Node.js 22+ / pnpm 11 を使用:
+Node.js 24.17+ / pnpm 11 を使用:
 
 ```bash
 pnpm install
@@ -62,3 +62,19 @@ Python は pnpm ワークスペースに含めず、独立した `pyproject.toml
 - npm / PyPI の公開ワークフローは配置済みですが、**リリースは既定で無効**です。公開する段階で `ENABLE_CLIENT_RELEASE=true` の GitHub Actions リポジトリ変数、Trusted Publisher、リリース用 Environment、package metadata（JS の `private` フラグ解除と名前の確保など）を設定してください。
 - Trusted Publishing には GitHub-hosted Runner と OIDC を使用します。自己管理 VPS の実行環境と、パッケージ公開時の CI 実行環境は別物です。
 - Discord 公式 API の公開仕様から必要なレスポンス形式を独自に実装します。非公開 API や公式クライアント内部を解析しません。OSS 配布前には Discord Developer Support に互換サーバーの配布可否を確認する方針です。
+
+## 既存 Bot SDK を使った UT アダプター
+
+現段階では、元のインスタンスや派生クラスを維持したまま **SDK の公開イベントハンドラーにテスト用イベントを注入**できます。
+
+| 対象 | 既存インスタンスを渡す | 継承する |
+| --- | --- | --- |
+| discord.js `Client` | `disMockClient(client)` | `class UtBot extends disMockMixin(MyBot) {}` |
+| Sapphire `SapphireClient` | `disMockClient(client)` | `class UtSapphire extends disMockMixin(MySapphire) {}` |
+| discord.py `Client` | `disMockClient(client)` | `class UtClient(DisMockMixin, MyClient): ...` |
+| discord.py `commands.Bot` | `disMockClient(bot)` | `class UtBot(DisMockMixin, MyBot): ...` |
+
+継承クラスファクトリも使用できます: JS は `disMockClientClass(MyBot)`、Python は `disMockClass(MyBot)`。
+使い方は [JS SDK アダプター](packages/client-js/README.md) および [Python SDK アダプター](packages/client-py/README.md) を参照。
+
+> **重要:** これは `login()` / REST / Gateway / Voice の代替ではなく、コマンド実行・SDK の Message / Interaction オブジェクトの完全互換は未実装です。通常の SDK `login()` は本番 Discord へ接続する可能性があるので Mock テストでは呼ばないでください。

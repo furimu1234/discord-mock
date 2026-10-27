@@ -207,3 +207,15 @@
 - JS と Python のバージョン・配布は独立（例: `js-v1.3.0` / `py-v1.2.0`）。公開は OIDC による Trusted Publishing を使い、コード検証と規約確認後に明示的に有効化する。
 - CI の公開 job は GitHub-hosted Runner を使う。開発用のローカル / VPS 限定という本体の制約は変更しない。
 - `main` への直接 push・無断マージをしない。
+
+## 15. 既存 Bot SDK の継承・ラップ方式
+
+`discord.js Client`、`@sapphire/framework SapphireClient`、`discord.py Client`、`discord.ext.commands.Bot` および利用者が作成した派生クラスについて、**インスタンスを渡すラッパーと元のクラスを継承するアダプターの両方**を用意する。
+
+- JavaScript: `disMockClient(existingClient)`、`class UtBot extends disMockMixin(MyBot) {}`、`disMockClientClass(MyBot)` を公開する。
+- Python: `disMockClient(existing_client)`、`class UtBot(DisMockMixin, MyBot): ...`、`class UtBot(disMockClass(MyBot)): ...` を公開する。
+- 元のオブジェクトの同一性、`isinstance` / `instanceof`、コンストラクター引数、独自メソッド、既存イベント登録を保持する。
+- イベント注入は SDK の公開インターフェース（JS の `emit` / Python の `dispatch`）を利用する。未公開メンバーに依存したオブジェクト偽造や強制接続先変更を行わない。
+- **イベント注入と Discord プロトコル互換は別物**である。完全な `Message` / `Interaction` / コマンドパーサー、Gateway 接続、REST/Voice の差し替えが未実装の段階ではその限界をユーザーに明示する。
+- 通常の SDK `login()` / `run()` は Discord 本番に接続する可能性がある。Mock の接続機構ができるまでは使わず、必要に応じてテスト環境の外向きネットワークを遮断する。
+- 変更時は実 SDK のクラスを用いた単体・互換テストを JS / Python の両方で実施し、`spec/` の共通契約との整合を確認する。

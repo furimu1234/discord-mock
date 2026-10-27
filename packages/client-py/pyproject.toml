@@ -15,6 +15,7 @@ Repository = "https://github.com/furimu1234/discord-mock"
 
 [dependency-groups]
 dev = [
+  "discord.py>=2.7,<3",
   "pytest>=8,<10",
   "ruff>=0.11,<1",
 ]

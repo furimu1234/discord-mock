@@ -2,7 +2,9 @@
 
 - ルートの `AGENTS.md` を遵守する。
 - 依存管理と実行には **uv**、Lint には **Ruff**、テストには **pytest** を使用する。
-- `cd packages/client-py && uv sync && uv run ruff check . && uv run pytest` を検証の基本とする。
+- `DisMockClient(existingClient)` / `disMockClient(existingClient)` / `class UtBot(DisMockMixin, MyBot)` / `class UtBot(disMockClass(MyBot))` を維持する。
+- discord.Client / commands.Bot の **公開された** `dispatch()` とイベント API を利用し、SDK の非公開キャッシュ・内部 Gateway を書き換えない。
+- `cd packages/client-py && uv sync && uv run ruff check . && uv run pytest` を基本検証とする。
+- `discord.py` はテスト時の dev 依存にする。Mock クライアントの利用者に SDK のインストールを強制しない。
 - 公開先は **PyPI** とし、JS クライアントとは独立したバージョンと `py-vX.Y.Z` タグを使用する。
-- `discord.py` の公開された拡張ポイントを利用し、非公開 API の解析・改変に依存しない。
-- 実装していない REST / Gateway / Voice 互換を保証しない。
+- `login()/start()/run()` が実 Discord と通信する可能性を説明し、ソース変更なしの完全接続互換とは表示しない。

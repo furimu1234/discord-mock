@@ -14,3 +14,9 @@
 5. Voice 接続先と VC 参加・退出に伴う音声配信停止を検証
 
 現時点で対応済みなのはヘルスチェックの単体テストのみです。
+
+## SDK 直接ラップ・継承の互換テスト（実装済み）
+
+- JS: `packages/client-js/tests/integration.test.mjs` で discord.js `Client` と Sapphire `SapphireClient` 実クラスを使い、`instanceof`、独自メソッド、イベント注入を検証します。
+- Python: `packages/client-py/tests/test_integrations.py` で discord.py `Client` と `commands.Bot` を用いて `isinstance`、独自メソッド、非ログイン状態でのカスタムイベント配送を検証します。
+- Mock 本体の Gateway / Voice 互換、通常のメッセージを使うコマンド発火、Sapphire Piece 自動ロードまでの統合テストは **未実装** です。

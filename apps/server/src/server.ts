@@ -140,9 +140,13 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
           data: customId
             ? { component_type: 2, custom_id: customId }
             : { id: nextSnowflake(), type: 1, name: commandName, options: [] },
-          guild_id: state.guild.id, channel_id: channelId, token: interactionToken,
-          version: 1, member: { user: actor, roles: [], permissions: "0", joined_at: new Date().toISOString(), flags: 0 },
+          guild_id: state.guild.id, channel_id: channelId,
+          channel: state.guild.channels.find((c) => c.id === channelId),
+          token: interactionToken, version: 1,
+          member: { user: actor, roles: [], permissions: "0", joined_at: new Date().toISOString(), flags: 0 },
           app_permissions: "0", locale: "ja", guild_locale: "ja",
+          entitlements: [], authorizing_integration_owners: { "0": state.guild.id },
+          context: 0, attachment_size_limit: 8_388_608,
         };
         interactions.set(id, { token: interactionToken });
         broadcast("INTERACTION_CREATE", interaction);
@@ -156,14 +160,18 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
         return;
       }
       if (!isApi) { error(res, 404, "Unknown mock route"); return; }
-      if (req.headers.authorization !== `Bot ${token}`) { error(res, 401, "Use the synthetic token printed by discord-mock"); return; }
+      // Interaction callbacks are authenticated by the interaction token in the URL.
+      // discord.js posts callbacks with auth:false (no Bot Authorization header).
+      const callback = path.match(/^\/interactions\/(\d+)\/([^/]+)\/callback$/);
+      if (req.headers.authorization !== `Bot ${token}` && !(method === "POST" && callback)) {
+        error(res, 401, "Use the synthetic token printed by discord-mock"); return;
+      }
       const wsUrl = `ws://${host === "::1" ? "[::1]" : host}:${(server.address() as {port:number}).port}/gateway`;
       if (method === "GET" && (path === "/gateway" || path === "/gateway/bot")) {
         send(res, 200, path === "/gateway" ? { url: wsUrl } : {
           url: wsUrl, shards: 1, session_start_limit: { total: 1000, remaining: 1000, reset_after: 86_400_000, max_concurrency: 1 },
         }); return;
       }
-      const callback = path.match(/^\/interactions\/(\d+)\/([^/]+)\/callback$/);
       if (method === "POST" && callback) {
         const item = interactions.get(callback[1]);
         if (!item || item.token !== callback[2]) { error(res, 404, "Unknown interaction"); return; }

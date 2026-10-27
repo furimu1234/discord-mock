@@ -9,7 +9,7 @@
 
 let
   node = pkgs.nodejs_24;
-  pnpm = pkgs.pnpm_11.override { nodejs = node; };
+  pnpm = pkgs.pnpm_11;
   python = pkgs.python313;
 in
 pkgs.mkShellNoCC {
@@ -27,13 +27,9 @@ pkgs.mkShellNoCC {
   UV_PYTHON = "${python}/bin/python3";
   UV_PYTHON_DOWNLOADS = "never";
 
-  # pnpm is provisioned by Nix here: never auto-download the version
+  # pnpm is provided directly by Nix (no override or global installation).
+  # Never auto-download the version
   # mentioned by package.json (it might differ within major version 11).
   pnpm_config_pm_on_fail = "ignore";
 
-  shellHook = ''
-    echo "discord-mock development shell is ready (Node.js 24 / pnpm 11 / Python 3.13 / uv)."
-    echo "Use: pnpm install, uv sync --project packages/client-py, pnpm build"
-    echo "No dependencies are installed or built automatically on shell entry."
-  '';
 }

@@ -240,3 +240,11 @@
 - uv は Nix が提供する Python に限定し、`UV_PYTHON` と `UV_PYTHON_DOWNLOADS=never` を devShell 内で設定する。
 - シェル入場時の `pnpm install`・`uv sync`・`pnpm build` の自動実行は禁止する。依存関係とビルドは開発者が明示的に行う。
 - `shell.nix` はホストの `<nixpkgs>` を使用するため、記録した nixpkgs リビジョンが固定されていると誤認させない。
+
+## 18. サンプル Bot と VS Code の Nix 開発シェル
+
+- サンプル Bot は `examples/sample-bot/` に TypeScript の `discord.js` Bot として実装し、ローカル Mock REST / Gateway / Interaction callback の E2E 検証に用いる。
+- サンプル Bot は実 Discord のトークンを要求してはならず、`mock_` テスト用トークンのみ受け付ける。
+- `pnpm build` は明示的なビルドのみであり、`pnpm sample:test` や `pnpm sample:bot` 時の自動ビルドはしない。
+- `.vscode/settings.json` の `terminal.integrated.defaultProfile.linux` で、新しい VS Code 統合ターミナルから `nix-shell` を直接起動する。グローバル環境には適用しない。
+- `shell.nix` は `pnpm_11.override { nodejs = ...; }` を使用せず、pnpm の評価警告を回避する。毎回の宣伝的な echo を shellHook に追加しない。

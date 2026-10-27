@@ -81,6 +81,24 @@ class DisMockClient(DiscordMockClient):
         """Alias for dispatch()."""
         self.dispatch(event, *args, **kwargs)
 
+    def routes(self):
+        """Context-manager for a temporary discord.py REST Route.BASE override."""
+        from .routes import mock_routes
+
+        return mock_routes(self._base_url)
+
+    async def start(self, token: str) -> None:
+        """Experimental local REST/Gateway connection; no production token allowed.
+
+        The SDK-specific route patch is scoped to this call and is restored
+        after the SDK stops. Do not run alongside other discord.py clients.
+        """
+        if not token.startswith("mock_"):
+            raise ValueError("Only synthetic mock_ tokens may be used for a Mock test")
+        with self.routes():
+            async with self.client:
+                await self.client.start(token)
+
 
 def disMockClient(client: Any, **options: Any) -> DisMockClient:
     """Attach a test controller to an existing discord.py client instance."""

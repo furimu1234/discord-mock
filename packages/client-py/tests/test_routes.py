@@ -26,3 +26,13 @@ def test_patch_restores_on_error_and_blocks_remote() -> None:
     with pytest.raises(ZeroDivisionError), mock_routes():
         raise ZeroDivisionError('intentional')
     assert Route.BASE == original
+
+def test_adapter_start_rejects_real_discord_token() -> None:
+    import asyncio
+    import discord
+    from discord_mock_client import disMockClient
+
+    client = discord.Client(intents=discord.Intents.none())
+    adapter = disMockClient(client)
+    with pytest.raises(ValueError, match="synthetic"):
+        asyncio.run(adapter.start("real_discord_token"))

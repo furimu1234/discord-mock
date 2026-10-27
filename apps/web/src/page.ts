@@ -1,6 +1,6 @@
 /** Local-only interface: no third-party scripts, fonts, or stylesheets. */
 export function renderPage(): string {
-  return String.raw\`<!doctype html>
+  return String.raw`<!doctype html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -76,12 +76,12 @@ a{color:#b8c9ff;text-decoration:none}a:hover{text-decoration:underline}
     <p>音声プロトコル・VC 再生、DM、権限ベースの管理 UI はまだ未実装です。</p><p><a href="/test">テスト画面に戻る</a></p>
   </section>
 </div>
-</body></html>\`;
+</body></html>`;
 }
 
 /** Served from the same local origin; no inline JS or external CDN. */
 export function renderBrowserScript(): string {
-  return String.raw\`(() => {
+  return String.raw`(() => {
     "use strict";
     const $ = (id) => document.getElementById(id);
     const isAdmin = location.pathname === "/admin";
@@ -225,5 +225,5 @@ export function renderBrowserScript(): string {
       }
     };
     void init();
-  })();\`;
+  })();`;
 }

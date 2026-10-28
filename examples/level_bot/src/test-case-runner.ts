@@ -28,15 +28,16 @@ export class LocalTestCaseRunner implements TestCaseService {
       const source = await readFile(resolve(this.testsDir, file.name), "utf8");
       // The current tests use literal names. Dynamic test definitions are not exposed as buttons.
       const regexp = /^\s*(?:test|it)\(\s*(["'`])([^\r\n]+?)\1\s*,/gm;
-      let match: RegExpExecArray | null;
+      let match: RegExpExecArray | null = regexp.exec(source);
       let index = 0;
-      while ((match = regexp.exec(source))) {
+      while (match) {
         cases.push({
           id: `${file.name}:${index++}`,
           name: match[2],
           file: `tests/bot/${file.name}`,
           testName: match[2],
         });
+        match = regexp.exec(source);
       }
     }
     return cases;

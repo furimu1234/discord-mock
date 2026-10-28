@@ -50,6 +50,11 @@ export function createBrowserFixture(pathname = "/") {
   const tags = {
     "test-panel": "main",
     "admin-panel": "section",
+    "admin-status": "p",
+    "admin-login": "form",
+    "admin-secret": "input",
+    "admin-content": "div",
+    "desktop-controls": "section",
     "database-panel": "main",
     "tests-panel": "main",
     "tests-sidebar": "div",

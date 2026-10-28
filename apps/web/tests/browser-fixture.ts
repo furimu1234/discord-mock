@@ -15,6 +15,10 @@ export class Element {
   declare focused: boolean;
   declare onchange: () => void;
   declare onclick: () => void;
+  declare ondblclick: () => void;
+  declare onpointerenter: () => void;
+  declare onpointermove: () => void;
+  declare scrolledIntoView: boolean;
   declare oninput: () => void;
   declare onsubmit: (event: { preventDefault(): void }) => void;
   declare onkeydown: (event: { key: string; preventDefault(): void; repeat?: boolean; isComposing?: boolean }) => void;
@@ -37,6 +41,7 @@ export class Element {
   setAttribute(name: string, value: string) { this.attributes.set(name, value); }
   removeAttribute(name: string) { this.attributes.delete(name); }
   focus() { this.focused = true; }
+  scrollIntoView() { this.scrolledIntoView = true; }
 }
 
 export function createBrowserFixture(pathname = "/") {
@@ -56,8 +61,7 @@ export function createBrowserFixture(pathname = "/") {
     "test-runs-refresh": "button",
     "manual-composer": "div",
     "test-case-composer": "div",
-    "test-case-select": "select",
-    "test-case-run": "button",
+    "test-case-list": "div",
     "test-case-status": "span",
     "test-log-panel": "aside",
     "test-log-entries": "div",

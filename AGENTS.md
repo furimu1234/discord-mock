@@ -253,6 +253,7 @@
 - サンプル Bot は実 Discord のトークンを要求してはならず、`mock_` テスト用トークンのみ受け付ける。
 - `pnpm build` は明示的なビルドのみであり、`pnpm sample:test` や `pnpm sample:bot` 時の自動ビルドはしない。
 - `.vscode/settings.json` の `terminal.integrated.defaultProfile.linux` で、新しい VS Code 統合ターミナルから `nix-shell` を直接起動する。グローバル環境には適用しない。
+- VS Code の TypeScript / TSX、JavaScript / JSX、JSON / JSONC、CSS は `biomejs.biome` を既定のフォーマッターとして保存時に整形する。`.vscode/settings.json` の言語別設定と `.vscode/extensions.json` の Biome 推奨を維持し、Python 等のフォーマッター設定は変更しない。
 - `shell.nix` は `pnpm_11.override { nodejs = ...; }` を使用せず、pnpm の評価警告を回避する。毎回の宣伝的な echo を shellHook に追加しない。
 
 ## 19. GitHub・開発コミュニケーションの日本語統一（必須）

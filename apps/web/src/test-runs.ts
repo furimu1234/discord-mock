@@ -5,6 +5,7 @@ import type {
 } from "../../../packages/client-js/src/test-runs.js";
 import { createElement, getElement } from "./dom.js";
 import { renderMessage } from "./message.js";
+import { TestCasePicker } from "./test-case-picker.js";
 
 const STATUS: Record<TestRunStatus, string> = {
   running: "実行中",
@@ -191,9 +192,9 @@ export class TestRunChatView {
   private readonly usersList = getElement("test-user-list", "div");
   private readonly userProfile = getElement("test-user-profile", "div");
   private readonly userMenu = getElement("test-user-menu", "div");
-  private readonly caseSelect = getElement("test-case-select", "select");
-  private readonly caseRun = getElement("test-case-run", "button");
-  private caseSignature = "";
+  private readonly casePicker = new TestCasePicker(
+    getElement("test-case-list", "div"), (id) => { void this.execute(id); },
+  );
   private caseLaunching = false;
   private readonly status = getElement("test-case-status", "span");
   private readonly error = getElement("error", "div");
@@ -214,9 +215,6 @@ export class TestRunChatView {
     this.logTab.onclick = () => this.selectSidebarTab("log");
     this.usersTab.onclick = () => this.selectSidebarTab("users");
     this.selectSidebarTab("log");
-    this.caseRun.onclick = () => {
-      if (!this.caseRun.disabled && this.caseSelect.value) void this.execute(this.caseSelect.value);
-    };
     this.createChannelButton.onclick = () => {
       this.createChannelForm.classList.toggle("hidden", false);
       this.createChannelName.focus();
@@ -256,7 +254,7 @@ export class TestRunChatView {
           this.refreshCases(), this.refreshRuns(),
         ])).catch(() => {});
       };
-      // プロセス起動失敗など SSE を発行できない場合もボタン状態を戻す。
+      // プロセス起動失敗など SSE を発行できない場合も実行可能な状態へ戻す。
       setInterval(() => { void this.refreshCases(); }, 1500);
     } catch (error) {
       this.showError(error instanceof Error ? error.message : "初期化に失敗しました");
@@ -459,46 +457,21 @@ export class TestRunChatView {
         runningId: string | null;
         error: string | null;
       }>("/_admin/test-cases");
-      // ポーリング時にoptionを再作成すると開いているネイティブselectが閉じる。
-      // 一覧が実際に変化した場合だけDOMを更新し、選択IDを引き継ぐ。
-      const signature = JSON.stringify(result.cases);
-      if (signature !== this.caseSignature) {
-        const previous = this.caseSelect.value;
-        const options = result.cases.map((item) => {
-          const option = createElement("option", "", item.name);
-          option.value = item.id;
-          return option;
-        });
-        if (options.length === 0) {
-          const empty = createElement("option", "", "テストケースがありません");
-          empty.value = "";
-          options.push(empty);
-        }
-        this.caseSelect.replaceChildren(...options);
-        this.caseSelect.value = result.cases.some((item) => item.id === previous)
-          ? previous : (result.cases[0]?.id ?? "");
-        this.caseSignature = signature;
-      }
       const running = result.runningId !== null || this.caseLaunching;
-      this.caseSelect.disabled = running || result.cases.length === 0;
-      this.caseRun.disabled = running || !this.caseSelect.value;
-      this.caseRun.textContent = running ? "実行中…" : "実行";
+      this.casePicker.update(result.cases, running);
       this.status.textContent = result.runningId
         ? "テスト実行中…"
         : result.error ?? `${result.cases.length} 件のテストケース`;
     } catch {
-      this.caseSelect.disabled = true;
-      this.caseRun.disabled = true;
+      this.casePicker.setDisabled(true);
       this.status.textContent = "テストケース一覧を取得できません（pnpm app を確認）";
     }
   }
 
   private async execute(id: string): Promise<void> {
-    if (this.caseLaunching || this.caseRun.disabled) return;
+    if (this.caseLaunching || this.casePicker.disabled) return;
     this.caseLaunching = true;
-    this.caseSelect.disabled = true;
-    this.caseRun.disabled = true;
-    this.caseRun.textContent = "起動中…";
+    this.casePicker.setDisabled(true);
     this.showError("");
     this.status.textContent = "テストを開始しています…";
     try {

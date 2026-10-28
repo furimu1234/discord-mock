@@ -68,6 +68,6 @@ app の `/tests` では実行一覧・経過・メッセージ・Embed とコマ
 
 `pnpm bot:test` は `examples/level_bot/tests/bot/**/*.test.ts` を Vitest で実行する。機能ごとの TS ファイルを置くと同じコマンドで検出する。Web / Server / SDK のテストはこのコマンドに含めない。`pnpm sample:test` は `tests/integration/*.test.ts` の app / DB / プロセス起動の検証も行う。
 
-共通の `tests/helpers/bot-test.ts` はテスト単位の fixture として実 Bot / DB / Mock を起動・終了する。本文は `bot.as(user).sendMessage(content)` / `.command(name)` と通常の expect を使う。`bot.levels.set/get` はサンプル固有のデータ準備 / 確認用。汎用 SDK の新 API ではない。HTTP ヘッダー・接続・後片付けは本文に含めない。Web 反映は既存の reportTo と管理セッションを使う。
+共通の `tests/helpers/bot-test.ts` はテスト単位の fixture として実 Bot / Mock を起動・終了し、既存の共有 DB を利用する。テストのコンテキストは `{ bot, actor }` とし、`actor` に対象ユーザーの全情報（`id`・`username` など）と `sendMessage(content)` / `command(name)` をまとめる。別の `user` は渡さない。`bot.levels.get(actor)` / `bot.levels.set(actor, level)` にも同じ actor を渡せる。`users: { ids: [...] }` では指定順に対象ユーザーの actor を作成して本文を実行する。`bot.levels.set/get` はサンプル固有のデータ準備 / 確認用で、汎用 SDK の新 API ではない。HTTP ヘッダー・接続・後片付けは本文に含めない。Web 反映は既存の reportTo と管理セッションを使う。
 
 登録関数は通常の Client を受け取り、公開 `Client.isReady()` で Ready 後であることを確認してから、既存のローカル REST 設定を検証する。呼出側へ Client<true> の型アサーションを要求しない。2026-10-28 に [discord.js 14.27.0 の公開 Client API](https://discord.js.org/docs/packages/discord.js/14.27.0/Client:Class#isReady) と、上記の公式規約を確認した。Mock のプロトコルや本番への接続経路は追加しない。

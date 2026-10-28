@@ -91,15 +91,11 @@ export function renderPage(): string {
       <p class="hint">/ でコマンド一覧。↑↓ で選択、Enter・Tab で補完、Esc で閉じます。Shift+Enter で改行できます。</p>
     </div>
     <div id="test-case-composer" class="composer test-case-composer hidden">
-      <div class="test-case-caption"><strong>テストケース</strong><span id="test-case-status" role="status">読み込み中…</span></div>
-      <div class="test-case-controls">
-        <label for="test-case-select">実行するテスト</label>
-        <select id="test-case-select" aria-label="テストケースを選択" size="5" disabled>
-          <option value="">読み込み中…</option>
-        </select>
-        <button id="test-case-run" type="button" disabled>実行</button>
+      <div class="test-case-caption"><strong id="test-case-title">テストケース</strong><span id="test-case-status" role="status">読み込み中…</span></div>
+      <div id="test-case-list" class="test-case-list" role="listbox" tabindex="0" aria-labelledby="test-case-title" aria-describedby="test-case-help" aria-disabled="true">
+        <div class="test-case-empty">読み込み中…</div>
       </div>
-      <p class="hint">UTで users: "login" を指定すると、右側で切り替えたユーザーとして実行します。ユーザー操作と Bot の応答はチャット、検証結果は右のログに表示します。</p>
+      <p id="test-case-help" class="hint">矢印キーで選択 · Enter / ダブルクリックで実行 · ● は5秒間表示<br>users: "login" は右側で選んだユーザーとして実行します。</p>
     </div>
   </main>
   <main class="main database-page hidden" id="database-panel">

@@ -1,6 +1,7 @@
 import { test as base, expect, inject, type TestContext } from "vitest";
 import {
   createTestEnvironment,
+  type MockMessage,
   type MockUser,
   type WaitOptions,
 } from "@discord-mock/client-js/testing";
@@ -10,10 +11,15 @@ import { startLevelBot } from "../../packages/bot/src/local.js";
 import { appPaths, readAppConnection } from "../../src/config.js";
 import { resolveTestUsers, type TestUserTarget } from "./user-target.js";
 
-type BotActor = ReturnType<typeof createBotActor>;
-function createBotActor(mock: Awaited<ReturnType<typeof createTestEnvironment>>, channelId: string, user: MockUser) {
+export interface BotActor extends MockUser {
+  sendMessage(content: string): Promise<MockMessage>;
+  command(name: string, options?: WaitOptions): Promise<MockMessage>;
+}
+
+function createBotActor(mock: Awaited<ReturnType<typeof createTestEnvironment>>, channelId: string, user: MockUser): BotActor {
   const actor = mock.as(user);
   return {
+    ...user,
     sendMessage: (content: string) => actor.sendMessage(channelId, content),
     command: (name: string, options?: WaitOptions) => actor.runCommand(channelId, name, options),
   };
@@ -120,10 +126,10 @@ async function setupBot({ task }: TestContext, { onCleanup }: { onCleanup(callba
 /** テスト宣言側で選んだユーザーを操作・検証に共通して提供する。 */
 const baseBotTest = base.extend("bot", setupBot);
 type BotHarness = Awaited<ReturnType<typeof setupBot>>;
-export type BotCaseContext = { bot: BotHarness; user: MockUser; actor: BotActor };
+export type BotCaseContext = { bot: BotHarness; actor: BotActor };
 export function test(name: string, options: { users: TestUserTarget }, execute: (context: BotCaseContext) => Promise<void>): void {
   baseBotTest(name, async ({ bot }) => {
     const targets = resolveTestUsers(bot.users.list(), options.users, process.env.DISCORD_MOCK_SELECTED_USER_ID);
-    for (const user of targets) await execute({ bot, user, actor: bot.as(user) });
+    for (const user of targets) await execute({ bot, actor: bot.as(user) });
   });
 }

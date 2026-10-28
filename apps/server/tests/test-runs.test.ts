@@ -71,8 +71,9 @@ test("UT の表示用コピーを共有し、普段の状態を変更せず終�
     );
     assert.equal((await fetch(`${app.url}/tests`)).status, 200);
     const testPage = await (await fetch(`${app.url}/test`)).text();
-    assert.match(testPage, /id="test-case-select"[^>]*size="5"/);
-    assert.match(testPage, /id="test-case-run"/);
+    assert.match(testPage, /id="test-case-list"[^>]*role="listbox"[^>]*tabindex="0"/);
+    assert.doesNotMatch(testPage, /id="test-case-(select|run)"/);
+    assert.match(testPage, /Enter \/ ダブルクリックで実行/);
     assert.match(testPage, /id="test-log-panel"/);
     assert.match(testPage, /id="channels"/);
     assert.match(testPage, /id="messages"/);

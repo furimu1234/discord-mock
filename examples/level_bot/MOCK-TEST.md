@@ -27,7 +27,7 @@ pnpm app
 
 `pnpm app` は Mock REST / Gateway、Web、PGlite を起動します。初回は `.discord-mock-data/credentials.json` にテスト用トークンを発行し、**保存済みのトークンがある次回起動から** Bot クライアントを自動起動します。既存の `.env` に設定された `TOKEN` が保存済みトークンと違う場合は、app は起動したまま Bot のみ起動を見送り、`pnpm bot:test` を使った設定確認を案内します。Bot 単体を手動起動する場合は `pnpm bot:client` を使用してください。
 
-`http://127.0.0.1:3000/test` は Discord 風の自動テスト画面です。右側「ユーザー」タブで Alice / Bob などを切り替えると、UT ソースの `users: "login"` で指定されたユーザーとして操作を実行します。左のチャンネル一覧でチャットを選択でき、中央にはダミーユーザーの投稿・Bot の返信・Embed のみ表示します。テスト開始・検証ステップ・合否は右の独立した実行ログに表示します。下部のセレクトメニューでテストケースを選び「実行」を押すと、個別の Vitest ケースを起動します。すべてのテストを実行するときは `pnpm bot` を別ターミナルから実行します。`/tests` にも実行履歴が表示されます。
+`http://127.0.0.1:3000/test` は Discord 風の自動テスト画面です。右側「ユーザー」タブで Alice / Bob などを切り替えると、UT ソースの `users: "login"` で指定されたユーザーとして操作を実行します。左のチャンネル一覧でチャットを選択でき、中央にはダミーユーザーの投稿・Bot の返信・Embed のみ表示します。テスト開始・検証ステップ・合否は右の独立した実行ログに表示します。下部の独自リストでテストケースを矢印キーやマウスで選び、Enterまたはダブルクリックすると個別の Vitest ケースを起動します。実行ボタンはなく、実行した行の四角い枠に「●」を5秒間表示します。スクロールバーは非表示ですが、ホイールやタッチで一覧をスクロールできます。すべてのテストを実行するときは `pnpm bot` を別ターミナルから実行します。`/tests` にも実行履歴が表示されます。
 
 ```sh
 pnpm bot
@@ -72,8 +72,8 @@ Bot の機能だけをまとめて検証します。app を別に起動する必
 ```ts
 import { test, expect } from '../helpers/bot-test.js';
 
-test("レベル確認で7を返す", { users: "login" }, async ({ bot, user, actor }) => {
-  await bot.levels.set(user, 7); // 任意で直接設定
+test("レベル確認で7を返す", { users: "login" }, async ({ bot, actor }) => {
+  await bot.levels.set(actor, 7); // 任意で直接設定
   const reply = await actor.command("レベル確認");
   expect(reply.embeds[0].fields?.[0].value).toBe("7");
 });
@@ -87,19 +87,19 @@ test("レベル確認で7を返す", { users: "login" }, async ({ bot, user, act
 
 ### UT の実行ユーザーを test() で指定
 
-`test("ケース名", { users: "login" }, async ({ bot, user, actor }) => { ... })` のように、第2引数でテスト対象を指定します。
+`test("ケース名", { users: "login" }, async ({ bot, actor }) => { ... })` のように、第2引数でテスト対象を指定します。
 
 ```ts
 // /test の右側でログインしたユーザーとして実行
-test("レベル確認", { users: "login" }, async ({ bot, user, actor }) => {
-  await bot.levels.set(user, 7);
+test("レベル確認", { users: "login" }, async ({ bot, actor }) => {
+  await bot.levels.set(actor, 7);
   const reply = await actor.command("レベル確認");
   expect(reply.embeds[0].fields?.[0].value).toBe("7");
 });
 
 // 全ダミーユーザー（Bot除外）について同じ検証を順次実行
-test("全員の投稿", { users: "all" }, async ({ user, actor }) => {
-  await actor.sendMessage(`${user.username} から投稿`);
+test("全員の投稿", { users: "all" }, async ({ actor }) => {
+  await actor.sendMessage(`${actor.username} から投稿`);
 });
 
 // ユーザー ID を明示
@@ -108,12 +108,12 @@ test("指定ユーザー", { users: { id: "123456789000000099" } }, async ({ act
 });
 
 // 複数IDでテスト本文を順次実行
-test("複数ID", { users: { ids: ["123456789000000098", "123456789000000099"] } }, async ({ user, actor }) => {
-  await actor.sendMessage(`${user.username} の投稿`);
+test("複数ID", { users: { ids: ["123456789000000098", "123456789000000099"] } }, async ({ actor }) => {
+  await actor.sendMessage(`${actor.username} の投稿`);
 });
 ```
 
-`user` は対象ユーザー、`actor` はそのユーザーとして投稿・コマンド実行できる操作クライアントです。`bot.levels.set(user, ...)` などの状態準備も同じユーザーを参照します。`"all"` では同じテスト本文を各ユーザーについて順に実行します。従来の `bot.as(user)` も残していますが、テスト実行対象は各操作ではなく `test()` の第2引数で指定します。
+`actor` は対象ユーザーの情報（`id`・`username` など）と投稿・コマンド実行の操作をまとめたオブジェクトです。`user` を別に受け取る必要はなく、`bot.levels.get(actor)` や `bot.levels.set(actor, level)` にも同じオブジェクトを渡せます。`bot.levels.set(actor, ...)` などの状態準備も同じユーザーを参照します。`"all"` では同じテスト本文を各ユーザーについて順に実行します。従来の `bot.as(user)` も残していますが、テスト実行対象は各操作ではなく `test()` の第2引数で指定します。
 
 `"login"` は `/test` 右側の「ユーザー」タブからログイン先を変更したユーザーです。左クリックでロール等のプロフィール、右クリックでIDコピーとログイン切替を操作できます。初期ダミーユーザーは10人で、ログは「実行ログ」タブにあります。CLIで `pnpm bot` を実行するときは既定の Alice を使い、`DISCORD_MOCK_SELECTED_USER_ID` で上書きできます。未知のIDやBotアカウントにはフォールバックしません。
 
@@ -121,7 +121,7 @@ test("複数ID", { users: { ids: ["123456789000000098", "123456789000000099"] } 
 
 ### 共有DBとチャンネル作成
 
-`pnpm app` 起動中のBotテストは、各テストでMock・Botを独立して立ち上げつつ、**DBはAppのPGliteを全テストで共有**します。通常は `actor.sendMessage()` を通じたBot本体の処理でレコードを更新しますが、**任意で `bot.levels.set(user, level, guildId?)` による直接設定もできます**。直接設定は実際の共有PGliteのレコードを挿入・更新し、後続のケースにも残ります。期待値はテスト前のレベルからの増加数で判定します。結果のレコードは `/database` の「AppのDB」に即時反映し、テストをまたいで保持します。App停止時にはPGliteを破棄します。
+`pnpm app` 起動中のBotテストは、各テストでMock・Botを独立して立ち上げつつ、**DBはAppのPGliteを全テストで共有**します。通常は `actor.sendMessage()` を通じたBot本体の処理でレコードを更新しますが、**任意で `bot.levels.set(actor, level, guildId?)` による直接設定もできます**。直接設定は実際の共有PGliteのレコードを挿入・更新し、後続のケースにも残ります。期待値はテスト前のレベルからの増加数で判定します。結果のレコードは `/database` の「AppのDB」に即時反映し、テストをまたいで保持します。App停止時にはPGliteを破棄します。
 
 Appを起動せず `pnpm bot:test` する場合はVitest実行全体で単一の一時PGliteを共有し、全テスト終了時に閉じます。Mockのチャットは独立したまま結果表示用に報告されます。
 
@@ -129,13 +129,13 @@ Appを起動せず `pnpm bot:test` する場合はVitest実行全体で単一の
 
 ### ネストした describe とテストケースの選択
 
-`/test` 下部のセレクトメニューには、テストコードの `describe` 階層が `親 › 子 › テスト名` 形式で表示されます。階層名全体を使ってVitestの対象を絞るため、別の `describe` 内で同じ `test` 名を使用しても選択できます。
+`/test` 下部のテストケース一覧には、テストコードの `describe` 階層が `親 › 子 › テスト名` 形式で表示されます。階層名全体を使ってVitestの対象を絞るため、別の `describe` 内で同じ `test` 名を使用しても選択できます。
 
 ```ts
 describe("/レベル確認", () => {
   describe("直接設定", () => {
-    test("レベルを確認", { users: "login" }, async ({ bot, user, actor }) => {
-      await bot.levels.set(user, 7);
+    test("レベルを確認", { users: "login" }, async ({ bot, actor }) => {
+      await bot.levels.set(actor, 7);
       const reply = await actor.command("レベル確認");
       expect(reply.embeds[0].fields?.[0].value).toBe("7");
     });
@@ -143,4 +143,4 @@ describe("/レベル確認", () => {
 });
 ```
 
-この場合、セレクトメニューには `/レベル確認 › 直接設定 › レベルを確認` と表示されます。静的な文字列リテラル名の `describe` / `test` / `it` に対応します。`describe.each` / `test.each` など実行時生成のテストは個別一覧の対象外です。全テストの実行は従来どおり `pnpm bot` で行えます。
+この場合、テストケース一覧には `/レベル確認 › 直接設定 › レベルを確認` と表示されます。静的な文字列リテラル名の `describe` / `test` / `it` に対応します。`describe.each` / `test.each` など実行時生成のテストは個別一覧の対象外です。全テストの実行は従来どおり `pnpm bot` で行えます。

@@ -525,42 +525,42 @@ a:hover {
 
 
 /* /test はチャット型の自動テスト実行画面。 */
-.test-case-composer { flex-shrink: 0; }
+.test-case-composer { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
 .test-case-caption { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .test-case-caption strong { font-size: 14px; }
 .test-case-caption span { color: #aab2c6; font-size: 12px; }
-.test-case-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 8px 10px;
-  margin-top: 12px;
-}
-.test-case-controls label { grid-column: 1 / -1; color: #b8c1d3; font-size: 12px; }
-.test-case-controls select {
-  grid-column: 1; grid-row: 2;
+.test-case-caption, .test-case-composer .hint { flex: 0 0 auto; }
+.test-case-composer .hint { margin: 0; font-size: 11px; line-height: 1.6; }
+.test-case-list {
+  flex: 0 1 auto; min-height: 0;
   min-width: 0; width: 100%; height: min(164px, 21vh);
   overflow-x: hidden; overflow-y: auto;
-  overscroll-behavior-y: contain; scrollbar-gutter: stable;
-  border: 1px solid #596385; border-radius: 7px;
-  background: #30364b; color: #ecf0ff; padding: 4px;
-  font-size: 12px;
+  overscroll-behavior-y: contain; scrollbar-width: none;
+  border: 1px solid #414b65; border-radius: 9px;
+  background: #252936; color: #dce3f3; padding: 5px;
+  font-size: 12px; outline: none;
 }
-.test-case-controls select option {
-  padding: 7px 10px;
-  white-space: normal;
+.test-case-list::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.test-case-list:focus-visible { border-color: #91a7f3; box-shadow: 0 0 0 2px #91a7f32e; }
+.test-case-option {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 33px; padding: 7px 10px;
+  border: 1px solid transparent; border-radius: 5px;
+  cursor: pointer; user-select: none;
 }
-.test-case-controls button {
-  grid-column: 2; grid-row: 2; align-self: end;
-  border: 1px solid #687bc4; border-radius: 7px;
-  background: #4e60b2; color: #fff; padding: 9px 20px;
-  font-size: 12px; font-weight: 600; flex-shrink: 0;
+.test-case-option.active { background: #91a7f326; border-color: #91a7f347; color: #f0f4ff; }
+.test-case-marker {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 16px; width: 16px; height: 16px;
+  border: 1px solid #68748f; border-radius: 3px;
+  color: #b9d1ff; font-size: 10px; line-height: 1;
 }
-.test-case-controls button:hover:not(:disabled) { background: #6477d0; }
-.test-case-controls button:disabled, .test-case-controls select:disabled { opacity: .5; cursor: not-allowed; }
+.test-case-option.active .test-case-marker { border-color: #9aafe7; background: #91a7f314; }
+.test-case-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.test-case-list[aria-disabled="true"] .test-case-option { cursor: not-allowed; }
+.test-case-empty { padding: 12px 10px; color: #9da8c1; }
 @media (max-width: 650px) {
-  .test-case-controls { grid-template-columns: minmax(0, 1fr) auto; }
-  .test-case-controls select { height: min(130px, 18vh); }
+  .test-case-list { height: min(130px, 18vh); }
 }
 
 /* /test: Discord 風のメッセージ領域と独立した操作ログ。既存の配色を使用する。 */
@@ -687,7 +687,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
   overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain;
   scrollbar-gutter: stable;
 }
-.test-case-composer { flex: 0 0 auto; max-height: 36vh; overflow-y: auto; }
+.test-case-composer { flex: 0 0 auto; max-height: 36vh; overflow: hidden; }
 .test-log-panel { overflow: hidden; }
 .test-log-entries, .test-user-list { min-height: 0; overflow-y: auto; }
 @media (max-width: 780px) {

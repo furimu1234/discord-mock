@@ -136,31 +136,29 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.equal((switchRequest.options.headers as Record<string, string>)["x-discord-mock-csrf"], "test-csrf");
   assert.equal(selectedUserId, "123456789000000098");
   assert.equal(fixture.elements["test-log-panel"].classes.has("hidden"), false);
-  const select = fixture.elements["test-case-select"];
-  const runButton = fixture.elements["test-case-run"];
-  assert.equal(select.children.length, 10, "5行を超えるテストでも選択肢をすべて保持する");
-  assert.equal(select.value, testCase.id);
-  assert.equal(runButton.disabled, false);
-  const firstOption = select.children[0];
-  select.value = nestedCase.id;
-  select.scrollTop = 80; // 常時展開リストのスクロールを保持する
+  const list = fixture.elements["test-case-list"];
+  assert.equal(list.children.length, 10, "5行を超えるテストでも選択肢をすべて保持する");
+  assert.equal(list.children[0].attributes.get("aria-selected"), "true");
+  assert.equal(list.attributes.get("aria-disabled"), "false");
+  const firstOption = list.children[0];
+  list.children[1].onclick();
+  list.scrollTop = 80;
   const caseStream = fixture.streams.find((item) => item.url === "/_admin/test-runs/events");
   assert.ok(caseStream);
   caseStream.handlers.get("changed")?.();
   await settle();
-  assert.equal(select.value, nestedCase.id, "ポーリングしても選択したテストを維持する");
-  assert.equal(select.children[0], firstOption, "選択肢が同じならセレクトを再構築しない");
-  assert.equal(select.scrollTop, 80, "更新してもリスト内のスクロール位置を保持する");
+  assert.equal(list.children[1].attributes.get("aria-selected"), "true", "ポーリングしても選択したテストを維持する");
+  assert.equal(list.children[0], firstOption, "選択肢が同じなら一覧を再構築しない");
+  assert.equal(list.scrollTop, 80, "更新してもリスト内のスクロール位置を保持する");
   runningId = nestedCase.id;
   caseStream.handlers.get("changed")?.();
   await settle();
-  assert.equal(select.disabled, true);
-  assert.equal(runButton.disabled, true);
-  assert.equal(runButton.textContent, "実行中…");
+  assert.equal(list.attributes.get("aria-disabled"), "true");
+  assert.equal(fixture.elements["test-case-status"].textContent, "テスト実行中…");
   runningId = null;
   caseStream.handlers.get("changed")?.();
   await settle();
-  assert.equal(runButton.disabled, false);
+  assert.equal(list.attributes.get("aria-disabled"), "false");
   assert.equal(fixture.elements.channels.children.length, 1);
   assert.equal(fixture.elements["channel-title"].textContent, "# general");
   // サイドバーからチャンネル作成し、チャット切替とライブ一覧更新を検証する。
@@ -180,8 +178,8 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.match(textOf(fixture.elements["test-log-entries"]), /まだ実行ログはありません/);
   assert.equal(calls.some((call) => call.url === "/_ui/state"), true);
 
-  // ケースのボタンは CSRF 付き API に送信する。
-  runButton.onclick();
+  // Enterによる実行は、選択したケースだけをユーザーのCSRF付きAPIへ送信する。
+  list.onkeydown({ key: "Enter", preventDefault() {} });
   await settle();
   const start = calls.find((call) => call.url === "/_ui/test-cases/run");
   assert.ok(start);
@@ -190,8 +188,8 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   cases = [testCase];
   caseStream.handlers.get("changed")?.();
   await settle();
-  assert.equal(select.children.length, 1);
-  assert.equal(select.value, testCase.id);
+  assert.equal(list.children.length, 1);
+  assert.equal(list.children[0].attributes.get("aria-selected"), "true");
 
   runs = [{ id: report.id }];
   const stream = fixture.streams.find((s) => s.url === "/_admin/test-runs/events");
@@ -288,7 +286,7 @@ test("/test は起動直後に # general と空のチャンネル開始画面を
   assert.match(textOf(fixture.elements.messages), /generalへようこそ/);
   assert.doesNotMatch(textOf(fixture.elements.messages), /実行待機中|結果:/);
   assert.match(textOf(fixture.elements["test-log-entries"]), /まだ実行ログはありません/);
-  assert.equal(fixture.elements["test-case-select"].disabled, true);
-  assert.equal(fixture.elements["test-case-run"].disabled, true);
-  assert.equal(fixture.elements["test-case-select"].children[0].textContent, "テストケースがありません");
+  const list = fixture.elements["test-case-list"];
+  assert.equal(list.attributes.get("aria-disabled"), "true");
+  assert.equal(list.children[0].textContent, "テストケースがありません");
 });

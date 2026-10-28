@@ -2,7 +2,7 @@ import { startEphemeralDatabase } from "../../src/database.js";
 
 /** CI / CLI without an app uses a single PGlite shared by every test file. */
 export default async function setup({ provide }: { provide(name: "mockDbDsn", dsn: string): void }) {
-  if (process.env.DISCORD_MOCK_REPORT_URL) {
+  if (process.env.DISCORD_MOCK_REPORT_URL && process.env.DISCORD_MOCK_REPORT_URL !== "off") {
     provide("mockDbDsn", "");
     return;
   }

@@ -51,9 +51,7 @@
         "AppImage"
       ],
       "category": "Development",
-      "artifactName": "discord-mock-${version}-linux-${arch}.${ext}",
-      "desktopName": "discord-mock",
-      "syncDesktopName": true
+      "artifactName": "discord-mock-${version}-linux-${arch}.${ext}"
     },
     "asar": true,
     "executableName": "discord-mock"

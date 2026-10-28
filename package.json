@@ -28,7 +28,12 @@
     "bot:test": "pnpm --filter @discord-mock/level-bot test:bot",
     "bot:test:web": "pnpm --filter @discord-mock/level-bot test:bot:web",
     "check:ts": "node --experimental-strip-types scripts/check-typescript.ts",
-    "bot:client": "pnpm --filter @discord-mock/level-bot start"
+    "bot:client": "pnpm --filter @discord-mock/level-bot start",
+    "desktop:build": "npm --prefix apps/desktop run build",
+    "desktop:dev": "npm --prefix apps/desktop run start",
+    "desktop:dist:win": "npm --prefix apps/desktop run dist:win",
+    "desktop:dist:mac": "npm --prefix apps/desktop run dist:mac",
+    "desktop:dist:linux": "npm --prefix apps/desktop run dist:linux"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

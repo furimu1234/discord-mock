@@ -1,6 +1,6 @@
 import { getElement } from "./dom.js";
 
-interface User { id: string; username: string; }
+interface User { id: string; username: string; bot: boolean; }
 interface Role { id: string; name: string; permissions: string; color: number; }
 interface Overwrite { id: string; type: 0 | 1; allow: string; deny: string; }
 interface Channel { id: string; name: string; type: number; permission_overwrites: Overwrite[]; }

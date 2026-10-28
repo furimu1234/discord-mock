@@ -23,6 +23,8 @@ export class MockEnvironment extends EventEmitter<{
   changed: [];
 }> {
   readonly interactions = new Map<string, StoredInteraction>();
+  /** Uploaded file bytes live only for the mock process lifetime, not in JSON snapshots. */
+  private readonly uploads = new Map<string, { bytes: Buffer; contentType: string }>();
   private nextId: bigint;
   private saving: Promise<void> = Promise.resolve();
 
@@ -43,6 +45,16 @@ export class MockEnvironment extends EventEmitter<{
       this.state.users.some((user) => user.id === id) || this.state.guild.roles.some((role) => role.id === id) ||
       this.state.guild.channels.some((channel) => channel.id === id) || this.state.commands.some((command) => command.id === id) ||
       this.interactions.has(id) || Object.values(this.state.messages).some((messages) => messages.some((message) => message.id === id));
+  }
+
+  storeUpload(bytes: Buffer, contentType: string): string {
+    const id = this.nextSnowflake();
+    this.uploads.set(id, { bytes, contentType });
+    return id;
+  }
+
+  uploadedFile(id: string): { bytes: Buffer; contentType: string } | undefined {
+    return this.uploads.get(id);
   }
 
   nextSnowflake(): string {

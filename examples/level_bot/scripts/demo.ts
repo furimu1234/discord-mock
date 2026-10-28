@@ -3,10 +3,10 @@ const { startEphemeralDatabase } = await import(new URL('../dist/database.mjs', 
 import { startLevelBot } from '../packages/bot/src/local.ts';
 
 const require = createRequire(import.meta.url);
-const { startMock } = require('../../../apps/server/dist/server.cjs');
+const { startMock } = require('../../../apps/server/dist/server.cjs') as typeof import('../../../apps/server/src/server.js');
 const database = await startEphemeralDatabase();
-let mock;
-let bot;
+let mock: Awaited<ReturnType<typeof startMock>> | undefined;
+let bot: Awaited<ReturnType<typeof startLevelBot>> | undefined;
 try {
   mock = await startMock({ port: Number(process.env.DISCORD_MOCK_PORT ?? 3000) });
   bot = await startLevelBot(mock.url, mock.token, database.dsn);

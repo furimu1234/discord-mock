@@ -1,6 +1,7 @@
 import type { BrowserCommand, BrowserState, IdentityResponse, SessionResponse } from "./types.js";
 import { createElement, getElement } from "./dom.js";
 import { DatabaseView } from "./database.js";
+import { AdminPage } from "./admin.js";
 import { MessageActions } from "./message-actions.js";
 import { readMessageTarget, revealMessage } from "./message-links.js";
 import { TestRunChatView, TestRunsView } from "./test-runs.js";
@@ -276,6 +277,11 @@ async function initialize(): Promise<void> {
   if (isTestRuns) {
     elements.serverTitle.textContent = "自動テスト";
     await new TestRunsView().initialize();
+    return;
+  }
+  if (isAdmin) {
+    elements.serverTitle.textContent = "管理画面";
+    await new AdminPage().initialize();
     return;
   }
   if (isDatabase) {

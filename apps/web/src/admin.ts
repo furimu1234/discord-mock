@@ -230,7 +230,10 @@ export class AdminPage {
           const next = BigInt(decimal.value);
           if (next < 0n || next > (1n << 64n) - 1n) throw new Error("out of range");
           bits = next;
-          this.renderRoles(state);
+          permissions.replaceWith(this.permissionEditor(bits, (value) => {
+            bits = value;
+            decimal.value = String(value);
+          }));
         } catch { this.status.textContent = "権限は符号なし64bit整数で指定してください"; }
       };
       const permissions = this.permissionEditor(bits, (next) => {

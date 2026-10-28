@@ -67,15 +67,15 @@ export class BotProcess {
     });
     this.process = child;
     child.stdin.end();
-    this.log("system", "起動: " + options.command + " " + JSON.stringify(options.args));
+    this.log("system", `起動: ${options.command} ${JSON.stringify(options.args)}`);
     child.stdout.on("data", (data: Buffer) => this.log("stdout", data.toString("utf8")));
     child.stderr.on("data", (data: Buffer) => this.log("stderr", data.toString("utf8")));
     child.on("error", (error) => {
-      this.log("stderr", "起動エラー: " + error.message);
+      this.log("stderr", `起動エラー: ${error.message}`);
     });
     child.on("close", (code, signal) => {
       if (this.process === child) this.process = null;
-      this.log("system", "Bot 終了: code=" + code + " signal=" + signal);
+      this.log("system", `Bot 終了: code=${code} signal=${signal}`);
     });
     return this.status();
   }

@@ -20,7 +20,7 @@ export function discoverTestCases(source: string, fileName: string): DiscoveredT
 
   const groupBody = (node: ts.CallExpression): ts.Block | undefined => {
     const callback = node.arguments[1];
-    if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression) &&
+    if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback)) &&
         ts.isBlock(callback.body)) return callback.body;
     return;
   };

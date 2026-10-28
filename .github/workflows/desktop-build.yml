@@ -1,0 +1,55 @@
+name: Electron デスクトップ配布ビルド
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "apps/server/**"
+      - "apps/web/**"
+      - ".github/workflows/desktop-build.yml"
+jobs:
+  desktop:
+    name: Desktop (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            build: dist:win
+          - os: macos-latest
+            build: dist:mac
+          - os: ubuntu-latest
+            build: dist:linux
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Corepack と pnpm の準備
+        run: corepack enable
+      - name: Web / Server 依存のインストール
+        run: pnpm install --frozen-lockfile
+      - name: Web / Server ビルド
+        run: |
+          pnpm --filter @discord-mock/web build
+          pnpm --filter @discord-mock/server build
+      - name: Electron 依存のインストール
+        run: npm install --prefix apps/desktop --no-audit --no-fund
+      - name: Electron 型チェック・ビルド
+        run: |
+          npm --prefix apps/desktop run typecheck
+          npm --prefix apps/desktop run build
+      - name: Electron 配布物の生成
+        run: npm --prefix apps/desktop run ${{ matrix.build }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 配布物のアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: release/desktop/**
+          if-no-files-found: error
+          retention-days: 7

@@ -58,6 +58,11 @@ export class DatabaseRoutes {
 
   constructor(private readonly secret: string, private readonly database?: DatabaseInspector, private readonly testCases?: TestCaseService) {}
 
+  private appDatabase(): DatabaseInspector {
+    if (!this.database) throw new Error("App database is unavailable");
+    return this.database;
+  }
+
   private session(request: IncomingMessage): AdminSession | undefined {
     const id = /(?:^|;\s*)discord_mock_admin=([a-f0-9]{48})(?:;|$)/.exec(request.headers.cookie ?? "")?.[1];
     if (!id) return;
@@ -189,7 +194,7 @@ export class DatabaseRoutes {
           ? testDb.tables.map((table) => ({
               schema: table.schema, name: table.name, columnCount: table.columns.length,
             }))
-          : await this.database!.tables(),
+          : await this.appDatabase().tables(),
       });
       return;
     }
@@ -201,14 +206,14 @@ export class DatabaseRoutes {
       }
       const tables = testDb
         ? testDb.tables.map((table) => ({ schema: table.schema, name: table.name }))
-        : await this.database!.tables();
+        : await this.appDatabase().tables();
       if (!tables.some((table) => table.schema === query.schema && table.name === query.table)) {
         sendError(response, 404, "Unknown database table");
         return;
       }
       const page = testDb
         ? queryTestDatabase(testDb, query)
-        : await this.database!.rows(query);
+        : await this.appDatabase().rows(query);
       if (!page) sendError(response, 404, "Unknown database table or column");
       else sendJson(response, 200, page);
       return;

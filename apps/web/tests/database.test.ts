@@ -107,7 +107,7 @@ test("DB画面で最新のテスト用DBを選択し、AppのDBとの混在を�
       columns: [{ name: "lvl", type: "integer", nullable: false, primaryKey: false }],
       rows: [[2]], totalRows: 1, offset: 0, limit: 50, truncated: false,
     };
-    throw new Error("Unexpected request: " + url);
+    throw new Error(`Unexpected request: ${url}`);
   };
   script.runInNewContext({
     ...fixture.globals,
@@ -117,7 +117,7 @@ test("DB画面で最新のテスト用DBを選択し、AppのDBとの混在を�
   const e = fixture.elements;
   assert.equal(e["database-source"].value, runId);
   assert.match(textOf(e["database-source"]), /レベルアップのテスト/);
-  assert.ok(calls.some((url) => url.includes("runId=" + runId)));
+  assert.ok(calls.some((url) => url.includes(`runId=${runId}`)));
   assert.match(textOf(e["database-grid"]), /2/);
   e["database-source"].value = "";
   e["database-source"].onchange();

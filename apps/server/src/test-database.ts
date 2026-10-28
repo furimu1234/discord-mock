@@ -69,7 +69,8 @@ export function queryTestDatabase(database: TestDatabaseSnapshot, query: Databas
   if (query.sort) {
     const columnIndex = table.columns.findIndex((column) => column.name === query.sort);
     rows.sort((a, b) => {
-      const x = a[columnIndex], y = b[columnIndex];
+      const x = a[columnIndex];
+      const y = b[columnIndex];
       if (x === y) return 0;
       if (x === null) return 1;
       if (y === null) return -1;

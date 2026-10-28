@@ -300,11 +300,11 @@ test("UTの実DBスナップショットを管理者だけが読み取れ、元�
     const rowsUrl = `${app.url}/_admin/database/rows?runId=${runId}&schema=example&table=lvl`;
     const page = await (await fetch(rowsUrl, { headers })).json();
     assert.deepEqual(page.rows, [["Alice", 2], ["Bob", 7]]);
-    const sorted = await (await fetch(rowsUrl + "&sort=lvl&direction=desc", { headers })).json();
+    const sorted = await (await fetch(`${rowsUrl}&sort=lvl&direction=desc`, { headers })).json();
     assert.deepEqual(sorted.rows, [["Bob", 7], ["Alice", 2]]);
-    const filtered = await (await fetch(rowsUrl + "&search=Bob", { headers })).json();
+    const filtered = await (await fetch(`${rowsUrl}&search=Bob`, { headers })).json();
     assert.deepEqual(filtered.rows, [["Bob", 7]]);
-    assert.equal((await fetch(rowsUrl + "&sort=invalid", { headers })).status, 404);
+    assert.equal((await fetch(`${rowsUrl}&sort=invalid`, { headers })).status, 404);
     assert.equal((await fetch(`${app.url}/_admin/database/tables?runId=invalid`, { headers })).status, 400);
     assert.equal((await fetch(`${app.url}/_admin/database/tables?runId=99999999-9999-4999-8999-999999999999`, { headers })).status, 404);
     assert.equal((await fetch(`${app.url}/_admin/database/tables`, { headers })).status, 503);

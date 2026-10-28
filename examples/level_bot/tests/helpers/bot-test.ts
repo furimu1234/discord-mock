@@ -8,6 +8,18 @@ import { createLeveling, getLevel, updateLeveling } from "@ex/db";
 import { container } from "../../packages/bot/src/container.js";
 import { startLevelBot } from "../../packages/bot/src/local.js";
 import { startEphemeralDatabase } from "../../src/database.js";
+import { resolveTestUsers, type TestUserTarget } from "./user-target.js";
+
+type BotActor = ReturnType<typeof createBotActor>;
+function createBotActor(mock: Awaited<ReturnType<typeof createTestEnvironment>>, channelId: string, user: MockUser) {
+  const actor = mock.as(user);
+  return {
+    sendMessage: (content: string) => actor.sendMessage(channelId, content),
+    command: (name: string, options?: WaitOptions) => actor.runCommand(channelId, name, options),
+  };
+}
+
+export type { TestUserTarget } from "./user-target.js";
 
 export { describe, expect } from "vitest";
 
@@ -66,13 +78,41 @@ export const test = base.extend("bot", async ({ task }, { onCleanup }) => {
     roles: mock.roles,
     messages: () => mock.messages.list(channel.id),
     as(user: MockUser) {
-      const actor = mock.as(user);
-      return {
-        sendMessage: (content: string) =>
-          actor.sendMessage(channel.id, content),
-        command: (name: string, options?: WaitOptions) =>
-          actor.runCommand(channel.id, name, options),
-      };
+      return createBotActor(mock, channel.id, user);
+    },
+    /**
+     * UT 内のユーザー起因操作の対象を選択する。
+     * users: "all" | "logged-in" | { id: "123..." }
+     */
+    async forUsers<T>(
+      options: { users: TestUserTarget },
+      execute: (user: MockUser, actor: BotActor) => Promise<T>,
+    ): Promise<Array<{ user: MockUser; result: T }>> {
+      const selected = resolveTestUsers(
+        mock.users.list(),
+        options.users,
+        process.env.DISCORD_MOCK_SELECTED_USER_ID,
+      );
+      const results: Array<{ user: MockUser; result: T }> = [];
+      // 全員は順番に実行し、操作・返信のログが安定した順序で記録される。
+      for (const user of selected) {
+        results.push({ user, result: await execute(user, createBotActor(mock, channel.id, user)) });
+      }
+      return results;
+    },
+    /** user 別の返信を返す。全員の場合も各ユーザーの返信を分離する。 */
+    async command(name: string, options: { users: TestUserTarget; timeoutMs?: number }) {
+      const selected = resolveTestUsers(
+        mock.users.list(),
+        options.users,
+        process.env.DISCORD_MOCK_SELECTED_USER_ID,
+      );
+      const replies = [];
+      for (const user of selected) {
+        const reply = await createBotActor(mock, channel.id, user).command(name, { timeoutMs: options.timeoutMs });
+        replies.push({ user, reply });
+      }
+      return replies;
     },
     levels: {
       async set(user: MockUser, level: number, guildId = mock.guild.id) {

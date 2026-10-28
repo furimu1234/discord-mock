@@ -177,6 +177,7 @@ export class TestRunsView {
 /** /test のチャット欄に、独立した UT 全件の操作と返信を時系列表示する。 */
 export class TestRunChatView {
   private readonly messages = getElement("messages", "div");
+  private readonly identity = getElement("identity", "select");
   private readonly channels = getElement("channels", "nav");
   private readonly channelTitle = getElement("channel-title", "strong");
   private readonly logPanel = getElement("test-log-panel", "aside");
@@ -184,7 +185,9 @@ export class TestRunChatView {
   private readonly buttons = getElement("test-case-buttons", "div");
   private readonly status = getElement("test-case-status", "span");
   private readonly error = getElement("error", "div");
-  private csrf = "";
+  private userCsrf = "";
+  private identityChange: Promise<void> = Promise.resolve();
+  private identityError: string | null = null;
   private generation = 0;
   private selectedChannelId = "general";
   private runs: TestRunView[] = [];
@@ -193,7 +196,7 @@ export class TestRunChatView {
     this.logPanel.classList.toggle("hidden", false);
     this.render([]);
     try {
-      await this.connectSession();
+      await Promise.all([this.connectSession(), this.connectUserSession()]);
       await Promise.all([this.refreshCases(), this.refreshRuns()]);
       const stream = new EventSource("/_admin/test-runs/events");
       stream.addEventListener("open", () => { void this.refreshRuns(); });
@@ -223,8 +226,43 @@ export class TestRunChatView {
       body: "{}",
     });
     if (!response.ok) throw new Error("テスト参照セッションを開始できませんでした");
-    const session = await response.json() as { csrf: string };
-    this.csrf = session.csrf;
+  }
+
+  private async connectUserSession(): Promise<void> {
+    const session = await this.request<{
+      csrf: string;
+      selectedUserId: string;
+      users: { id: string; username: string; bot: boolean }[];
+    }>("/_ui/session");
+    this.userCsrf = session.csrf;
+    this.identity.replaceChildren(...session.users.filter((user) => !user.bot).map((user) => {
+      const option = createElement("option", "", user.username);
+      option.value = user.id;
+      return option;
+    }));
+    this.identity.value = session.selectedUserId;
+    this.identity.onchange = () => { this.identityChange = this.switchIdentity(); };
+  }
+
+  private async switchIdentity(): Promise<void> {
+    const userId = this.identity.value;
+    this.identityError = null;
+    try {
+      const result = await this.request<{ selectedUserId: string }>("/_ui/identity", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-discord-mock-csrf": this.userCsrf,
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      this.identity.value = result.selectedUserId;
+      this.showError("");
+    } catch (error) {
+      this.identityError = error instanceof Error ? error.message : "ユーザーの切り替えに失敗しました";
+      this.showError(this.identityError);
+      await this.connectUserSession().catch(() => {});
+    }
   }
 
   private showError(message: string): void {
@@ -270,11 +308,14 @@ export class TestRunChatView {
     this.showError("");
     this.status.textContent = "テストを開始しています…";
     try {
-      await this.request("/_admin/test-cases/run", {
+      // ユーザー切替 POST とテスト起動 POST が競合しないよう順番に実行する。
+      await this.identityChange;
+      if (this.identityError) throw new Error(this.identityError);
+      await this.request("/_ui/test-cases/run", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-discord-mock-admin-csrf": this.csrf,
+          "x-discord-mock-csrf": this.userCsrf,
         },
         body: JSON.stringify({ id }),
       });

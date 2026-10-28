@@ -206,3 +206,40 @@ test("テストケース実行はローカル管理セッションと CSRF を�
     await mock.close();
   }
 });
+
+
+test("UT起動時のログインユーザーはブラウザセッションから決まり、bodyの偽装IDを無視する", async () => {
+  const launches: Array<{ caseId: string; userId: string | undefined }> = [];
+  const mock = await startMock({
+    port: 0,
+    testCases: {
+      list: async () => [{ id: "showLvl.test.ts:0", name: "レベル確認" }],
+      status: () => ({ runningId: null, error: null }),
+      async start(id, userId) { launches.push({ caseId: id, userId }); },
+      async close() {},
+    },
+  });
+  try {
+    const base = mock.url;
+    const sessionResponse = await fetch(`${base}/_ui/session`);
+    const session = await sessionResponse.json() as { csrf: string; selectedUserId: string; users: Array<{id: string; username: string}> };
+    const cookie = sessionResponse.headers.get("set-cookie")!.split(";")[0];
+    const url = `${base}/_ui/test-cases/run`;
+    const body = JSON.stringify({ id: "showLvl.test.ts:0", user_id: "spoofed" });
+    assert.equal((await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body })).status, 401);
+    assert.equal((await fetch(url, { method: "POST", headers: { cookie, "content-type": "application/json" }, body })).status, 403);
+    const headers = { cookie, "content-type": "application/json", "x-discord-mock-csrf": session.csrf };
+    assert.equal((await fetch(url, { method: "POST", headers, body })).status, 202);
+    assert.deepEqual(launches, [{ caseId: "showLvl.test.ts:0", userId: session.selectedUserId }]);
+    const another = session.users.find(u => u.id !== session.selectedUserId);
+    assert.ok(another);
+    const switchUser = await fetch(`${base}/_ui/identity`, {
+      method: "POST", headers, body: JSON.stringify({ user_id: another.id }),
+    });
+    assert.equal(switchUser.status, 200);
+    assert.equal((await fetch(url, { method: "POST", headers, body })).status, 202);
+    assert.deepEqual(launches[1], { caseId: "showLvl.test.ts:0", userId: another.id });
+  } finally {
+    await mock.close();
+  }
+});

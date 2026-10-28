@@ -35,15 +35,27 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
     },
   };
   let runs: Array<{ id: string }> = [];
+  let selectedUserId = "123456789000000099";
   const calls: Array<{ url: string; options: Record<string, unknown> }> = [];
 
   script.runInNewContext({
     ...fixture.globals,
     fetch: async (url: string, options: Record<string, unknown> = {}) => {
       calls.push({ url, options });
-      if (url === "/_admin/session") return { ok: true, json: async () => ({ csrf: "test-csrf" }) };
+      if (url === "/_admin/session") return { ok: true, json: async () => ({ csrf: "admin-csrf" }) };
+      if (url === "/_ui/session") return { ok: true, json: async () => ({
+        csrf: "test-csrf", selectedUserId,
+        users: [
+          { id: "123456789000000099", username: "Alice", bot: false },
+          { id: "123456789000000098", username: "Bob", bot: false },
+        ],
+      }) };
+      if (url === "/_ui/identity") {
+        selectedUserId = (JSON.parse(options.body as string) as { user_id: string }).user_id;
+        return { ok: true, json: async () => ({ selectedUserId }) };
+      }
       if (url === "/_admin/test-cases") return { ok: true, json: async () => ({ cases: [testCase], runningId: null, error: null }) };
-      if (url === "/_admin/test-cases/run") return { ok: true, json: async () => ({ started: true }) };
+      if (url === "/_ui/test-cases/run") return { ok: true, json: async () => ({ started: true }) };
       if (url === "/_admin/test-runs") return { ok: true, json: async () => ({ runs }) };
       if (url === "/_admin/test-runs/test-1") return { ok: true, json: async () => structuredClone(report) };
       throw new Error("Unexpected request: " + url);
@@ -54,6 +66,16 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.equal(fixture.elements["manual-composer"].classes.has("hidden"), true);
   assert.equal(fixture.elements["test-case-composer"].classes.has("hidden"), false);
   assert.equal(fixture.elements["channel-sidebar"].classes.has("hidden"), false);
+  assert.equal(fixture.elements["user-panel"].classes.has("hidden"), false);
+  assert.equal(fixture.elements.identity.value, "123456789000000099");
+  assert.equal(fixture.elements.identity.children.length, 2);
+  fixture.elements.identity.value = "123456789000000098";
+  fixture.elements.identity.onchange();
+  await settle();
+  const switchRequest = calls.find((call) => call.url === "/_ui/identity");
+  assert.ok(switchRequest);
+  assert.equal((switchRequest.options.headers as Record<string, string>)["x-discord-mock-csrf"], "test-csrf");
+  assert.equal(selectedUserId, "123456789000000098");
   assert.equal(fixture.elements["test-log-panel"].classes.has("hidden"), false);
   assert.equal(fixture.elements["test-case-buttons"].children.length, 1);
   assert.equal(fixture.elements.channels.children.length, 1);
@@ -65,9 +87,9 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   // ケースのボタンは CSRF 付き API に送信する。
   fixture.elements["test-case-buttons"].children[0].onclick();
   await settle();
-  const start = calls.find((call) => call.url === "/_admin/test-cases/run");
+  const start = calls.find((call) => call.url === "/_ui/test-cases/run");
   assert.ok(start);
-  assert.equal((start.options.headers as Record<string, string>)["x-discord-mock-admin-csrf"], "test-csrf");
+  assert.equal((start.options.headers as Record<string, string>)["x-discord-mock-csrf"], "test-csrf");
   assert.deepEqual(JSON.parse(start.options.body as string), { id: testCase.id });
 
   runs = [{ id: report.id }];
@@ -143,6 +165,11 @@ test("/test は起動直後に # general と空のチャンネル開始画面を
     ...fixture.globals,
     fetch: async (url: string) => {
       if (url === "/_admin/session") return { ok: true, json: async () => ({ csrf: "csrf" }) };
+      if (url === "/_ui/session") return { ok: true, json: async () => ({
+        csrf: "ui-csrf",
+        selectedUserId: "123456789000000099",
+        users: [{ id: "123456789000000099", username: "Alice", bot: false }],
+      }) };
       if (url === "/_admin/test-cases") return { ok: true, json: async () => ({ cases: [], runningId: null, error: null }) };
       if (url === "/_admin/test-runs") return { ok: true, json: async () => ({ runs: [] }) };
       throw new Error(url);

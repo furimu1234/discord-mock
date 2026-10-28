@@ -39,7 +39,7 @@ export function renderPage(): string {
       <nav id="test-runs" class="channels" aria-label="テスト実行一覧"></nav>
     </div>
     <div id="user-panel" class="userpanel">
-      <label for="identity">テスト用ダミーユーザー</label>
+      <label for="identity">ログイン中のテストユーザー</label>
       <select id="identity" aria-label="ダミーユーザー選択"></select>
     </div>
   </aside>
@@ -76,7 +76,7 @@ export function renderPage(): string {
     <div id="test-case-composer" class="composer test-case-composer hidden">
       <div class="test-case-caption"><strong>テストケース</strong><span id="test-case-status" role="status">読み込み中…</span></div>
       <div id="test-case-buttons" class="test-case-buttons" aria-label="テストケースを実行"></div>
-      <p class="hint">ボタンを押すとテストを実行します。ユーザー操作と Bot の応答はチャットに、開始・検証・結果は右側の実行ログに表示されます。</p>
+      <p class="hint">UTで users: "logged-in" を指定すると、左下で選択中のユーザーとして実行します。ユーザー操作と Bot の応答はチャット、検証結果は右のログに表示します。</p>
     </div>
   </main>
   <main class="main database-page hidden" id="database-panel">

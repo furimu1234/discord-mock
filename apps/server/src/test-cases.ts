@@ -6,7 +6,7 @@ export interface TestCaseInfo {
 
 export interface TestCaseService {
   list(): Promise<TestCaseInfo[]>;
-  start(id: string): Promise<void>;
+  start(id: string, selectedUserId?: string): Promise<void>;
   status(): { runningId: string | null; error: string | null };
   close(): Promise<void>;
 }

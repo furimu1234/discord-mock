@@ -240,7 +240,7 @@ async function initialize(): Promise<void> {
   getElement("database-panel", "main").classList.toggle("hidden", !isDatabase);
   getElement("channel-sidebar", "div").classList.toggle("hidden", isDatabase || isTestRuns);
   getElement("database-sidebar", "div").classList.toggle("hidden", !isDatabase);
-  getElement("user-panel", "div").classList.toggle("hidden", isDatabase || isTestRuns || isTestChat);
+  getElement("user-panel", "div").classList.toggle("hidden", isDatabase || isTestRuns);
   getElement("manual-composer", "div").classList.toggle("hidden", isTestChat);
   getElement("test-case-composer", "div").classList.toggle("hidden", !isTestChat);
   getElement("test-link", "a").classList.toggle("active", !isAdmin && !isDatabase && !isTestRuns);

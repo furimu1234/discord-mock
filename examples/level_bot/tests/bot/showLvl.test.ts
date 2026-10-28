@@ -27,13 +27,13 @@ describe("/レベル確認", () => {
     await bot.levels.set(bot.alice, 3);
     await bot.levels.set(bot.bob, 23);
 
-    const replyA = await bot.as(bot.alice).command("レベル確認");
-    const replyB = await bot.as(bot.bob).command("レベル確認");
+    const responses = await bot.command("レベル確認", { users: "all" });
 
-    expect(replyA.embeds[0].fields?.[0].value).toBe("3");
-    expect(replyA.interaction_metadata?.user.id).toBe(bot.alice.id);
-    expect(replyB.embeds[0].fields?.[0].value).toBe("23");
-    expect(replyB.interaction_metadata?.user.id).toBe(bot.bob.id);
+    expect(responses.map(({ user }) => user.id)).toEqual([bot.alice.id, bot.bob.id]);
+    expect(responses[0].reply.embeds[0].fields?.[0].value).toBe("3");
+    expect(responses[0].reply.interaction_metadata?.user.id).toBe(bot.alice.id);
+    expect(responses[1].reply.embeds[0].fields?.[0].value).toBe("23");
+    expect(responses[1].reply.interaction_metadata?.user.id).toBe(bot.bob.id);
   });
 
   test("レベル未登録なら返信もレコード作成もしない", async ({ bot }) => {

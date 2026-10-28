@@ -50,7 +50,7 @@ export class LocalTestCaseRunner implements TestCaseService {
     return { runningId: this.runningId, error: this.error };
   }
 
-  async start(id: string): Promise<void> {
+  async start(id: string, selectedUserId?: string): Promise<void> {
     if (this.closed) throw new Error("テストランナーは停止しています");
     if (this.runningId) throw new Error("別のテストが実行中です");
     const chosen = (await this.discover()).find((entry) => entry.id === id);
@@ -64,7 +64,12 @@ export class LocalTestCaseRunner implements TestCaseService {
         "--testNamePattern", pattern,
       ], {
         cwd: this.appDir,
-        env: { ...process.env, DISCORD_MOCK_REPORT_URL: this.origin() },
+        env: {
+          ...process.env,
+          DISCORD_MOCK_REPORT_URL: this.origin(),
+          // テスト実行時に選択されていたユーザーをプロセスへ固定して渡す。
+          DISCORD_MOCK_SELECTED_USER_ID: selectedUserId ?? "",
+        },
         stdio: "inherit",
       });
       this.child = child;

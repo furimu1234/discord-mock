@@ -97,7 +97,10 @@ export async function botTestConfig(
       fileParallelism: false,
       testTimeout: 15_000,
       hookTimeout: 30_000,
-      env: { DISCORD_MOCK_REPORT_URL: reportUrl ?? "" },
+      env: {
+        DISCORD_MOCK_REPORT_URL: reportUrl ?? "",
+        DISCORD_MOCK_SELECTED_USER_ID: process.env.DISCORD_MOCK_SELECTED_USER_ID ?? "",
+      },
     },
   };
 }

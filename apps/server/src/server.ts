@@ -138,7 +138,7 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
 
   const gatewayUrl = () => `${listeningUrl(server, host).replace("http:", "ws:")}/gateway`;
   const gateway = new MockGateway(server, environment, token, gatewayUrl);
-  const browser = new BrowserRoutes(environment, () => gateway.connectionCount);
+  const browser = new BrowserRoutes(environment, () => gateway.connectionCount, options.testCases);
   const database = new DatabaseRoutes(adminSecret, options.database, options.testCases);
   const testing = new MockTesting(environment, () => gateway.connectionCount, options.timeoutMs);
 

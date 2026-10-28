@@ -27,7 +27,7 @@ pnpm app
 
 `pnpm app` は Mock REST / Gateway、Web、PGlite を起動します。初回は `.discord-mock-data/credentials.json` にテスト用トークンを発行し、**保存済みのトークンがある次回起動から** Bot クライアントを自動起動します。既存の `.env` に設定された `TOKEN` が保存済みトークンと違う場合は、app は起動したまま Bot のみ起動を見送り、`pnpm bot:test` を使った設定確認を案内します。Bot 単体を手動起動する場合は `pnpm bot:client` を使用してください。
 
-`http://127.0.0.1:3000/test` は Discord 風の自動テスト画面です。左のチャンネル一覧でチャットを選択でき、中央にはダミーユーザーの投稿・Bot の返信・Embed のみ表示します。テスト開始・検証ステップ・合否は右の独立した実行ログに表示します。下部のテストケース名ボタンを押すと個別の Vitest ケースを起動します。すべてのテストを実行するときは `pnpm bot` を別ターミナルから実行します。`/tests` にも実行履歴が表示されます。
+`http://127.0.0.1:3000/test` は Discord 風の自動テスト画面です。左下の「ログイン中のテストユーザー」で Alice / Bob などを切り替えると、UT ソースの `users: "logged-in"` で指定されたユーザーとして操作を実行します。左のチャンネル一覧でチャットを選択でき、中央にはダミーユーザーの投稿・Bot の返信・Embed のみ表示します。テスト開始・検証ステップ・合否は右の独立した実行ログに表示します。下部のテストケース名ボタンを押すと個別の Vitest ケースを起動します。すべてのテストを実行するときは `pnpm bot` を別ターミナルから実行します。`/tests` にも実行履歴が表示されます。
 
 ```sh
 pnpm bot
@@ -84,3 +84,16 @@ test('レベル確認で7を返す', async ({ bot }) => {
 起動中の app に表示したい場合は `pnpm bot` を実行します。**`http://127.0.0.1:3000/test` を開いたままでも**、ユーザー投稿と Bot の返信がチャットに、テストの実行ステップと成功／失敗が右側の実行ログにリアルタイムで反映されます。`/tests` では過去の実行一覧・詳細も確認できます。通常の `pnpm bot:test` も app があれば自動で反映します。表示先は runtime.json の URL、または DISCORD_MOCK_REPORT_URL を使用します。テストは独立した Mock/DB を使用し、普段のチャットや DB は変更しません。結果は app が起動している間、最大20件保持します。Web の変更を反映するには `pnpm build` と `pnpm app` の再起動、および開いている `/test` の再読み込みが必要です。
 
 `pnpm sample:test` は Bot に加えて `tests/integration/` の app・DB・起動処理も検証します。`pnpm automation:test` は SDK の自動テスト例と Bot テストの両方を実行します。既存の `pnpm level:test` / `pnpm level:test:web` は新コマンドの別名として利用できます。
+
+### UT ソースでユーザー起因の操作対象を指定する
+
+```ts
+await bot.command("レベル確認", { users: "all" });
+await bot.command("レベル確認", { users: "logged-in" });
+await bot.command("レベル確認", { users: { id: "123456789000000099" } });
+await bot.forUsers({ users: "all" }, async (user, actor) => {
+  await actor.sendMessage(`${user.username} から送信`);
+});
+```
+
+`"all"` は Bot を除くダミーユーザー全員、`"logged-in"` はブラウザで選択中のユーザー、`{ id }` は厳密な ID 指定です。返信はユーザー単位で取得できます。直接 `pnpm bot` を実行する場合、`"logged-in"` には `DISCORD_MOCK_SELECTED_USER_ID` が必要です。指定されたユーザーがテスト fixture に存在しなければエラーになります。詳しくはルート README の「UTから実行ユーザーを指定する」を参照してください。

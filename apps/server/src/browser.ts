@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { BrowserState, SessionResponse } from "../../web/src/types.js";
 import type { MockEnvironment } from "./environment.js";
+import type { TestCaseService } from "./test-cases.js";
 import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
 import { channelPermissions, requireChannelPermission, USE_APPLICATION_COMMANDS, VIEW_CHANNEL } from "./permissions.js";
 
@@ -18,6 +19,7 @@ export class BrowserRoutes {
   constructor(
     private readonly environment: MockEnvironment,
     private readonly botConnectionCount: () => number,
+    private readonly testCases?: TestCaseService,
   ) {
     environment.on("changed", this.notifySubscribers);
   }
@@ -115,6 +117,25 @@ export class BrowserRoutes {
 
     const body = await readJsonBody(request);
     const { state } = this.environment;
+
+    if (path === "/_ui/test-cases/run") {
+      if (!this.testCases) {
+        sendError(response, 503, "テストランナーを使用できません");
+        return;
+      }
+      if (typeof body.id !== "string" || body.id.length > 300) {
+        sendError(response, 400, "Invalid test case ID");
+        return;
+      }
+      // 送信側が指定した user_id は使わず、Cookie にひも付いたログイン状態のみ採用する。
+      try {
+        await this.testCases.start(body.id, session.selectedUserId);
+        sendJson(response, 202, { started: true });
+      } catch (error) {
+        sendError(response, 409, error instanceof Error ? error.message : "テストを開始できませんでした");
+      }
+      return;
+    }
 
     if (path === "/_ui/identity") {
       const user = state.users.find((user) => user.id === body.user_id);

@@ -4,7 +4,9 @@
     "noEmit": true,
     "types": [
       "node"
-    ]
+    ],
+    "strict": false,
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src/**/*.ts",

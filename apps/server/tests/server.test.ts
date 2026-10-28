@@ -29,7 +29,7 @@ test("Gateway Hello/Identify/Heartbeat/Ready/GuildCreate", async () => {
   const socket=new WebSocket(`${mock.url.replace(/^http/,"ws")}/gateway`);
   try {
     const events=[];
-    const ready = new Promise((resolve,reject)=>{
+    const ready = new Promise<void>((resolve,reject)=>{
       const timer=setTimeout(()=>reject(new Error("gateway test timeout")),2500);
       socket.on("message",(raw)=>{
         const data=JSON.parse(raw.toString());

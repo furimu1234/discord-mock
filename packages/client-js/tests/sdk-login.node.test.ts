@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {createRequire} from "node:module";
 import {test} from "node:test";
 import {Client, GatewayIntentBits} from "discord.js";
-import {disMockClient} from "../dist/index.js";
+const {disMockClient} = await import(new URL("../dist/index.js", import.meta.url).href);
 
 const require = createRequire(import.meta.url);
 const {startMock} = require("../../../apps/server/dist/server.cjs");

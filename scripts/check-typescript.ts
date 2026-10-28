@@ -1,47 +1,23 @@
 import { execFileSync } from "node:child_process";
 
-const sourceRoots = ["apps/", "packages/client-js/", "examples/level_bot/", "scripts/"];
-// 既存の ESM テスト/補助スクリプトは移行するまで保持する。新規追加は禁止。
-const legacyJavaScript = new Set([
-  "apps/server/tests/commands.test.mjs",
-  "apps/server/tests/database.test.mjs",
-  "apps/server/tests/distribution.test.mjs",
-  "apps/server/tests/embeds.test.mjs",
-  "apps/server/tests/interaction.test.mjs",
-  "apps/server/tests/persistence.test.mjs",
-  "apps/server/tests/resources.test.mjs",
-  "apps/server/tests/routes.test.mjs",
-  "apps/server/tests/server.test.mjs",
-  "apps/server/tests/test-runs.test.mjs",
-  "apps/server/tests/tokens.test.mjs",
-  "apps/server/tests/ui.test.mjs",
-  "apps/web/tests/browser-fixture.mjs",
-  "apps/web/tests/database.test.mjs",
-  "apps/web/tests/page.test.mjs",
-  "apps/web/tests/test-runs.test.mjs",
-  "examples/level_bot/scripts/demo.mjs",
-  "packages/client-js/tests/client.test.mjs",
-  "packages/client-js/tests/integration.test.mjs",
-  "packages/client-js/tests/sdk-login.test.mjs",
-  "packages/client-js/tests/testing-bundle.test.mjs",
-]);
-
+// Git 管理対象と未追跡のファイルを検査する。生成物だけを除外し、手書き JS に例外を設けない。
+const generatedDirectories = new Set(["dist", "build", "coverage", "node_modules", ".next", ".nuxt"]);
 const paths = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], {
   encoding: "utf8",
-}).split("\0").filter(Boolean);
+})
+  .split("\0")
+  .filter(Boolean);
 
 const invalidPaths = paths.filter((path) => {
   const normalized = path.replaceAll("\\", "/");
-  if (!sourceRoots.some((root) => normalized.startsWith(root))) return false;
-  if (normalized.split("/").includes("dist")) return false;
   if (!/\.(?:js|jsx|mjs|cjs)$/.test(normalized)) return false;
-  return !legacyJavaScript.has(normalized);
+  return !normalized.split("/").some((part) => generatedDirectories.has(part));
 });
 
 if (invalidPaths.length > 0) {
-  console.error("新規の JavaScript ソース/テストは追加できません。TypeScript（.ts / .tsx）を使用してください。");
+  console.error("自動生成物以外の JavaScript は禁止です。ソース・テスト・スクリプトは .ts / .tsx へ移行してください。");
   for (const path of invalidPaths) console.error(`  - ${path}`);
   process.exitCode = 1;
 } else {
-  console.log("TypeScript ファイル拡張子の検査に成功しました。");
+  console.log("手書き JavaScript は見つかりませんでした。TypeScript 拡張子検査に成功しました。");
 }

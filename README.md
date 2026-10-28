@@ -349,7 +349,7 @@ pnpm lint        # lint のみ（dist と node_modules は対象外）
 pnpm check:py    # Python の Ruff lint・整形チェック（uv が必要）
 ```
 
-型チェックは Web・Server・JS クライアントに加え、サンプル app / Bot 本体 / DB / Drizzle 設定も対象です。Bot と DB はルートの TypeScript 設定を継承します。`pnpm bot` は `tsx` と Bot の tsconfig を使い、`@ex/db`・`@discord-mock/client-js` もソースから読み込むため、それらの古い `dist` に依存しません。型チェックのためのビルドも不要です。VS Code は `node_modules/typescript/lib` の workspace TypeScript を参照します。
+型チェックは Web・Server・JS クライアントに加え、サンプル app / Bot 本体 / DB / Drizzle 設定も対象です。 手書きのソース・テスト・開発スクリプトは `.ts`（JSX が必要な場合 `.tsx`）に統一しています。Node 組み込みテストは TypeScript を直接実行し、`packages/client-js` の Node テスト（`*.node.test.ts`）と Vitest テスト（`*.test.ts`）は重複実行しません。配布用 `dist/*.js`・`dist/*.cjs`・`dist/*.mjs` のみビルドで生成します。`pnpm check:ts` は手書き JavaScript を検出します。Bot と DB はルートの TypeScript 設定を継承します。`pnpm bot` は `tsx` と Bot の tsconfig を使い、`@ex/db`・`@discord-mock/client-js` もソースから読み込むため、それらの古い `dist` に依存しません。型チェックのためのビルドも不要です。VS Code は `node_modules/typescript/lib` の workspace TypeScript を参照します。
 
 Biome は既存のサンプル設定と同じ `1.9.4` を開発依存として使用します。配布済み CLI バイナリだけで実行できるため、Biome のインストールスクリプトは `allowBuilds` で明示的に無効化しています。CI でも JS の型・lint と Python の lint・整形を確認します。
 

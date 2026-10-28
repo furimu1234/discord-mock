@@ -1,26 +1,34 @@
 // Minimal DOM fixture for exercising the compiled script without a browser dependency.
 export class Element {
-  children = [];
+  children: Element[] = [];
   textContent = "";
   value = "";
-  style = {};
+  style: Record<string, string> = {};
   disabled = false;
-  attributes = new Map();
-  classes = new Set();
+  attributes = new Map<string, string>();
+  classes = new Set<string>();
+  declare tagName: string;
+  declare className: string;
+  declare focused: boolean;
+  declare onchange: () => void;
+  declare onclick: () => void;
+  declare oninput: () => void;
+  declare onsubmit: (event: { preventDefault(): void }) => void;
+  declare onkeydown: (event: { key: string; preventDefault(): void; repeat?: boolean; isComposing?: boolean }) => void;
   classList = {
     toggle: (name, enabled) => enabled ? this.classes.add(name) : this.classes.delete(name),
   };
 
-  constructor(tag) {
+  constructor(tag: string) {
     this.tagName = tag.toUpperCase();
   }
 
   get options() { return this.children; }
-  append(...children) { this.children.push(...children); }
-  replaceChildren(...children) { this.children = children; }
+  append(...children: Element[]) { this.children.push(...children); }
+  replaceChildren(...children: Element[]) { this.children = children; }
   requestSubmit() { this.onsubmit({ preventDefault() {} }); }
-  setAttribute(name, value) { this.attributes.set(name, value); }
-  removeAttribute(name) { this.attributes.delete(name); }
+  setAttribute(name: string, value: string) { this.attributes.set(name, value); }
+  removeAttribute(name: string) { this.attributes.delete(name); }
   focus() { this.focused = true; }
 }
 
@@ -75,13 +83,14 @@ export function createBrowserFixture(pathname = "/test") {
     "command-suggestions": "div",
     "command-empty": "p",
   };
-  const elements = Object.fromEntries(Object.entries(tags).map(([id, tag]) => [id, new Element(tag)]));
+  const elements = Object.fromEntries(Object.entries(tags).map(([id, tag]) => [id, new Element(tag)])) as Record<string, Element>;
   elements["database-limit"].value = "50";
-  const streams = [];
+  const streams: EventSource[] = [];
   class EventSource {
-    handlers = new Map();
-    constructor(url) { this.url = url; streams.push(this); }
-    addEventListener(name, handler) { this.handlers.set(name, handler); }
+    handlers = new Map<string, () => void>();
+    url: string;
+    constructor(url: string) { this.url = url; streams.push(this); }
+    addEventListener(name: string, handler: () => void) { this.handlers.set(name, handler); }
   }
 
   return {
@@ -102,6 +111,6 @@ export function createBrowserFixture(pathname = "/test") {
   };
 }
 
-export function textOf(element) {
+export function textOf(element: Element): string {
   return element.textContent + element.children.map(textOf).join("");
 }

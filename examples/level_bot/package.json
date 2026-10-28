@@ -10,7 +10,7 @@
     "lint": "biome lint --error-on-warnings src packages scripts tests biome.json tsconfig.json package.json vitest.config.ts vitest.web.config.ts",
     "app": "node dist/app.mjs",
     "start": "tsx --tsconfig packages/bot/tsconfig.json src/bot.ts",
-    "demo": "tsx --tsconfig packages/bot/tsconfig.json scripts/demo.mjs",
+    "demo": "tsx --tsconfig tsconfig.json scripts/demo.ts",
     "test:level": "pnpm test:bot",
     "test:level:web": "pnpm test:bot:web",
     "test:integration": "tsx --tsconfig tsconfig.json --test tests/integration/*.test.ts",

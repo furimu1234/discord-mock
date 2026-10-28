@@ -9,8 +9,8 @@ import { Script } from "node:vm";
 
 test("standalone CLI serves pages and compiled browser assets outside the workspace", { timeout: 10_000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), "discord-mock-bundle-"));
-  let child;
-  let exited;
+  let child: ReturnType<typeof spawn> | undefined;
+  let exited: Promise<unknown[]> | undefined;
   try {
     await copyFile(new URL("../dist/discord-mock.cjs", import.meta.url), join(directory, "discord-mock.cjs"));
     child = spawn(process.execPath, ["discord-mock.cjs", "--port", "0"], {
@@ -19,7 +19,7 @@ test("standalone CLI serves pages and compiled browser assets outside the worksp
       stdio: ["ignore", "pipe", "pipe"],
     });
     exited = once(child, "exit");
-    const url = await new Promise((resolve, reject) => {
+    const url = await new Promise<string>((resolve, reject) => {
       let output = "";
       const timer = setTimeout(() => reject(new Error("CLI did not report its local URL")), 5000);
       child.once("error", (error) => { clearTimeout(timer); reject(error); });

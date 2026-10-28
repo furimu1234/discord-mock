@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { Script } from "node:vm";
 import { setImmediate, setTimeout } from "node:timers/promises";
-import { createBrowserFixture, textOf } from "./browser-fixture.mjs";
+import { createBrowserFixture, textOf } from "./browser-fixture.ts";
 
 const script = new Script(await readFile(new URL("../dist/browser.js.txt", import.meta.url), "utf8"));
 
@@ -13,7 +13,7 @@ test("database tab opens without a key, renders safe cells, sorts, searches and 
   let expired = false;
   let resolveStale;
   let delayNext = false;
-  const fetch = async (url, options = {}) => {
+  const fetch = async (url: string, options: {method?: string; headers?: Record<string, string>; body?: string} = {}) => {
     requests.push({ url, ...options });
     let result;
     if (url === "/_admin/session") {

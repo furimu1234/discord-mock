@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { Script } from "node:vm";
 import { setImmediate } from "node:timers/promises";
-import { createBrowserFixture, textOf } from "./browser-fixture.mjs";
+import { createBrowserFixture, textOf } from "./browser-fixture.ts";
 
 const source = await readFile(new URL("../dist/browser.js.txt", import.meta.url), "utf8");
 const script = new Script(source);
@@ -19,7 +19,7 @@ test("compiled browser script renders state, switches users, posts and refreshes
     users,
     selectedUserId: "alice",
     botConnections: 1,
-    messages: { general: [] },
+    messages: { general: [] as Array<{content: string; [key: string]: unknown}> },
     commands: [
       { id: "ping-id", name: "ping", description: "Respond with Pong" },
       { id: "status-id", name: "status", description: "Show status" },
@@ -191,7 +191,7 @@ test("pending submissions and repeated Enter keys never send a message or comman
   const state = {
     guild: { name: "Test", channels: [{ id: "general", name: "general", type: 0 }] },
     users: [{ id: "alice", username: "Alice" }], selectedUserId: "alice", botConnections: 1,
-    messages: { general: [] }, commands: [{ id: "ping", name: "ping", description: "Test" }],
+    messages: { general: [] as Array<{content: string; [key: string]: unknown}> }, commands: [{ id: "ping", name: "ping", description: "Test" }],
   };
   script.runInNewContext({ ...fixture.globals, fetch: async (url) => {
     if (url === "/_ui/session") return { ok: true, json: async () => ({ csrf: "csrf", selectedUserId: "alice" }) };

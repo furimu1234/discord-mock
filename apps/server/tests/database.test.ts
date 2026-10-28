@@ -26,7 +26,7 @@ test("local DB session opens without a key but rejects cross-origin and rebindin
     assert.equal((await open()).status, 403, "a generic form/body cannot open a DB session");
     const localHeaders = { "x-discord-mock-local": "1" };
     // Use raw HTTP for adversarial Host / Fetch Metadata; fetch can normalize them.
-    const rawOpen = (headers) => new Promise((resolve, reject) => {
+    const rawOpen = (headers) => new Promise<number | undefined>((resolve, reject) => {
       const request = httpRequest(new URL("/_admin/session", mock.url), {
         method: "POST", headers: { "content-type": "application/json", ...localHeaders, ...headers },
       }, (response) => {

@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { startEphemeralDatabase } from '../dist/database.mjs';
+const { startEphemeralDatabase } = await import(new URL('../dist/database.mjs', import.meta.url).href) as typeof import('../src/database.js');
 import { startLevelBot } from '../packages/bot/src/local.ts';
 
 const require = createRequire(import.meta.url);

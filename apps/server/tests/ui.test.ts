@@ -65,7 +65,7 @@ test("Slash command from browser travels through Gateway and Bot reply appears i
   let mock = await startMock({ port: 0, statePath });
   const socket = new WebSocket(`${mock.url.replace("http:", "ws:")}/gateway`);
   try {
-    const guildReady = new Promise((resolve, reject) => {
+    const guildReady = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("Missing GuildCreate")), 5000);
       socket.on("error", reject);
       socket.on("message", (raw) => {
@@ -85,7 +85,7 @@ test("Slash command from browser travels through Gateway and Bot reply appears i
     assert.equal(registration.status, 200);
     const [registeredCommand] = await registration.json();
     const { data, cookie } = await session(mock);
-    const pending = new Promise((resolve, reject) => {
+    const pending = new Promise<{id: string; token: string; data: {id: string}; member: {user: {id: string}}}>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("Missing InteractionCreate")), 5000);
       socket.on("message", (raw) => {
         const p = JSON.parse(raw.toString());
@@ -130,7 +130,7 @@ test("Slash command from browser travels through Gateway and Bot reply appears i
     assert.equal(reply.interaction_metadata.id, interaction.id);
     assert.equal(reply.application_id, "123456789000000001");
     assert.equal(JSON.stringify(reply).includes(interaction.token), false);
-    const nextInteraction = new Promise((resolve, reject) => {
+    const nextInteraction = new Promise<{id: string; token: string}>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("Missing next interaction")), 5000);
       socket.on("message", (raw) => {
         const packet = JSON.parse(raw.toString());
@@ -153,7 +153,7 @@ test("Slash command from browser travels through Gateway and Bot reply appears i
     const publicState = await (await fetch(`${mock.url}/_ui/state`, { headers: { cookie } })).json();
     assert.equal(publicState.messages[channel].some((message) => message.content === "Private reply"), false);
     const embed = { title: "Level", fields: [{ name: "Current level", value: "3" }] };
-    const embedDispatch = new Promise((resolve, reject) => {
+    const embedDispatch = new Promise<{content: string; embeds: unknown[]; interaction: {user: {id: string}}}>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("Missing embed MESSAGE_CREATE")), 5000);
       socket.on("message", (raw) => {
         const packet = JSON.parse(raw.toString());

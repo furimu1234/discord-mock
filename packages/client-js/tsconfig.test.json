@@ -9,7 +9,8 @@
       "@discord-mock/client-js/testing": [
         "./src/testing.ts"
       ]
-    }
+    },
+    "strict": false
   },
   "include": [
     "tests/**/*.ts",

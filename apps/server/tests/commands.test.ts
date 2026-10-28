@@ -18,7 +18,7 @@ test("command registration validates atomically, isolates scopes, persists and u
     mock = await startMock({ port: 0, statePath });
     const path = `/api/v10/applications/${appId}/commands`;
     const headers = { authorization: `Bot ${mock.token}`, "content-type": "application/json" };
-    const call = (suffix, method = "GET", data = undefined) => fetch(mock.url + suffix, {
+    const call = (suffix: string, method = "GET", data: unknown = undefined) => fetch(mock.url + suffix, {
       method, headers, ...(data === undefined ? {} : { body: JSON.stringify(data) }),
     });
     assert.equal((await fetch(mock.url + path)).status, 401);

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { Script } from "node:vm";
 import { setImmediate } from "node:timers/promises";
-import { createBrowserFixture, textOf } from "./browser-fixture.mjs";
+import { createBrowserFixture, textOf } from "./browser-fixture.ts";
 
 const script = new Script(
   await readFile(new URL("../dist/browser.js.txt", import.meta.url), "utf8"),
@@ -16,12 +16,12 @@ test("自動テストの状況・コマンド返信を SSE で更新し、結果
     name: "レベル確認",
     status: "running",
     step: "コマンド実行",
-    steps: [{ text: "コマンド実行", timestamp: "2026-01-01T00:00:00Z" }],
+    steps: [{ text: "コマンド実行", timestamp: "2026-01-01T00:00:00Z" }] as Array<{text: string; timestamp?: string}>,
     guild: {
       name: "UT",
       channels: [{ id: "general", name: "general", type: 0 }],
     },
-    messages: { general: [] },
+    messages: { general: [] as Array<Record<string, unknown>> },
   };
   const urls = [];
   script.runInNewContext({

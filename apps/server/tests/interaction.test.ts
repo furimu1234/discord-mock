@@ -13,7 +13,7 @@ test("Synthetic user command reaches Gateway and callback is stored locally", {t
   const adminHeaders = {"x-discord-mock-secret": mock.adminSecret, "content-type": "application/json"};
   let interactionId;
   try {
-    const completed = new Promise((resolve,reject) => {
+    const completed = new Promise<void>((resolve,reject) => {
       const timer = setTimeout(()=>reject(new Error("No mock interaction received")),5000);
       socket.on("error",reject);
       socket.on("message",async (bytes) => {

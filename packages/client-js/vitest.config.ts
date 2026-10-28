@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.ts"],
-    exclude: ["tests/types.test.ts"],
+    exclude: ["tests/types.test.ts", "tests/**/*.node.test.ts"],
     environment: "node",
     testTimeout: 10_000,
     hookTimeout: 10_000,

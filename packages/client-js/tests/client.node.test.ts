@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {createMockClient, disMockClient} from "../dist/index.js";
+const {createMockClient, disMockClient} = await import(new URL("../dist/index.js", import.meta.url).href);
 
 test("blocks production REST base URLs", () => {
   assert.throws(() => createMockClient({baseUrl:"https://discord.com"}), /loopback/);

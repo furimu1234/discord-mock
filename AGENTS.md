@@ -223,8 +223,8 @@
 ## 16. TypeScript / Corepack / manual build / platform support
 
 - **JavaScript 関連の実装成果物は、AI エージェントの種類（Codex / Claude / Gemini 等）を問わず TypeScript を必須とする。** 対象は `apps/web/`、`apps/server/`、`packages/client-js/`、`examples/level_bot/`、ルート `scripts/` のソース・新規テスト・開発スクリプト。原則 `.ts`、JSX が必要なら `.tsx`、型宣言は `.d.ts` を使用し、`.js` / `.jsx` / `.mjs` / `.cjs` の新規ソースを作らない。既存ファイルに JS の追加実装を継ぎ足すのではなく、新規の実装・テストは TS で作成する。
-- 既存の `.mjs` テスト・補助スクリプトは既存動作のため移行までは保持する。例外は `scripts/check-typescript.ts` の既存ファイル許可リストだけとし、新規 JS ファイルを例外へ安易に追加しない。やむを得ないランタイム事情がある場合のみ理由を記録し、明示的な承認を得る。
-- `tsconfig.base.json` の `allowJs: false`、各パッケージの TS 型チェック、`pnpm check:ts` の拡張子検査を維持する。新規 `*.test.ts` は各パッケージのテスト実行・型チェック対象にする。作業後は `pnpm check`、`pnpm build`、該当テストを実行する（未実行ならその旨を報告する）。
+- **既存の手書き `.mjs` / `.js` も TypeScript へ移行済み。** 今後は既存ファイルの変更も新規追加も `.ts` / `.tsx` を使用する。例外は `dist/` 等にビルドで生成される JavaScript と、既存 TypeScript ソースの ESM import 指定子（`.js`）のみ。手書きの JS を許可リストへ追加しない。`pnpm check:ts` でリポジトリ全体の手書き JS を拒否する。
+- `tsconfig.base.json` の `allowJs: false`、各パッケージの TS 型チェック、`pnpm check:ts` の拡張子検査を維持する。Web・Server の Node テストは `*.test.ts`、JS クライアントの `node:test` は `*.node.test.ts`、Vitest は `*.test.ts` を使用し、すべて型チェック・実行対象にする。作業後は `pnpm check`、`pnpm build`、該当テストを実行する（未実行ならその旨を報告する）。
 - **ソースを `.ts` で書くことと公開・配布物の拡張子は別。** `esbuild` 等で生成した `.js` / `.cjs` / `.mjs` や `.d.ts` は従来どおり `dist/` 等の生成物とし、必要な `package.json` の `main` / `exports` と実行コマンドを維持する。TypeScript 内の ESM import 指定子が `.js` を指す場合も、対応する実体ソースは `.ts` とする。
 - Python クライアントの `.py`、`pyproject.toml`、Python のテスト・ビルド・配布方式は本方針の対象外で変更しない。
 - 開発時は pnpm workspace と Corepack（導入されている場合）を使用し、`pnpm install`、`pnpm build`、`pnpm test` を実行する。

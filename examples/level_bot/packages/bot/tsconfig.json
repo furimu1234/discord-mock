@@ -4,7 +4,8 @@
     "noEmit": true,
     "types": ["node"],
     "paths": {
-      "@discord-mock/client-js": ["../../../../packages/client-js/src/index.ts"]
+      "@discord-mock/client-js": ["../../../../packages/client-js/src/index.ts"],
+      "@ex/db": ["../db/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"]

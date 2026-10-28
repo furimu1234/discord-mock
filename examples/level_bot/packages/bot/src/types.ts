@@ -1,29 +1,33 @@
 import type {
-	ChatInputCommandInteraction,
-	RESTPostAPIChatInputApplicationCommandsJSONBody,
-} from 'discord.js';
-import type { Container as ContainerInstance } from './container';
+  ChatInputCommandInteraction,
+  RESTPostAPIChatInputApplicationCommandsJSONBody,
+} from "discord.js";
+import type { Container as ContainerInstance } from "./container";
 
 export type Container = Awaited<ReturnType<typeof ContainerInstance>>;
 export type Ref<T> = { current: T };
 export type ContainerRef = Ref<
-	Awaited<ReturnType<typeof ContainerInstance> | undefined>
+  Awaited<ReturnType<typeof ContainerInstance> | undefined>
 >;
 
-export type commandExecute = (interaction: ChatInputCommandInteraction) => Promise<void>;
-export type slashCommands = RESTPostAPIChatInputApplicationCommandsJSONBody[];
+export type commandExecute = (
+  interaction: ChatInputCommandInteraction,
+) => Promise<void>;
+export type SlashCommandDefinition =
+  RESTPostAPIChatInputApplicationCommandsJSONBody;
+export type slashCommands = SlashCommandDefinition[];
 
 export interface AutoConfigInstantServer {
-	servers: {
-		[key: string]: {
-			inviteLink: string;
-			lastConnectTime: string;
-			used: boolean;
-		};
-	}[];
+  servers: {
+    [key: string]: {
+      inviteLink: string;
+      lastConnectTime: string;
+      used: boolean;
+    };
+  }[];
 }
 
 export interface AutoConfig {
-	queue: string[];
-	instantServer: AutoConfigInstantServer;
+  queue: string[];
+  instantServer: AutoConfigInstantServer;
 }

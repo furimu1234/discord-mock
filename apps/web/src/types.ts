@@ -1,3 +1,5 @@
+import type { MockEmbed } from "../../server/src/models.js";
+
 /** JSON returned by the local browser API, limited to fields used by the UI. */
 export interface BrowserUser {
   id: string;
@@ -12,9 +14,15 @@ export interface BrowserChannel {
 }
 
 export interface BrowserMessage {
+  id: string;
+  channel_id: string;
   author: BrowserUser;
   content: string;
   timestamp: string;
+  edited_timestamp?: string | null;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  embeds?: MockEmbed[];
   interaction?: {
     id: string;
     type: number;
@@ -36,6 +44,8 @@ export interface IdentityResponse {
 export interface SessionResponse extends IdentityResponse {
   csrf: string;
   users: BrowserUser[];
+  members?: Array<{ user: BrowserUser; roles: string[] }>;
+  roles?: Array<{ id: string; name: string; color: number }>;
 }
 
 export interface BrowserState extends IdentityResponse {

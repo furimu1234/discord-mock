@@ -17,44 +17,33 @@
 - `pnpm bot` が別の Client を作り、`main.ts` の Ready ハンドラーを登録していなかった問題を修正。ログイン完了に加え、Ready の非同期コマンド登録完了も待ちます。
 - 既定の接続先を使う `new REST()` を廃止し、Mock に設定済みの `client.rest` から登録します。
 
-## ブラウザから動作確認（推奨）
-
-ルートで:
+## ブラウザでテストを実行する（推奨）
 
 ```sh
-nix-shell
 pnpm install
 pnpm build
 pnpm app
 ```
 
-app が表示する `TOKEN=mock_...` をリポジトリ直下の `.env` に設定し、別ターミナルから `pnpm bot` を実行します。
+`pnpm app` は Mock REST / Gateway、Web、PGlite を起動します。初回は `.discord-mock-data/credentials.json` にテスト用トークンを発行し、**保存済みのトークンがある次回起動から** Bot クライアントを自動起動します。既存の `.env` に設定された `TOKEN` が保存済みトークンと違う場合は、app は起動したまま Bot のみ起動を見送り、`pnpm bot:test` を使った設定確認を案内します。Bot 単体を手動起動する場合は `pnpm bot:client` を使用してください。
 
-```dotenv
-# discord用
-#TOKEN=<本番用トークン>
+`http://127.0.0.1:3000/test` は Discord 風の自動テスト画面です。右側「ユーザー」タブで Alice / Bob などを切り替えると、UT ソースの `users: "login"` で指定されたユーザーとして操作を実行します。左のチャンネル一覧でチャットを選択でき、中央にはダミーユーザーの投稿・Bot の返信・Embed のみ表示します。テスト開始・検証ステップ・合否は右の独立した実行ログに表示します。下部の独自リストでテストケースを矢印キーやマウスで選び、Enterまたはダブルクリックすると個別の Vitest ケースを起動します。実行ボタンはなく、実行した行の四角い枠に「●」を3秒間表示します。スクロールバーは非表示ですが、ホイールやタッチで一覧をスクロールできます。すべてのテストを実行するときは `pnpm bot` を別ターミナルから実行します。`/tests` にも実行履歴が表示されます。
 
-# テスト用
-TOKEN=mock_ここを払い出された値に置換
+```sh
+pnpm bot
 ```
 
-`pnpm app` は (1) インメモリ PGlite、(2) 127.0.0.1 に限った PostgreSQL ソケットサーバー、(3) Mock REST/Gateway と Web を起動します。`pnpm bot` は標準の `discord.js` Bot だけを起動します。`http://127.0.0.1:3000/test` を開き、ダミーユーザーを選んで投稿してください。
+テストケースはMock・Botを分離しますがDBはAppのPGliteと共有するため、テスト操作で作ったレコードは次のケースにも残ります。App 再起動時には結果一覧がリセットされます。ブラウザを開いたままでも再接続を試み、変更の反映に `pnpm build` と App 再起動、必要に応じたブラウザ更新が必要です。
 
-`.discord-mock-data/credentials.json` に `schemaVersion: 1` と `token` を保存します。トークンがなければ新規生成し、あれば再利用します。不正な JSON・不正なトークンはエラーになり、既存ファイルを黙って消しません。Bot は `.env` の `TOKEN`（既存の環境変数を優先）を使用し、旧 `DISCORD_MOCK_TOKEN` もフォールバックとして受け付けます。
-
-app が `.discord-mock-data/runtime.json` に Mock URL と DB 接続先を書き、Bot がこれを読みます。PGlite に `example.lvl` を作成し、通常の `POST_URL` DSN で元の Drizzle / pg に接続するため、DB サーバーや Docker は不要です。Bot だけの再起動では DB を保持し、app を終了すると DB は消えます。トークン JSON は app の終了後も残ります。詳細な設定・ロックファイルの復旧手順は [ルート README](../../README.md#ブラウザで本物の-bot-をテストする) を参照してください。
-
-`pnpm demo` による一括起動も利用できます。この経路ではトークンは実行ごとに新規生成し、`.env` の `TOKEN` は使いません。ビルドはすべて手動です。
-
-**通常のメッセージに対するレベル更新処理は返信を投稿しません。** ブラウザにはダミーユーザーのメッセージと Bot 接続状態が表示されます。Bot 側が `channel.send` を実行する場合、その REST POST は画面へ反映されます。
-
-Bot が Ready になると `BOT START`・`MockBot` をログ出力し、サンプルコマンドを登録します。テキスト入力欄の `/` から選択して送信すると Bot の応答が返ります。日本語コマンド名も利用できます。コマンドを追加する場合は `packages/bot/src/commands/` にモジュールを作り、`commands/main.ts` の `commandModules` に import を追加して手動でビルドしてください。ランタイムでは `.ts` ファイルを走査しません。現在は引数なしの CHAT_INPUT に限定します。
+`pnpm demo` は従来の単独デモ起動として引き続き利用できます。Bot 本体の `packages/bot/src/commands/` には従来どおり TypeScript のコマンドを追加できます。コマンド登録・DB 接続は今までの Drizzle / `pg` を使い、疑似 DB に差し替えません。
 
 ## E2E
 
 コマンド返信の上には実行ユーザーと `/コマンド名` を表示します。サイドバーの「データベース」からは、キー入力なしで Bot が更新する `example.lvl` を表形式で参照できます。読み取り専用で検索・並び替え・ページ切替・手動更新に対応します。app を止めると DB が消える動作は変わりません。
 
-`pnpm bot` は `bot.lock` で同じ app 保存先への重複起動を拒否します。初期返信を複数の Bot が同時に送った場合も、Mock は1件だけを受理し、2件目からは `40060` を返します。別のコマンド実行として送信された返信までまとめる処理は行いません。
+`pnpm bot:client` は `bot.lock` で同じ app 保存先への重複起動を拒否します。初期返信を複数の Bot が同時に送った場合も、Mock は1件だけを受理し、2件目からは `40060` を返します。別のコマンド実行として送信された返信までまとめる処理は行いません。
+
+app を先に Ctrl+C で停止しても、接続済み Bot は DB の切断イベントまたは `/health` の停止を検知して終了します。DB 接続エラーのオブジェクト全体は出力しません。SDK と DB の終了処理を開始し、SDK の再接続待ちが長引いた場合も最大3秒の待機後にロックを解放して CLI を終了します。通常は app が Bot を自動起動します。手動で分ける場合のみ app → `pnpm bot:client` の順です。実際の SIGINT、DB 使用後の切断、DB 未使用時の停止検知、同じ保存先での再起動をテストします。
 
 静的チェックはルートの `pnpm check`、サンプルだけなら `pnpm --filter @ex/bot typecheck`・`pnpm --filter @ex/db typecheck`・`pnpm --filter @discord-mock/level-bot typecheck`・`pnpm --filter @discord-mock/level-bot lint` で実行できます。ビルド済みファイルに依存せず、Bot 本体と Drizzle 設定も検査します。
 
@@ -65,3 +54,93 @@ pnpm sample:test
 別の Mock/DB/Bot を起動し、ブラウザ API から2通投稿して、本物の PostgreSQL クエリでレベル 2 → 3 を確認します。Bot を別プロセスで起動・再起動するケースと、app の再起動でトークンを再利用するケースも実行します。保存先・接続先は手動起動中の app と分離しています。
 
 `/admin` はまだ簡易画面です。DM / VC の模擬および Discord 全 API の互換は未実装です。
+
+## Bot の UT
+
+```sh
+pnpm bot:test
+```
+
+Bot の機能だけをまとめて検証します。app を別に起動する必要はありません。テストはすべて TypeScript です。
+
+- `tests/bot/showLvl.test.ts`: 投稿してから `/レベル確認` を実行する流れ、Guild と実行者の絞り込み、未登録ユーザーの現在の動作。
+- `tests/bot/leveling.test.ts`: 投稿ごとのレベル更新と、投稿していない人のレベルが変わらないこと。
+- `tests/helpers/bot-test.ts`: 本物の Bot・PGlite・pg / Drizzle・Mock の準備、後片付け、Web への実行結果の反映。
+
+テスト本文では HTTP ヘッダー・接続先・DB 起動処理を書く必要はありません。レベルの直接指定は必要なケースでだけ行い、通常は投稿による増分を検証してください。
+
+```ts
+import { test, expect } from '../helpers/bot-test.js';
+
+test("レベル確認で7を返す", { users: "login" }, async ({ bot, actor }) => {
+  await bot.levels.set(actor, 7); // 任意で直接設定
+  const reply = await actor.command("レベル確認");
+  expect(reply.embeds[0].fields?.[0].value).toBe("7");
+});
+```
+
+今後の機能も `tests/bot/` に `*.test.ts` を追加すれば `pnpm bot:test` で実行します。Bot のソースは直接実行し、テスト時に暗黙のビルドを行いません。
+
+起動中の app に表示したい場合は `pnpm bot` を実行します。**`http://127.0.0.1:3000/test` を開いたままでも**、ユーザー投稿と Bot の返信がチャットに、テストの実行ステップと成功／失敗が右側の実行ログにリアルタイムで反映されます。`/tests` では過去の実行一覧・詳細も確認できます。通常の `pnpm bot:test` も app があれば自動で反映します。表示先は runtime.json の URL、または DISCORD_MOCK_REPORT_URL を使用します。テストは独立したMockを使用しますが、DBはApp本体と共有し、実際のBot更新が反映されます。結果は app が起動している間、最大20件保持します。Web の変更を反映するには `pnpm build` と `pnpm app` の再起動、および開いている `/test` の再読み込みが必要です。
+
+`pnpm sample:test` は Bot に加えて `tests/integration/` の app・DB・起動処理も検証します。`pnpm automation:test` は SDK の自動テスト例と Bot テストの両方を実行します。既存の `pnpm level:test` / `pnpm level:test:web` は新コマンドの別名として利用できます。
+
+### UT の実行ユーザーを test() で指定
+
+`test("ケース名", { users: "login" }, async ({ bot, actor }) => { ... })` のように、第2引数でテスト対象を指定します。
+
+```ts
+// /test の右側でログインしたユーザーとして実行
+test("レベル確認", { users: "login" }, async ({ bot, actor }) => {
+  await bot.levels.set(actor, 7);
+  const reply = await actor.command("レベル確認");
+  expect(reply.embeds[0].fields?.[0].value).toBe("7");
+});
+
+// 全ダミーユーザー（Bot除外）について同じ検証を順次実行
+test("全員の投稿", { users: "all" }, async ({ actor }) => {
+  await actor.sendMessage(`${actor.username} から投稿`);
+});
+
+// ユーザー ID を明示
+test("指定ユーザー", { users: { id: "123456789000000099" } }, async ({ actor }) => {
+  await actor.sendMessage("ID指定の投稿");
+});
+
+// 複数IDでテスト本文を順次実行
+test("複数ID", { users: { ids: ["123456789000000098", "123456789000000099"] } }, async ({ actor }) => {
+  await actor.sendMessage(`${actor.username} の投稿`);
+});
+```
+
+`actor` は対象ユーザーの情報（`id`・`username` など）と投稿・コマンド実行の操作をまとめたオブジェクトです。`user` を別に受け取る必要はなく、`bot.levels.get(actor)` や `bot.levels.set(actor, level)` にも同じオブジェクトを渡せます。`bot.levels.set(actor, ...)` などの状態準備も同じユーザーを参照します。`"all"` では同じテスト本文を各ユーザーについて順に実行します。従来の `bot.as(user)` も残していますが、テスト実行対象は各操作ではなく `test()` の第2引数で指定します。
+
+`"login"` は `/test` 右側の「ユーザー」タブからログイン先を変更したユーザーです。左クリックでロール等のプロフィール、右クリックでIDコピーとログイン切替を操作できます。初期ダミーユーザーは10人で、ログは「実行ログ」タブにあります。CLIで `pnpm bot` を実行するときは既定の Alice を使い、`DISCORD_MOCK_SELECTED_USER_ID` で上書きできます。未知のIDやBotアカウントにはフォールバックしません。
+
+
+
+### 共有DBとチャンネル作成
+
+`pnpm app` 起動中のBotテストは、各テストでMock・Botを独立して立ち上げつつ、**DBはAppのPGliteを全テストで共有**します。通常は `actor.sendMessage()` を通じたBot本体の処理でレコードを更新しますが、**任意で `bot.levels.set(actor, level, guildId?)` による直接設定もできます**。直接設定は実際の共有PGliteのレコードを挿入・更新し、後続のケースにも残ります。期待値はテスト前のレベルからの増加数で判定します。結果のレコードは `/database` の「AppのDB」に即時反映し、テストをまたいで保持します。App停止時にはPGliteを破棄します。
+
+Appを起動せず `pnpm bot:test` する場合はVitest実行全体で単一の一時PGliteを共有し、全テスト終了時に閉じます。Mockのチャットは独立したまま結果表示用に報告されます。
+
+`/test` ではチャットだけがスクロールし、右側のユーザーを右クリックして開いたメニュー・プロフィールは外側クリックで閉じます。左サイドバーの「＋」からテキストチャンネルを作成できます。作成したチャンネルは次のテストMockにも利用可能な状態で引き継ぎます。
+
+### ネストした describe とテストケースの選択
+
+`/test` 下部のテストケース一覧には、テストコードの `describe` 階層が `親 › 子 › テスト名` 形式で表示されます。階層名全体を使ってVitestの対象を絞るため、別の `describe` 内で同じ `test` 名を使用しても選択できます。
+
+```ts
+describe("/レベル確認", () => {
+  describe("直接設定", () => {
+    test("レベルを確認", { users: "login" }, async ({ bot, actor }) => {
+      await bot.levels.set(actor, 7);
+      const reply = await actor.command("レベル確認");
+      expect(reply.embeds[0].fields?.[0].value).toBe("7");
+    });
+  });
+});
+```
+
+この場合、テストケース一覧には `/レベル確認 › 直接設定 › レベルを確認` と表示されます。静的な文字列リテラル名の `describe` / `test` / `it` に対応します。`describe.each` / `test.each` など実行時生成のテストは個別一覧の対象外です。全テストの実行は従来どおり `pnpm bot` で行えます。

@@ -269,6 +269,24 @@ a:hover {
 }
 
 .message-body { min-width: 0; }
+.message-embed { margin-top: 8px; max-width: 520px; border-left: 4px solid #58657b; border-radius: 4px; background: #20232c; padding: 14px 16px; white-space: pre-wrap; }
+.embed-title { margin: 0 0 8px; font-size: 15px; color: #edf1ff; }
+.embed-description { margin: 0 0 8px; color: #c6ccdc; }
+.embed-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.embed-field { grid-column: 1/-1; min-width: 0; }
+.embed-field.inline { grid-column: auto; }
+.embed-field strong { display: block; margin-bottom: 3px; font-size: 13px; }
+.embed-footer { margin: 12px 0 0; font-size: 12px; color: #a9b1c6; }
+.test-run { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; white-space: normal; }
+.test-run strong { font-size: 12px; overflow-wrap: anywhere; }
+.test-status { font-size: 12px; font-weight: 600; }
+.test-status.running { color: #e5bc69; }
+.test-status.passed { color: #81cfa3; }
+.test-status.failed { color: #f58d91; }
+.test-status.cancelled { color: #a9b1c6; }
+.test-progress { border-bottom: 1px solid #303541; padding: 4px 24px; max-height: 160px; overflow: auto; color: #bbc4d7; font-size: 13px; }
+.test-progress li { margin: 6px 0; }
+.test-channel-title { padding: 8px 24px; color: #cbd4e5; font-size: 15px; border-bottom: 1px solid #303541; }
 
 .sidebar-tabs {
   display: flex;
@@ -504,3 +522,217 @@ a:hover {
   .database-toolbar { flex-wrap: wrap; padding: 12px; }
   .database-search { flex-basis: 100%; }
 }
+
+
+/* /test はチャット型の自動テスト実行画面。 */
+.test-case-composer { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+.test-case-caption { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.test-case-caption strong { font-size: 14px; }
+.test-case-caption span { color: #aab2c6; font-size: 12px; }
+.test-case-caption, .test-case-composer .hint { flex: 0 0 auto; }
+.test-case-composer .hint { margin: 0; font-size: 11px; line-height: 1.6; }
+.test-case-list {
+  flex: 0 1 auto; min-height: 0;
+  min-width: 0; width: 100%; height: min(164px, 21vh);
+  overflow-x: hidden; overflow-y: auto;
+  overscroll-behavior-y: contain; scrollbar-width: none;
+  border: 1px solid #414b65; border-radius: 9px;
+  background: #252936; color: #dce3f3; padding: 5px;
+  font-size: 12px; outline: none;
+}
+.test-case-list::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.test-case-list:focus-visible { border-color: #91a7f3; box-shadow: 0 0 0 2px #91a7f32e; }
+.test-case-option {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 33px; padding: 7px 10px;
+  border: 1px solid transparent; border-radius: 5px;
+  cursor: pointer; user-select: none;
+}
+.test-case-option.active { background: #91a7f326; border-color: #91a7f347; color: #f0f4ff; }
+.test-case-marker {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 16px; width: 16px; height: 16px;
+  border: 1px solid #68748f; border-radius: 3px;
+  color: #b9d1ff; font-size: 10px; line-height: 1;
+}
+.test-case-option.active .test-case-marker { border-color: #9aafe7; background: #91a7f314; }
+.test-case-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.test-case-list[aria-disabled="true"] .test-case-option { cursor: not-allowed; }
+.test-case-empty { padding: 12px 10px; color: #9da8c1; }
+@media (max-width: 650px) {
+  .test-case-list { height: min(130px, 18vh); }
+}
+
+/* /test: Discord 風のメッセージ領域と独立した操作ログ。既存の配色を使用する。 */
+.test-workspace {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.test-workspace > .messages { min-width: 0; min-height: 0; }
+
+.test-log-panel {
+  flex: 0 0 280px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #20212a;
+  border-left: 1px solid #343645;
+}
+.test-log-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 16px;
+  border-bottom: 1px solid #343645;
+}
+.test-log-header strong { font-size: 13px; }
+.test-log-header a { font-size: 11px; }
+.test-log-entries { overflow-y: auto; padding: 12px; min-height: 0; flex: 1; }
+.test-log-empty { color: #8f94ab; font-size: 12px; line-height: 1.7; padding: 16px 6px; }
+.test-log-run {
+  margin: 0 0 12px;
+  padding: 10px 11px;
+  border: 1px solid #3b4053;
+  background: #252735;
+  border-radius: 8px;
+}
+.test-log-run-heading { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.test-log-run-heading strong { flex: 1; min-width: 100px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.test-log-run-time { color: #858fa7; font-size: 11px; margin-top: 4px; }
+.test-log-steps { padding-left: 18px; margin: 10px 0 0; color: #bdc4d5; font-size: 12px; overflow-wrap: anywhere; }
+.test-log-steps li { padding: 3px 0; }
+.test-log-result { margin: 10px 0 0; font-size: 12px; }
+.test-chat-welcome {
+  margin-top: auto;
+  padding: 10px 0 24px;
+  max-width: 650px;
+}
+.test-chat-symbol {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: #393d51;
+  display: grid;
+  place-items: center;
+  color: #e6eafa;
+  font-size: 34px;
+  font-weight: 700;
+}
+.test-chat-welcome h2 { margin: 14px 0 3px; font-size: 24px; }
+.test-chat-welcome p { margin: 0; color: #aeb4c4; font-size: 13px; }
+.test-workspace .messages { gap: 3px; }
+.test-workspace .messages .message { flex-shrink: 0; }
+
+@media (max-width: 1080px) {
+  .test-log-panel { flex-basis: 220px; }
+}
+@media (max-width: 850px) {
+  .test-workspace { flex-direction: column; }
+  .test-workspace > .messages { flex: 1 1 auto; min-height: 250px; }
+  .test-log-panel { flex: 0 0 auto; height: 180px; border-left: 0; border-top: 1px solid #343645; }
+  .test-log-entries { display: flex; gap: 10px; }
+  .test-log-run { min-width: 195px; max-width: 260px; }
+}
+
+/* テストログとダミーユーザー一覧のタブ。従来のダーク配色を維持。 */
+.test-log-panel { position: relative; }
+.test-sidebar-tabs { display: flex; align-items: center; min-width: 0; gap: 4px; }
+.test-sidebar-tabs button {
+  background: transparent; border: 0; border-bottom: 2px solid transparent;
+  color: #abb3c7; padding: 8px 10px; font: inherit; font-size: 12px;
+}
+.test-sidebar-tabs button.active { color: #f2f4fb; border-bottom-color: #8395ec; }
+.test-user-list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; }
+.test-user-item { display: flex; width: 100%; border: 0; border-radius: 7px; padding: 8px;
+  background: transparent; color: #dce1ed; text-align: left; align-items: center; gap: 9px; font: inherit; }
+.test-user-item:hover { background: #323748; }
+.test-user-item.logged-in { background: #383f54; }
+.test-user-avatar, .test-profile-avatar { display: grid; place-items: center; flex: 0 0 32px; height: 32px; border-radius: 50%; background: #53659c; font-weight: 700; }
+.test-user-name { flex: 1; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.test-user-current { color: #9cc8ff; font-size: 10px; }
+.test-user-profile, .test-user-menu {
+  position: absolute; right: 12px; bottom: 15px; left: 12px; z-index: 20;
+  padding: 13px; border: 1px solid #4d5469; border-radius: 9px;
+  background: #292d3c; color: #edf0f9; box-shadow: 0 10px 30px #0009;
+}
+.test-user-profile .test-profile-header { display: flex; align-items: center; gap: 10px; }
+.test-profile-name { font-weight: 700; overflow-wrap: anywhere; }
+.test-profile-id { margin: 8px 0 10px; color: #aab2c5; font-size: 11px; overflow-wrap: anywhere; }
+.test-profile-roles { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.test-profile-role { border: 1px solid #57617b; border-radius: 6px; padding: 3px 7px; font-size: 11px; }
+.test-profile-close { margin-left: auto; border: 0; background: transparent; color: #dce3f2; }
+.test-user-menu { padding: 5px; }
+.test-user-menu button { width: 100%; padding: 10px; border: 0; border-radius: 6px; color: #e7eafb; background: transparent; font: inherit; text-align: left; font-size: 12px; }
+.test-user-menu button:hover { background: #40485f; }
+
+/* アプリ全体を画面高で固定し、各ペインのみスクロールさせる。 */
+html, body { width: 100%; height: 100%; overflow: hidden; }
+.app { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+.rail, .sidebar, .main { min-height: 0; min-width: 0; }
+.rail { overflow-y: auto; }
+.sidebar { overflow: hidden; }
+.sidebar > #channel-sidebar,
+.sidebar > #database-sidebar,
+.sidebar > #tests-sidebar { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.sidebar > .userpanel { flex: 0 0 auto; }
+.main { height: 100%; overflow: hidden; }
+.test-workspace { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.test-workspace > .messages {
+  flex: 1 1 auto; min-height: 0;
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+.test-case-composer { flex: 0 0 auto; max-height: 36vh; overflow: hidden; }
+.test-log-panel { overflow: hidden; }
+.test-log-entries, .test-user-list { min-height: 0; overflow-y: auto; }
+@media (max-width: 780px) {
+  .app { grid-template-rows: 54px minmax(115px, 24vh) minmax(0, 1fr); }
+  .rail { grid-row: 1; }
+  .sidebar { grid-row: 2; min-height: 0; }
+  .main { grid-row: 3; min-height: 0; }
+  .messages { min-height: 0; }
+  .test-case-composer { max-height: 30vh; }
+}
+@media (max-width: 850px) {
+  .test-workspace > .messages { min-height: 0; }
+  .test-log-panel { flex-shrink: 0; }
+}
+
+.database-source-label { display: flex; gap: 8px; align-items: center; flex-shrink: 0; font-size: 12px; color: #bec6d5; }
+.database-source-label select { max-width: 265px; border-radius: 6px; padding: 7px; background: #303240; color: #ecf0ff; border: 1px solid #54586b; }
+
+.channel-header { display: flex; align-items: center; justify-content: space-between; padding-right: 13px; }
+.channel-header button { border: 0; background: none; color: #aeb6cb; font-size: 18px; padding: 5px 8px; }
+.channel-header button:hover { color: white; background: #353a4d; border-radius: 6px; }
+.channel-create-form { display: grid; gap: 8px; padding: 10px 13px 14px; }
+.channel-create-form label { font-size: 11px; color: #bcc4d7; }
+.channel-create-form input { min-width: 0; width: 100%; background: #303341; color: #fff; border: 1px solid #52576d; border-radius: 6px; padding: 7px 9px; }
+.channel-create-actions { display: flex; justify-content: flex-end; gap: 7px; }
+.channel-create-actions button { border: 1px solid #505c80; background: #30364b; color: #eaf0ff; border-radius: 6px; padding: 5px 9px; font-size: 11px; }
+
+/* メッセージのリンク先、操作メニューと編集・削除確認。 */
+.message-target { background: #738bdf26; box-shadow: inset 3px 0 #9aafff; outline: none; }
+.message-edited { color: #969fb7; font-size: 10px; }
+.test-log-run[href] { display: block; color: inherit; text-decoration: none; cursor: pointer; }
+.test-log-run[href]:hover, .test-log-run[href]:focus-visible { background: #30374e; border-color: #8399e2; outline: none; }
+.message-menu { position: fixed; z-index: 40; width: 220px; padding: 6px; border: 1px solid #4b5470; border-radius: 8px; background: #202430; box-shadow: 0 10px 30px #0007; }
+.message-menu button { display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: 4px; text-align: left; background: transparent; color: #e5ebfb; font-size: 12px; }
+.message-menu button:hover, .message-menu button:focus-visible { background: #718bdd40; outline: none; }
+.message-menu button.danger { color: #ffacb3; }
+.message-dialog { position: fixed; z-index: 50; inset: 0; display: flex; align-items: center; justify-content: center; background: #080b14b8; padding: 20px; }
+.message-edit-form { width: min(480px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid #515c7c; border-radius: 10px; background: #282d3c; box-shadow: 0 20px 60px #0008; }
+.message-edit-form strong { color: #f0f3ff; font-size: 15px; }
+.message-edit-form textarea { width: 100%; resize: vertical; min-height: 100px; border: 1px solid #657496; border-radius: 6px; background: #1c2130; color: #edf1ff; padding: 10px; font: inherit; }
+.message-edit-form p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+#message-edit-error { color: #ffacb3; font-size: 12px; }
+.message-edit-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.message-edit-actions button { border: 1px solid #6376b6; border-radius: 6px; padding: 8px 15px; color: #fff; background: #4d61a6; }
+.message-edit-actions button:first-child { background: transparent; }
+.message-edit-actions button.danger { border-color: #b85d6b; background: #a74254; }
+.message-edit-actions button:disabled { opacity: .5; cursor: wait; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

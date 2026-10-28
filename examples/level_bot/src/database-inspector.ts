@@ -1,4 +1,5 @@
 import type { PGlite, Transaction } from "@electric-sql/pglite";
+import type { TestDatabaseSnapshot } from "../../../packages/client-js/src/test-runs.js";
 import type { DatabaseColumn, DatabaseInspector, DatabasePage, DatabaseQuery, DatabaseValue } from "../../../apps/server/src/database.js";
 
 const USER_TABLES = `
@@ -102,4 +103,44 @@ export function createDatabaseInspector(database: PGlite): DatabaseInspector {
       });
     },
   };
+}
+
+/**
+ * Read-only snapshot of the actual isolated test PGlite.
+ * This captures any user-defined table, not only example.lvl. The browser never accesses its DSN.
+ */
+export async function captureTestDatabase(database: PGlite): Promise<TestDatabaseSnapshot> {
+  const inspector = createDatabaseInspector(database);
+  const allTables = await inspector.tables();
+  const snapshot: TestDatabaseSnapshot = { tables: [], truncated: allTables.length > 32 };
+  let budget = 32 * 1024;
+  for (const table of allTables.slice(0, 32)) {
+    const page = await inspector.rows({
+      schema: table.schema, table: table.name, offset: 0, limit: 100,
+      search: "", sort: "", direction: "asc",
+    });
+    if (!page) continue;
+    const item: TestDatabaseSnapshot["tables"][number] = {
+      schema: table.schema, name: table.name,
+      columns: page.columns, rows: [],
+      totalRows: page.totalRows, truncated: page.totalRows > page.rows.length || page.truncated,
+    };
+    const overhead = Buffer.byteLength(JSON.stringify({ ...item, rows: [] }), "utf8");
+    if (overhead > budget) { snapshot.truncated = true; break; }
+    budget -= overhead;
+    for (const row of page.rows) {
+      const safe = row.map((value) => {
+        if (typeof value !== "string") return value;
+        if (value.length > 1024) item.truncated = true;
+        return value.slice(0, 1024);
+      });
+      const bytes = Buffer.byteLength(JSON.stringify(safe), "utf8") + 2;
+      if (bytes > budget) { item.truncated = true; snapshot.truncated = true; break; }
+      budget -= bytes;
+      item.rows.push(safe);
+    }
+    snapshot.tables.push(item);
+    if (budget < 2000) { snapshot.truncated = true; break; }
+  }
+  return snapshot;
 }

@@ -61,6 +61,8 @@
 
 音声は単に「再生中」と表示するだけではなく、実際にブラウザで聴けるテストを目指す。実装時は音声データの転送経路、コーデック、ブラウザの自動再生制限、Bot 接続アダプターの対応範囲を明示する。完全な Discord Voice プロトコル互換を実装済みと偽らない。
 
+**現時点の UI:** `/test` にはダミーユーザーの選択欄があり、UT で `users: "login"` を指定するとそのユーザーとしてテストする。その他 `users: "all"` と `users: { id: "..." }` および複数ID指定の `users: { ids: ["...", "..."] }` を指定できる。`all` と `ids` 指定は各ユーザーについて順にテスト本文を実行し、各回の `actor` は単一ユーザーに対応する。対象の決定はブラウザセッション側で行い、任意の偽装ユーザーIDを受け付けない。`/test` は左にチャンネル一覧、中央にダミーユーザーの投稿・コマンド操作と Bot 応答のみのチャット、右側に実行ログとユーザー一覧の切替タブを配置し、プロフィール・ロール表示と右クリックメニューを提供する。初期状態は `# general` のチャンネル開始画面で、既存のダークテーマを維持する。テストケースをセレクトメニューで選択し、実行ボタンから各 TypeScript テストを起動する。ネストした describe は親からの完全名で区別する。手動 Discord 操作についての上記項目は将来の互換機能の要件であり、現在の `/test` に手動投稿を必須とはしない。テストのMockはケースごとに分離しつつ、App稼働中はPGlite DBを通常Botと共有する。ケース間でDBを初期化しない。`pnpm bot` は UT 実行、`pnpm bot:client` は Bot 単体起動。実 Bot トークンを使用しない。
+
 ## 5. 管理画面の要件
 
 管理画面はテスト環境の構成・操作を担う。
@@ -200,7 +202,7 @@
 | `tests/` | 両クライアント・サーバー横断の統合 / 互換テスト |
 | `.github/workflows/` | 領域別 CI と JS / Python の独立リリース |
 
-- **JS:** Node.js 22+ と pnpm 11、`pnpm-workspace.yaml`。Web・Server・client-js の workspace を管理する。
+- **JS / TypeScript:** Node.js 24.17+ と pnpm 11、`pnpm-workspace.yaml`。Web・Server・client-js と `examples/level_bot` の workspace を管理する。
 - **Python:** `packages/client-py/pyproject.toml` をルートに持つ独立した uv プロジェクト。`uv` / `ruff` / `pytest` を使用する。Python を pnpm workspace に入れない。
 - 共通仕様に変更があれば **Web / Server / JS / Python で影響するテストと仕様を同じ PR で更新**する。実装していないテストを動作済みと報告しない。
 - 作業対象にある `AGENTS.md` はルート規則への追加要件とする。ルートの規約・セキュリティ要件と矛盾する場合はルートを優先する。
@@ -222,7 +224,11 @@
 
 ## 16. TypeScript / Corepack / manual build / platform support
 
-- `apps/web`、`apps/server`、`packages/client-js` のアプリケーションソースは **TypeScript** に統一する。Python クライアントは Python のまま。
+- **JavaScript 関連の実装成果物は、AI エージェントの種類（Codex / Claude / Gemini 等）を問わず TypeScript を必須とする。** 対象は `apps/web/`、`apps/server/`、`packages/client-js/`、`examples/level_bot/`、ルート `scripts/` のソース・新規テスト・開発スクリプト。原則 `.ts`、JSX が必要なら `.tsx`、型宣言は `.d.ts` を使用し、`.js` / `.jsx` / `.mjs` / `.cjs` の新規ソースを作らない。既存ファイルに JS の追加実装を継ぎ足すのではなく、新規の実装・テストは TS で作成する。
+- **既存の手書き `.mjs` / `.js` も TypeScript へ移行済み。** 今後は既存ファイルの変更も新規追加も `.ts` / `.tsx` を使用する。例外は `dist/` 等にビルドで生成される JavaScript と、既存 TypeScript ソースの ESM import 指定子（`.js`）のみ。手書きの JS を許可リストへ追加しない。`pnpm check:ts` でリポジトリ全体の手書き JS を拒否する。
+- `tsconfig.base.json` の `allowJs: false`、各パッケージの TS 型チェック、`pnpm check:ts` の拡張子検査を維持する。Web・Server の Node テストは `*.test.ts`、JS クライアントの `node:test` は `*.node.test.ts`、Vitest は `*.test.ts` を使用し、すべて型チェック・実行対象にする。作業後は `pnpm check`、`pnpm build`、該当テストを実行する（未実行ならその旨を報告する）。
+- **ソースを `.ts` で書くことと公開・配布物の拡張子は別。** `esbuild` 等で生成した `.js` / `.cjs` / `.mjs` や `.d.ts` は従来どおり `dist/` 等の生成物とし、必要な `package.json` の `main` / `exports` と実行コマンドを維持する。TypeScript 内の ESM import 指定子が `.js` を指す場合も、対応する実体ソースは `.ts` とする。
+- Python クライアントの `.py`、`pyproject.toml`、Python のテスト・ビルド・配布方式は本方針の対象外で変更しない。
 - 開発時は pnpm workspace と Corepack（導入されている場合）を使用し、`pnpm install`、`pnpm build`、`pnpm test` を実行する。
 - `pnpm dev` や実行時にビルドを暗黙的に行わない。開発者・配布担当者が必要なときに手動でビルドする。
 - ビルド成果物は `dist/` に出力。**配布物の実行には pnpm・Corepack・tsc・esbuild・node_modules を要求しない**。現時点では Node.js ランタイムは必要。単一ネイティブバイナリと混同しない。
@@ -243,10 +249,11 @@
 
 ## 18. サンプル Bot と VS Code の Nix 開発シェル
 
-- サンプル Bot は `examples/sample-bot/` に TypeScript の `discord.js` Bot として実装し、ローカル Mock REST / Gateway / Interaction callback の E2E 検証に用いる。
+- サンプル Bot は `examples/level_bot/` に TypeScript の `discord.js` Bot として実装し、ローカル Mock REST / Gateway / Interaction callback の E2E 検証に用いる。
 - サンプル Bot は実 Discord のトークンを要求してはならず、`mock_` テスト用トークンのみ受け付ける。
 - `pnpm build` は明示的なビルドのみであり、`pnpm sample:test` や `pnpm sample:bot` 時の自動ビルドはしない。
 - `.vscode/settings.json` の `terminal.integrated.defaultProfile.linux` で、新しい VS Code 統合ターミナルから `nix-shell` を直接起動する。グローバル環境には適用しない。
+- VS Code の TypeScript / TSX、JavaScript / JSX、JSON / JSONC、CSS は `biomejs.biome` を既定のフォーマッターとして保存時に整形する。`.vscode/settings.json` の言語別設定と `.vscode/extensions.json` の Biome 推奨を維持し、Python 等のフォーマッター設定は変更しない。
 - `shell.nix` は `pnpm_11.override { nodejs = ...; }` を使用せず、pnpm の評価警告を回避する。毎回の宣伝的な echo を shellHook に追加しない。
 
 ## 19. GitHub・開発コミュニケーションの日本語統一（必須）
@@ -290,3 +297,8 @@
 - 自動マージや別ツールがタイトル・本文を明示指定できない場合、日本語化を保証したと報告しない。必要なら明示指定できる手動操作・対応ツールを利用する。**この規則はマージ権限を与えるものではなく、ユーザーから明示指示がない限り `main` にマージしない。**
 - リポジトリ設定の自動生成メッセージは `AGENTS.md` だけでは変更できない。Web UI でも日本語化の手間を減らすには、GitHub の `Settings > General > Pull Requests` で、Merge commit のタイトルを「PR タイトル」、本文を「PR 本文」、Squash merge のタイトルを「PR タイトル」、本文を「PR 本文」から生成する設定を検討する。ただし元の PR タイトル・本文が日本語であることが前提で、実際の候補・挙動はリポジトリ設定とマージ方法で確認する。
 - GitHub が自動表示するシステムイベント（例：`merged commit ... into main`）、ボタン・固定 UI 文言、他者・外部 Bot が生成したコメントは本ファイルでは翻訳できない。そのような表示を無理に置き換えようとしない。
+
+## 13. 自動テストのDBと画面スクロール
+
+- `/test` のメッセージ欄だけをスクロールし、ヘッダー・サイドバー・下部のテストケース操作は画面内に固定する。テスト実行時は新着チャットへ追従する。
+- App稼働中の全Bot UTはAppのPGliteを共有し、実際のBotイベントからDBを更新する。AppなしのCLI実行ではVitest実行単位で単一DBを共有する。レベル値をUTで直接上書きしない。`/database` のApp DBから更新後のレコードを閲覧できる。Mockのチャットはテストケースごとに分離する。

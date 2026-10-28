@@ -3,6 +3,8 @@ import { APPLICATION_ID } from "./fixtures.js";
 import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
 import { isRecord } from "./models.js";
 import { handleCommandRoute } from "./command-routes.js";
+import { parseMessageContent } from "./message-content.js";
+import { readCreateMessage } from "./message-upload.js";
 
 async function handleInteractionCallback(
   { request, response, url }: RouteContext,
@@ -34,10 +36,10 @@ async function handleInteractionCallback(
     sendJson(response, 400, { message: "Interaction has already been acknowledged", code: 40060 });
     return;
   }
+  const message = reply.type === 4 ? parseMessageContent(data) : undefined;
   interaction.response = reply;
-  const content = data?.content;
-  if (reply.type === 4 && typeof content === "string" && interaction.channelId) {
-    await environment.postMessage(interaction.channelId, content, environment.state.user, interaction.command);
+  if (message && interaction.channelId) {
+    await environment.postMessage(interaction.channelId, message, environment.state.user, interaction.command);
   }
 
   if (url.searchParams.get("with_response") === "true") {
@@ -58,6 +60,22 @@ export async function handleRestRoute(
   gatewayUrl: string,
 ): Promise<void> {
   const { request, response, method, path } = context;
+  const attachment = path.match(/^\/mock-attachments\/(\d+)$/);
+  if (method === "GET" && attachment) {
+    const file = environment.uploadedFile(attachment[1]);
+    if (!file) {
+      sendError(response, 404, "Unknown Attachment");
+      return;
+    }
+    response.writeHead(200, {
+      "content-type": file.contentType,
+      "content-length": String(file.bytes.length),
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    });
+    response.end(file.bytes);
+    return;
+  }
   const callback = path.match(/^\/interactions\/(\d+)\/([^/]+)\/callback$/);
 
   // SDK callbacks omit Bot authorization and authenticate using the URL token.
@@ -131,6 +149,16 @@ export async function handleRestRoute(
     }
   }
 
+  const singleMessagePath = path.match(/^\/channels\/(\d+)\/messages\/(\d+)$/);
+  if (method === "GET" && singleMessagePath) {
+    const channelId = singleMessagePath[1];
+    const messageId = singleMessagePath[2];
+    const message = state.messages[channelId]?.find((item) => item.id === messageId);
+    if (message) sendJson(response, 200, message);
+    else sendError(response, 404, "Unknown Message");
+    return;
+  }
+
   const messagesPath = path.match(/^\/channels\/(\d+)\/messages$/);
   const channelId = messagesPath?.[1];
   if (channelId && state.guild.channels.some((channel) => channel.id === channelId)) {
@@ -139,12 +167,8 @@ export async function handleRestRoute(
       return;
     }
     if (method === "POST") {
-      const body = await readJsonBody(request);
-      if (typeof body.content !== "string" || body.content.length > 2000) {
-        sendError(response, 400, "Invalid content");
-        return;
-      }
-      const message = await environment.postMessage(channelId, body.content, state.user);
+      const body = await readCreateMessage(request, environment);
+      const message = await environment.postMessage(channelId, body, state.user);
       sendJson(response, 200, message);
       return;
     }

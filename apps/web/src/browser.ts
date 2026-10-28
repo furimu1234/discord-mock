@@ -1,6 +1,9 @@
-import type { BrowserCommand, BrowserMessage, BrowserState, IdentityResponse, SessionResponse } from "./types.js";
+import type { BrowserCommand, BrowserState, IdentityResponse, SessionResponse } from "./types.js";
 import { createElement, getElement } from "./dom.js";
 import { DatabaseView } from "./database.js";
+import { MessageActions } from "./message-actions.js";
+import { readMessageTarget, revealMessage } from "./message-links.js";
+import { TestRunChatView, TestRunsView } from "./test-runs.js";
 
 const elements = {
   testPanel: getElement("test-panel", "main"),
@@ -21,9 +24,17 @@ const elements = {
   commandEmpty: getElement("command-empty", "p"),
 };
 
+const isTestChat = location.pathname === "/test";
 const isAdmin = location.pathname === "/admin";
 const isDatabase = location.pathname === "/database";
+const isTestRuns = location.pathname === "/tests";
 const ui = { csrf: "", selectedUserId: "", selectedChannelId: "" };
+let messageActions: MessageActions;
+let target = readMessageTarget();
+let jumpPending = target !== null;
+let latestState: BrowserState | null = null;
+let identityChange: Promise<void> = Promise.resolve();
+if (target) ui.selectedChannelId = target.channelId;
 let commands: BrowserCommand[] = [];
 let suggestions: BrowserCommand[] = [];
 let activeSuggestion = 0;
@@ -122,6 +133,9 @@ function renderChannels(state: BrowserState): void {
     const button = createElement("button", className, `#  ${channel.name}`);
     button.type = "button";
     button.onclick = () => {
+      target = null;
+      jumpPending = false;
+      location.hash = "";
       ui.selectedChannelId = channel.id;
       renderState(state);
     };
@@ -143,38 +157,9 @@ function renderUsers(state: BrowserState): void {
   elements.identity.value = ui.selectedUserId;
 }
 
-function renderMessage(message: BrowserMessage): HTMLElement {
-  const item = createElement("article", "message");
-  const initial = (message.author.username || "?").slice(0, 1).toUpperCase();
-  const avatarClass = message.author.bot ? "avatar bot" : "avatar";
-  const avatar = createElement("div", avatarClass, initial);
-  const body = createElement("div", "message-body");
-  const meta = createElement("div", "meta");
-
-  meta.append(createElement("strong", "", message.author.username));
-  if (message.author.bot) meta.append(createElement("span", "badge", "BOT"));
-  const time = new Date(message.timestamp).toLocaleTimeString("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  meta.append(createElement("time", "", time));
-  body.append(meta, createElement("div", "content", message.content));
-  if (message.interaction?.type === 2) {
-    const invocation = createElement("div", "command-invocation");
-    const user = message.interaction.user;
-    invocation.append(createElement("span", "invocation-avatar", user.username.slice(0, 1).toUpperCase()));
-    invocation.append(createElement("strong", "invocation-user", user.username));
-    invocation.append(createElement("span", "", "さんが"));
-    invocation.append(createElement("span", "invocation-command", `/${message.interaction.name}`));
-    invocation.append(createElement("span", "", "を使用しました"));
-    item.classList.toggle("has-invocation", true);
-    item.append(invocation);
-  }
-  item.append(avatar, body);
-  return item;
-}
 
 function renderMessages(state: BrowserState): void {
+  const previousScroll = elements.messages.scrollTop;
   const channel = state.guild.channels.find((channel) => channel.id === ui.selectedChannelId);
   const title = `# ${channel?.name ?? "general"}`;
   elements.channelTitle.textContent = title;
@@ -193,11 +178,16 @@ function renderMessages(state: BrowserState): void {
       "まだメッセージはありません。最初の投稿を送信してください。 /コマンド名 でスラッシュコマンドも実行できます。",
     ));
   }
-  elements.messages.append(...messages.map(renderMessage));
-  elements.messages.scrollTop = elements.messages.scrollHeight;
+  elements.messages.append(...messages.map((message) => messageActions.render(message)));
+  if (target) {
+    elements.messages.scrollTop = previousScroll;
+    if (revealMessage(target, jumpPending)) jumpPending = false;
+    else showError("リンク先のメッセージは削除済み、または閲覧する権限がありません");
+  } else elements.messages.scrollTop = elements.messages.scrollHeight;
 }
 
 function renderState(state: BrowserState): void {
+  latestState = state;
   commands = state.commands;
   ui.selectedUserId = state.selectedUserId;
   if (!state.guild.channels.some((channel) => channel.id === ui.selectedChannelId)) {
@@ -216,14 +206,15 @@ function renderState(state: BrowserState): void {
 
 async function refresh(): Promise<void> {
   try {
-    renderState(await request<BrowserState>("/_ui/state"));
     showError("");
+    renderState(await request<BrowserState>("/_ui/state"));
   } catch (error) {
     showError(errorMessage(error));
   }
 }
 
 async function switchIdentity(): Promise<void> {
+  messageActions.close();
   try {
     const result = await request<IdentityResponse>("/_ui/identity", "POST", {
       user_id: elements.identity.value,
@@ -261,21 +252,47 @@ async function submitMessage(event: SubmitEvent): Promise<void> {
 }
 
 async function initialize(): Promise<void> {
-  elements.testPanel.classList.toggle("hidden", isAdmin || isDatabase);
+  elements.testPanel.classList.toggle("hidden", isAdmin || isDatabase || isTestRuns);
   elements.adminPanel.classList.toggle("hidden", !isAdmin);
   getElement("database-panel", "main").classList.toggle("hidden", !isDatabase);
-  getElement("channel-sidebar", "div").classList.toggle("hidden", isDatabase);
+  getElement("channel-sidebar", "div").classList.toggle("hidden", isDatabase || isTestRuns);
   getElement("database-sidebar", "div").classList.toggle("hidden", !isDatabase);
-  getElement("user-panel", "div").classList.toggle("hidden", isDatabase);
-  getElement("test-link", "a").classList.toggle("active", !isAdmin && !isDatabase);
+  getElement("user-panel", "div").classList.toggle("hidden", isDatabase || isTestRuns);
+  getElement("manual-composer", "div").classList.toggle("hidden", isTestChat);
+  getElement("test-case-composer", "div").classList.toggle("hidden", !isTestChat);
+  getElement("test-link", "a").classList.toggle("active", !isAdmin && !isDatabase && !isTestRuns);
   getElement("database-link", "a").classList.toggle("active", isDatabase);
   getElement("admin-link", "a").classList.toggle("active", isAdmin);
+  getElement("tests-panel", "main").classList.toggle("hidden", !isTestRuns);
+  getElement("tests-sidebar", "div").classList.toggle("hidden", !isTestRuns);
+  getElement("tests-link", "a").classList.toggle("active", isTestRuns);
+  if (isTestChat) {
+    elements.serverTitle.textContent = "自動テスト";
+    elements.channelTitle.textContent = "# general";
+    elements.onlineLabel.textContent = "テスト結果を受信中";
+    await new TestRunChatView().initialize();
+    return;
+  }
+  if (isTestRuns) {
+    elements.serverTitle.textContent = "自動テスト";
+    await new TestRunsView().initialize();
+    return;
+  }
   if (isDatabase) {
     elements.serverTitle.textContent = "Database Explorer";
     await new DatabaseView().initialize();
     return;
   }
-  elements.identity.onchange = () => { void switchIdentity(); };
+  messageActions = new MessageActions({
+    csrf: () => ui.csrf, refresh, showError, beforeChange: () => identityChange,
+  });
+  addEventListener("hashchange", () => {
+    target = readMessageTarget();
+    jumpPending = target !== null;
+    if (target) ui.selectedChannelId = target.channelId;
+    if (latestState) { showError(""); renderState(latestState); }
+  });
+  elements.identity.onchange = () => { identityChange = switchIdentity(); };
   elements.messageForm.onsubmit = (event) => { void submitMessage(event); };
   elements.messageInput.oninput = () => {
     activeSuggestion = 0;

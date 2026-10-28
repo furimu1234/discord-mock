@@ -19,6 +19,7 @@ export class DatabaseView {
     content: getElement("database-content", "section"),
     tables: getElement("database-tables", "nav"),
     search: getElement("database-search", "input"),
+    source: getElement("database-source", "select"),
     refresh: getElement("database-refresh", "button"),
     grid: getElement("database-grid", "div"),
     status: getElement("database-status", "div"),
@@ -28,6 +29,7 @@ export class DatabaseView {
     next: getElement("database-next", "button"),
   };
   private tables: DatabaseTable[] = [];
+  private selectedRunId: string | null = null;
   private selected: DatabaseTable | undefined;
   private offset = 0;
   private sort = "";
@@ -39,6 +41,13 @@ export class DatabaseView {
   async initialize(): Promise<void> {
     const e = this.elements;
     e.refresh.onclick = () => { void this.run(() => this.connect()); };
+    e.source.onchange = () => {
+      this.selectedRunId = e.source.value;
+      this.offset = 0;
+      this.sort = "";
+      e.search.value = "";
+      void this.run(() => this.loadTables());
+    };
     e.retry.onclick = () => { void this.run(() => this.connect()); };
     e.search.oninput = () => {
       clearTimeout(this.searchTimer);
@@ -88,7 +97,34 @@ export class DatabaseView {
     if (!session.authenticated) throw new AccessExpired("ローカル接続を確認して、再読み込みしてください。");
     this.elements.notice.classList.toggle("hidden", true);
     this.elements.content.classList.toggle("hidden", false);
+    await this.loadSources();
     await this.loadTables();
+  }
+
+  /** App DB and test DBs remain separate; run IDs select only persisted read-only snapshots. */
+  private async loadSources(): Promise<void> {
+    const response = await this.request<{
+      runs: Array<{ id: string; name: string; hasDatabase?: boolean }>;
+    }>("/_admin/test-runs");
+    const tests = response.runs.filter((run) => run.hasDatabase);
+    if (this.selectedRunId === null) this.selectedRunId = tests[0]?.id ?? "";
+    if (this.selectedRunId && !tests.some((run) => run.id === this.selectedRunId))
+      this.selectedRunId = tests[0]?.id ?? "";
+    const options = [createElement("option", "", "AppのDB")];
+    options[0].value = "";
+    for (const run of tests) {
+      const option = createElement("option", "", `テスト: ${run.name}`);
+      option.value = run.id;
+      options.push(option);
+    }
+    this.elements.source.replaceChildren(...options);
+    this.elements.source.value = this.selectedRunId;
+  }
+
+  private databaseUrl(path: string): string {
+    return this.selectedRunId
+      ? `${path}${path.includes("?") ? "&" : "?"}runId=${encodeURIComponent(this.selectedRunId)}`
+      : path;
   }
 
   private cancel(): void {
@@ -102,10 +138,12 @@ export class DatabaseView {
     clearTimeout(this.searchTimer);
     this.tables = [];
     this.selected = undefined;
+    this.selectedRunId = null;
     this.offset = 0;
     this.sort = "";
     const e = this.elements;
     e.search.value = "";
+    e.source.replaceChildren();
     e.tables.replaceChildren();
     e.grid.replaceChildren();
     e.status.textContent = "";
@@ -119,7 +157,7 @@ export class DatabaseView {
   private async loadTables(): Promise<void> {
     this.cancel();
     const generation = this.generation;
-    const result = await this.request<{ tables: DatabaseTable[] }>("/_admin/database/tables");
+    const result = await this.request<{ tables: DatabaseTable[] }>(this.databaseUrl("/_admin/database/tables"));
     if (generation !== this.generation) return;
     this.tables = result.tables;
     const previous = this.selected;
@@ -180,7 +218,7 @@ export class DatabaseView {
     });
     let page: DatabasePage;
     try {
-      page = await this.request<DatabasePage>(`/_admin/database/rows?${query}`, { signal: this.pending.signal });
+      page = await this.request<DatabasePage>(this.databaseUrl(`/_admin/database/rows?${query}`), { signal: this.pending.signal });
     } catch (error) {
       if (generation !== this.generation) return;
       e.status.textContent = "";

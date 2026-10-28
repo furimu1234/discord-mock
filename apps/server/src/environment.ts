@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { APPLICATION_ID } from "./fixtures.js";
-import type { LoadedMockState, MockApplicationCommand, MockMessage, MockMessageInteraction, MockUser, StoredInteraction } from "./models.js";
+import type { LoadedMockState, MockApplicationCommand, MockMessage, MockMessageContent, MockMessageInteraction, MockUser, StoredInteraction } from "./models.js";
 import { type CommandInput, CommandValidationError } from "./commands.js";
 import { saveState } from "./persistence.js";
+import { requireChannelPermission, SEND_MESSAGES, channelPermissions } from "./permissions.js";
+import { ResourceError } from "./resource-validation.js";
 
 interface InteractionOptions {
   actor: MockUser;
@@ -21,17 +23,48 @@ export class MockEnvironment extends EventEmitter<{
   changed: [];
 }> {
   readonly interactions = new Map<string, StoredInteraction>();
-  private nextId = BigInt(Date.now()) * 4_194_304n;
+  private nextId: bigint;
+  private saving: Promise<void> = Promise.resolve();
 
   constructor(
     readonly state: LoadedMockState,
     private readonly dataPath: string | null,
+    private readonly now: () => Date = () => new Date(),
   ) {
     super();
+    const seed = BigInt.asUintN(64, BigInt(Date.parse(this.timestamp())) * 4_194_304n);
+    this.nextId = seed < 10_000_000_000_000_000n ? 10_000_000_000_000_000n : seed;
   }
 
-  private nextSnowflake(): string {
-    return String(++this.nextId);
+  timestamp(): string { return this.now().toISOString(); }
+
+  hasId(id: string): boolean {
+    return id === this.state.guild.id || id === this.state.user.id ||
+      this.state.users.some((user) => user.id === id) || this.state.guild.roles.some((role) => role.id === id) ||
+      this.state.guild.channels.some((channel) => channel.id === id) || this.state.commands.some((command) => command.id === id) ||
+      this.interactions.has(id) || Object.values(this.state.messages).some((messages) => messages.some((message) => message.id === id));
+  }
+
+  nextSnowflake(): string {
+    do {
+      this.nextId = this.nextId === (1n << 64n) - 1n ? 10_000_000_000_000_000n : this.nextId + 1n;
+    } while (this.hasId(String(this.nextId)));
+    return String(this.nextId);
+  }
+
+  commit(): Promise<void> {
+    this.notifyBrowser();
+    const snapshot = structuredClone(this.state);
+    this.saving = this.saving.catch(() => {}).then(() => saveState(this.dataPath, snapshot));
+    return this.saving;
+  }
+
+  flush(): Promise<void> { return this.saving; }
+
+  memberPayload(user: MockUser) {
+    return this.state.members.find((member) => member.user.id === user.id) ?? {
+      user, roles: [], joined_at: this.timestamp(), deaf: false, mute: false, flags: 0,
+    };
   }
 
   dispatch(name: string, data: unknown): void {
@@ -70,25 +103,27 @@ export class MockEnvironment extends EventEmitter<{
       ...retained,
       ...commands,
     ];
-    this.notifyBrowser();
-    await saveState(this.dataPath, this.state);
+    await this.commit();
     return commands;
   }
 
-  async postMessage(channelId: string, content: string, author: MockUser, interaction?: MockMessageInteraction): Promise<MockMessage> {
+  async postMessage(channelId: string, body: string | MockMessageContent, author: MockUser, interaction?: MockMessageInteraction): Promise<MockMessage> {
+    if (!this.state.guild.channels.some((channel) => channel.id === channelId && channel.type === 0)) throw new ResourceError("テキストチャンネルが存在しません", 404);
+    requireChannelPermission(this.state, author.id, channelId, SEND_MESSAGES);
+    const { content, embeds } = typeof body === "string" ? { content: body, embeds: [] } : body;
     const message: MockMessage = {
       id: this.nextSnowflake(),
       channel_id: channelId,
       content,
       author,
-      timestamp: new Date().toISOString(),
+      timestamp: this.timestamp(),
       edited_timestamp: null,
       tts: false,
       mention_everyone: false,
       mentions: [],
       mention_roles: [],
       attachments: [],
-      embeds: [],
+      embeds,
       pinned: false,
       type: 0,
       flags: 0,
@@ -110,15 +145,9 @@ export class MockEnvironment extends EventEmitter<{
     this.dispatch("MESSAGE_CREATE", {
       ...message,
       guild_id: this.state.guild.id,
-      member: {
-        roles: [],
-        joined_at: new Date().toISOString(),
-        flags: 0,
-        user: author,
-      },
+      member: this.memberPayload(author),
     });
-    this.notifyBrowser();
-    await saveState(this.dataPath, this.state);
+    await this.commit();
     return message;
   }
 
@@ -142,13 +171,10 @@ export class MockEnvironment extends EventEmitter<{
       token,
       version: 1,
       member: {
-        user: actor,
-        roles: [],
-        permissions: "0",
-        joined_at: new Date().toISOString(),
-        flags: 0,
+        ...this.memberPayload(actor),
+        permissions: String(channelPermissions(this.state, actor.id, channelId)),
       },
-      app_permissions: "0",
+      app_permissions: String(channelPermissions(this.state, this.state.user.id, channelId)),
       locale: "ja",
       guild_locale: "ja",
       entitlements: [],
@@ -169,15 +195,8 @@ export class MockEnvironment extends EventEmitter<{
   guildPayload() {
     return {
       ...this.state.guild,
-      members: [{
-        user: this.state.user,
-        roles: [],
-        joined_at: new Date().toISOString(),
-        deaf: false,
-        mute: false,
-        flags: 0,
-      }],
-      member_count: 1,
+      members: this.state.members,
+      member_count: this.state.members.length,
       large: false,
       unavailable: false,
       presences: [],

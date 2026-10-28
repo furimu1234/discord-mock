@@ -152,12 +152,33 @@ test("Slash command from browser travels through Gateway and Bot reply appears i
     assert.equal(privateResponse.status, 400);
     const publicState = await (await fetch(`${mock.url}/_ui/state`, { headers: { cookie } })).json();
     assert.equal(publicState.messages[channel].some((message) => message.content === "Private reply"), false);
+    const embed = { title: "Level", fields: [{ name: "Current level", value: "3" }] };
+    const embedDispatch = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("Missing embed MESSAGE_CREATE")), 5000);
+      socket.on("message", (raw) => {
+        const packet = JSON.parse(raw.toString());
+        if (packet.t === "MESSAGE_CREATE" && packet.d.interaction?.id === privateInteraction.id) {
+          clearTimeout(timer);
+          resolve(packet.d);
+        }
+      });
+    });
+    const embedResponse = await fetch(
+      `${mock.url}/api/v10/interactions/${privateInteraction.id}/${privateInteraction.token}/callback`,
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: 4, data: { embeds: [embed] } }) },
+    );
+    assert.equal(embedResponse.status, 204, "invalid response must not consume the initial callback");
+    const embedMessage = await embedDispatch;
+    assert.equal(embedMessage.content, "");
+    assert.deepEqual(embedMessage.embeds, [{ type: "rich", ...embed }]);
+    assert.equal(embedMessage.interaction.user.id, data.users[1].id);
     socket.terminate();
     await mock.close();
     mock = await startMock({ port: 0, statePath });
     const restored = await (await fetch(`${mock.url}/_mock/state`, { headers: { "x-discord-mock-secret": mock.adminSecret } })).json();
-    assert.deepEqual(restored.messages[channel].at(-1).interaction, reply.interaction);
-    assert.deepEqual(restored.messages[channel].at(-1).interaction_metadata, reply.interaction_metadata);
+    assert.deepEqual(restored.messages[channel][0].interaction, reply.interaction);
+    assert.deepEqual(restored.messages[channel][0].interaction_metadata, reply.interaction_metadata);
+    assert.deepEqual(restored.messages[channel].at(-1).embeds, embedMessage.embeds);
   } finally {
     socket.terminate();
     await mock.close();

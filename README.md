@@ -65,7 +65,7 @@ flowchart LR
 
 - **Web 画面は別ポートの Web サーバーとしては起動しません。** 現在は `apps/server` が TypeScript で定義されたローカル HTML と同一オリジンの JavaScript を返します。
 - Mock Server は既定で `127.0.0.1:3000` に待ち受けます。Bot 側の REST / Gateway 接続先も Mock を指定します。
-- JSON の永続化は `DISCORD_MOCK_STATE_PATH` 指定時のみ有効で、現状は主にメッセージ更新の保存に対応しています。Interaction の応答など、すべてのランタイム状態が永続化されるわけではありません。
+- JSON の永続化は `DISCORD_MOCK_STATE_PATH` 指定時のみ有効です。ユーザー・チャンネル・ロール・メンバーの所属ロール・メッセージ・登録コマンドを保存できます。Interaction の応答済み状態やブラウザセッションはメモリ上で管理します。
 - Voice Gateway・UDP / RTP による実際の音声通信は未実装です。
 
 ### ソースコードの読み方
@@ -143,6 +143,12 @@ Bot の Ready 初期化で `BOT START` を出力し、サンプルコマンド�
 
 コマンド返信の上には「ユーザー さんが /コマンド名 を使用しました」を表示します。応答を待つ間にユーザーを切り替えても、実行した人の表示を維持します。
 
+Embed のタイトル・説明・フィールド・色も表示できます。サンプルの `/レベル確認` は、通常投稿でレベル記録を作った後に実行すると、そのユーザーのレベルを Embed で返します。
+
+**Bot は TypeScript を直接実行します。** `examples/level_bot/packages/bot/src/commands/` 配下の `.ts` を起動時に自動検出するため、コマンドを追加・変更したら Bot の再起動だけで反映できます。一覧への import 追加や Bot のビルドは不要です。構文・import・定義・登録エラーのあるファイルは、ファイル名と失敗段階をログに出してスキップし、残りを登録します。型チェックは `pnpm check` で別に実行してください。
+
+**app はビルド成果物を起動します。** `pnpm app` の起動時にビルドは行いません。Web・Mock・app を変更したときや初回だけ、任意のタイミングで `pnpm build` を実行してから app を起動・再起動してください。
+
 サイドバーの **データベース**（または左端の **DB**）から `/database` を開くと、キー入力なしでテーブルのレコードを確認できます。左側で `example` → `lvl` などのテーブルを選択してください。列名・型・主キー、検索、列見出しによる並び替え、ページ切替、更新ボタンを備えた読み取り専用画面です。Bot が使う同じ PGlite を参照します。DB 用のローカルセッションは自動作成し、ダミーユーザーや Bot の `TOKEN` とは分離します。詳細は [DB ビュー仕様](spec/database.md) を参照してください。
 
 **トークンは `.discord-mock-data/credentials.json` に保存**されます。ファイルまたは `token` フィールドがなければ生成し、既存の `mock_` トークンがあれば再利用します。壊れた JSON や本番用トークンは上書きせずエラーにします。`.env` の読み込みは既存の環境変数を上書きしません。Bot は `TOKEN` を優先し、旧 `DISCORD_MOCK_TOKEN` も後方互換用に受け付けます。
@@ -153,6 +159,8 @@ Bot の Ready 初期化で `BOT START` を出力し、サンプルコマンド�
 
 `pnpm bot` も同じ保存先の `bot.lock` で重複起動を拒否し、終了時・起動失敗時にロックを解放します。強制終了で残った場合の復旧は app のロックと同じです。同じ Bot を複数の SDK 接続から動かすと各イベントが複数回処理され得るため、通常は1つだけ起動してください。同じ Interaction の初期返信は、複数接続から同時に届いても最初の1件だけを保存・表示します。
 
+app を先に `Ctrl+C` で止めると、接続済みの `pnpm bot` も DB 切断または HTTP の停止を検知して終了し、`bot.lock` を解放します。再開時は `pnpm app` → 別ターミナルで `pnpm bot` の順に起動してください。SDK の終了待機が長引く場合は最大3秒で待機を切り上げ、ロック解放後に Bot の CLI を終了します。強制終了・クラッシュで残ったロックを復旧する場合は、記録された PID が停止済みであることを確認し、その `.lock` だけを削除します。`credentials.json` や `.env` を消す必要はありません。
+
 app を使わず手動で接続先を指定する場合は、`TOKEN`・`DISCORD_MOCK_URL`・`POST_URL` を設定します。HTTP と DB はループバックのみ許可します。起動中 app の `runtime.json` がある場合はその DB 接続先を優先します。`pnpm demo` による Mock・DB・Bot の一括起動も引き続き利用できます。各コマンドはビルドを自動実行しません。
 
 ```sh
@@ -160,6 +168,76 @@ pnpm sample:test
 ```
 
 こちらは独立した Mock Server + DB + Bot の E2E を自動起動して終了し、レベル更新を本物の `pg` 接続で確認します。Bot の別プロセス起動と再起動、app 再起動時のトークン再利用も検証します。手動起動中の app とは別の保存先・ポートを使います。制約は [level_bot ガイド](examples/level_bot/MOCK-TEST.md) を参照してください。
+
+## Vitest / Jest 形式で Bot を自動テストする（JS / TS）
+
+`@discord-mock/client-js/testing` の `createTestEnvironment()` で、テストごとに専用の Mock を起動できます。テストコードで Bot を接続するため、`pnpm app`・`pnpm bot` の別起動や `.env` のトークン設定は不要です。
+
+```ts
+import { createTestEnvironment } from "@discord-mock/client-js/testing";
+
+const mock = await createTestEnvironment();
+try {
+  const alice = mock.users.findByName("Alice"); // 初期データを名前で取得
+  const user = await mock.users.create({ username: "テスト太郎" });
+  const channel = await mock.channels.create({ name: "bot-test" });
+  const role = await mock.roles.create({ name: "テスター" });
+  await mock.members.addRole(user.id, role.id);
+
+  mock.users.get(user.id);       // ID で取得
+  mock.channels.list();          // 一覧
+  await mock.as(user).sendMessage(channel.id, "こんにちは");
+} finally {
+  await mock.close();
+}
+```
+
+Vitest の `beforeEach`・`afterEach`・`it`・`expect` で Bot の応答まで検証する例は、[JS SDK の使い方](packages/client-js/README.md#bot-の自動テスト) と [実行できるテスト](packages/client-js/tests/automation.test.ts) にあります。API はテストランナーに依存しません。Jest を使う場合も同じ非同期 API を利用できますが、このリポジトリでの実行確認は Vitest で行っています。
+
+```sh
+pnpm build           # ソースを変更したときに手動でビルド
+pnpm automation:test # SDK のテスト例 + Bot テスト
+```
+
+このリポジトリでは `packages/client-js/tests/` に `*.test.ts` を追加すると同じコマンドで実行できます。
+
+### Bot の機能をまとめてテストする
+
+`pnpm bot:test` は `examples/level_bot/tests/bot/**/*.test.ts` の Bot テストだけを実行します。Web・Server・SDK のテストは含めません。Bot・専用 DB・Mock の準備と後片付けは共通ヘルパーが担当するため、テスト本文は次のように書けます。
+
+```ts
+import { test, expect } from '../helpers/bot-test.js';
+
+test('レベルを確認できる', async ({ bot }) => {
+  await bot.levels.set(bot.alice, 7);
+
+  const reply = await bot.as(bot.alice).command('レベル確認');
+
+  expect(reply.embeds[0].fields?.[0].value).toBe('7');
+});
+```
+
+[レベル確認の UT](examples/level_bot/tests/bot/showLvl.test.ts) と [投稿によるレベル更新の UT](examples/level_bot/tests/bot/leveling.test.ts) を用意しています。機能が増えたら同じフォルダーへ `*.test.ts` を追加すると、同じコマンドでまとめて実行できます。Bot の TypeScript は直接読み込みます。Mock のソースを変更したときは、従来どおり手動で `pnpm build` してください。
+
+`pnpm sample:test` は app・DB・起動処理の統合テストも実行します。これらは `tests/integration/*.test.ts` にまとめ、元の長い `leveling.test.mjs` のブラウザ・SDK 検証もそこへ移しています。
+
+普段の app に実行内容を表示する場合:
+
+```sh
+pnpm build          # 変更後に手動ビルド
+pnpm app            # 起動済みなら Ctrl+C で止めて再起動
+
+# 別ターミナル
+pnpm bot:test:web
+```
+
+app のサイドバーから **自動テスト**（既定は `http://127.0.0.1:3000/tests`）を開くと、実行中 / 成功 / 失敗 / 中断、操作の経過、コマンド返信をリアルタイムで表示します。app を先に開いておくと実行中の変化も追えます。結果は実行後も app のメモリに最大20件残り、app 再起動時に消えます。
+
+通常の `pnpm bot:test` も、起動中の app を検出すれば自動で反映します。app がなければ単独で検証します。`bot:test:web` は表示先への接続を必須にし、接続できなければエラーにします。URL は接続設定の `runtime.json` から取得し、`DISCORD_MOCK_REPORT_URL` で変更できます。Linux / NixOS で反映を無効にする場合は `DISCORD_MOCK_REPORT_URL=off pnpm bot:test` を使います。
+
+UT はテストごとに専用の Mock・DB・Bot を使い、app へ表示用のコピーを送ります。普段の Bot にテスト操作を再配信しないため、二重実行を防ぎます。DB タブは普段の app の DB を表示します。
+
+各環境はループバックの空きポートと独立したメモリ状態を使います。`snapshot()` の結果を `fixture` に渡せば、既存の JSON 状態からも始められます。`reset()` は接続した Bot を切断して開始時の状態へ戻し、`close()` は Bot とサーバーを終了します。詳細な範囲・制約は [自動テスト API 契約](spec/testing.md) に記載しています。Python の新しいテスト API は JS 版の仕様確定後に検討します。
 
 ## 開発者向け：初期セットアップ
 
@@ -271,7 +349,7 @@ pnpm lint        # lint のみ（dist と node_modules は対象外）
 pnpm check:py    # Python の Ruff lint・整形チェック（uv が必要）
 ```
 
-型チェックは Web・Server・JS クライアントに加え、サンプル app / Bot 本体 / DB / Drizzle 設定も対象です。Bot と DB はルートの TypeScript 設定を継承し、esbuild に合わせた ESM / Bundler 設定を使用します。非公開の `@ex/db` は workspace 内のソース型を公開し、JS クライアントの型テストもソースから検査するため、型チェックのためにビルドする必要はありません。VS Code は `node_modules/typescript/lib` の workspace TypeScript を参照します。
+型チェックは Web・Server・JS クライアントに加え、サンプル app / Bot 本体 / DB / Drizzle 設定も対象です。Bot と DB はルートの TypeScript 設定を継承します。`pnpm bot` は `tsx` と Bot の tsconfig を使い、`@ex/db`・`@discord-mock/client-js` もソースから読み込むため、それらの古い `dist` に依存しません。型チェックのためのビルドも不要です。VS Code は `node_modules/typescript/lib` の workspace TypeScript を参照します。
 
 Biome は既存のサンプル設定と同じ `1.9.4` を開発依存として使用します。配布済み CLI バイナリだけで実行できるため、Biome のインストールスクリプトは `allowBuilds` で明示的に無効化しています。CI でも JS の型・lint と Python の lint・整形を確認します。
 

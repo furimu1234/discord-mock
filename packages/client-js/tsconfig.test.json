@@ -2,7 +2,15 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@discord-mock/client-js/testing": ["./src/testing.ts"]
+    }
   },
-  "include": ["tests/**/*.test.ts"]
+  "include": [
+    "tests/**/*.test.ts",
+    "vitest.config.ts"
+  ]
 }

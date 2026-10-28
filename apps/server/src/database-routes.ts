@@ -2,6 +2,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DatabaseInspector, DatabaseQuery } from "./database.js";
 import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
+import { TestRunRoutes } from "./test-runs.js";
 
 interface AdminSession {
   csrf: string;
@@ -51,6 +52,7 @@ function parseQuery(url: URL): DatabaseQuery | null {
 /** Admin sessions never inherit the selected dummy user's privileges. */
 export class DatabaseRoutes {
   private readonly sessions = new Map<string, AdminSession>();
+  private readonly testRuns = new TestRunRoutes();
 
   constructor(private readonly secret: string, private readonly database?: DatabaseInspector) {}
 
@@ -118,6 +120,14 @@ export class DatabaseRoutes {
       sendError(response, 403, "Admin access required");
       return;
     }
+    if (path === "/_admin/test-runs" || path.startsWith("/_admin/test-runs/")) {
+      if (method !== "GET" && (!session || request.headers["x-discord-mock-admin-csrf"] !== session.csrf)) {
+        sendError(response, 403, "Invalid admin session or CSRF token");
+        return;
+      }
+      await this.testRuns.handle({ request, response, method, path, url });
+      return;
+    }
     if (method !== "GET") {
       sendError(response, 405, "Database inspection is read-only");
       return;
@@ -150,6 +160,7 @@ export class DatabaseRoutes {
   }
 
   close(): void {
+    this.testRuns.close();
     this.sessions.clear();
   }
 }

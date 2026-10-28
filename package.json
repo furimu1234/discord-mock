@@ -21,7 +21,12 @@
     "lint:py": "uv run --project packages/client-py ruff check packages/client-py",
     "sample:test": "pnpm --filter @discord-mock/level-bot test",
     "sample:bot": "pnpm --filter @discord-mock/level-bot start",
-    "demo": "pnpm --filter @discord-mock/level-bot demo"
+    "demo": "pnpm --filter @discord-mock/level-bot demo",
+    "automation:test": "pnpm --filter @discord-mock/client-js test:automation && pnpm bot:test",
+    "level:test": "pnpm bot:test",
+    "level:test:web": "pnpm bot:test:web",
+    "bot:test": "pnpm --filter @discord-mock/level-bot test:bot",
+    "bot:test:web": "pnpm --filter @discord-mock/level-bot test:bot:web"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

@@ -7,11 +7,15 @@ import { BrowserRoutes } from "./browser.js";
 import { MockEnvironment } from "./environment.js";
 import { MockGateway } from "./gateway.js";
 import { isAllowedOrigin, RequestBodyError, sendError, sendJson, sendText } from "./http.js";
-import { loadState } from "./persistence.js";
+import { loadState, restoreState } from "./persistence.js";
 import { handleRestRoute } from "./rest.js";
 import { isMockToken, loadOrCreateToken } from "./tokens.js";
 import { DatabaseRoutes } from "./database-routes.js";
 import type { DatabaseInspector } from "./database.js";
+import { MessageContentError } from "./message-content.js";
+import type { MockState } from "./models.js";
+import { MockTesting, validateTimeout } from "./testing.js";
+import { ResourceError } from "./resource-validation.js";
 
 export type { MockChannel, MockMessage, MockState, MockUser } from "./models.js";
 
@@ -22,6 +26,9 @@ export interface ServerOptions {
   token?: string;
   tokenPath?: string;
   database?: DatabaseInspector;
+  initialState?: MockState;
+  now?: () => Date;
+  timeoutMs?: number;
 }
 
 export interface MockRuntime {
@@ -29,11 +36,12 @@ export interface MockRuntime {
   url: string;
   token: string;
   adminSecret: string;
+  testing: MockTesting;
   close(): Promise<void>;
 }
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "::1"]);
-const PAGE_PATHS = new Set(["/", "/test", "/admin", "/database"]);
+const PAGE_PATHS = new Set(["/", "/test", "/admin", "/database", "/tests"]);
 const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
   "script-src 'self'",
@@ -65,6 +73,8 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 3000;
   validateOptions(host, port, options.token);
+  validateTimeout(options.timeoutMs ?? 3000);
+  if (options.initialState && options.statePath) throw new Error("initialState と statePath は同時指定できません");
   if (options.token !== undefined && options.tokenPath !== undefined) {
     throw new Error("Specify either token or tokenPath, not both");
   }
@@ -74,7 +84,8 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
     : options.token ?? `mock_${randomBytes(20).toString("hex")}`;
   const adminSecret = randomBytes(20).toString("hex");
   const dataPath = options.statePath ? resolve(options.statePath) : null;
-  const environment = new MockEnvironment(await loadState(dataPath), dataPath);
+  const state = options.initialState ? restoreState(options.initialState) : await loadState(dataPath);
+  const environment = new MockEnvironment(state, dataPath, options.now);
 
   const server = createServer(async (request, response) => {
     // Do not allow a different website to read or mutate the local mock.
@@ -110,6 +121,14 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
         sendError(response, 404, "Unknown mock route");
       }
     } catch (error) {
+      if (error instanceof ResourceError) {
+        sendError(response, error.status, error.message);
+        return;
+      }
+      if (error instanceof MessageContentError) {
+        sendJson(response, 400, { message: error.message, code: 50035 });
+        return;
+      }
       const invalidBody = error instanceof SyntaxError || error instanceof RequestBodyError;
       sendError(response, invalidBody ? 400 : 500, "Mock request failed");
     }
@@ -119,24 +138,32 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
   const gateway = new MockGateway(server, environment, token, gatewayUrl);
   const browser = new BrowserRoutes(environment, () => gateway.connectionCount);
   const database = new DatabaseRoutes(adminSecret, options.database);
+  const testing = new MockTesting(environment, () => gateway.connectionCount, options.timeoutMs);
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, host, resolve);
   });
 
+  let closing: Promise<void> | undefined;
   return {
     server,
     url: listeningUrl(server, host),
     token,
     adminSecret,
-    async close() {
-      browser.close();
-      database.close();
-      await gateway.close();
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => error ? reject(error) : resolve());
-      });
+    testing,
+    close() {
+      closing ??= (async () => {
+        testing.close();
+        browser.close();
+        database.close();
+        await gateway.close();
+        await new Promise<void>((resolve, reject) => {
+          server.close((error) => error ? reject(error) : resolve());
+        });
+        await environment.flush();
+      })();
+      return closing;
     },
   };
 }

@@ -69,11 +69,11 @@ test("malformed persisted command attribution fails startup without losing exist
   const mock = await startMock({ port: 0 });
   try {
     const state = await (await fetch(`${mock.url}/_mock/state`, { headers: { "x-discord-mock-secret": mock.adminSecret } })).json();
-    for (const message of [{ interaction: { type: 2 } }, { interaction_metadata: { type: 2, user: null } }]) {
+    for (const message of [{ interaction: { type: 2 } }, { interaction_metadata: { type: 2, user: null } }, { embeds: [{ title: {} }] }]) {
       state.messages[channelId] = [message];
       const content = JSON.stringify(state);
       await writeFile(statePath, content);
-      await assert.rejects(startMock({ port: 0, statePath }), /Invalid saved/);
+      await assert.rejects(startMock({ port: 0, statePath }), /Invalid saved|Embed/);
       assert.equal(await readFile(statePath, "utf8"), content);
     }
   } finally {

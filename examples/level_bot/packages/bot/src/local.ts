@@ -7,7 +7,7 @@ import { createBotClient, runClient } from './main.js';
  * originals; PostgreSQL is accessed over a real DSN through pg.Pool + Drizzle.
  * There is no in-memory fake Drizzle driver or monkeypatch in the Bot.
  */
-export async function startLevelBot(baseUrl: string, token: string, postgresDsn: string) {
+export async function startLevelBot(baseUrl: string, token: string, postgresDsn: string, options: { onDatabaseDisconnect?: () => void } = {}) {
   if (!/^mock_[a-zA-Z0-9_-]+$/.test(token)) {
     throw new Error('Only synthetic mock_ tokens are allowed in the local runner');
   }
@@ -17,18 +17,19 @@ export async function startLevelBot(baseUrl: string, token: string, postgresDsn:
   process.env.POST_URL = postgresDsn;
   const client = createBotClient();
   try {
-    const { failures } = await runClient(client, () => disMockClient(client, { baseUrl }).connect(token));
+    const { failures } = await runClient(client, () => disMockClient(client, { baseUrl }).connect(token), options.onDatabaseDisconnect);
     return {
       client,
       failures,
       async close() {
-        client.destroy();
-        await container.current?.close();
+        const results = await Promise.allSettled([client.destroy(), container.current?.close()]);
         container.current = undefined;
+        const failed = results.find((result) => result.status === 'rejected');
+        if (failed?.status === 'rejected') throw failed.reason;
       },
     };
   } catch (error) {
-    client.destroy();
+    await client.destroy();
     await container.current?.close();
     container.current = undefined;
     throw error;

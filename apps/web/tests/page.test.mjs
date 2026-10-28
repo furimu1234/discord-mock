@@ -148,6 +148,23 @@ test("compiled browser script renders state, switches users, posts and refreshes
   assert.equal(textOf(reply.children[0]), "AAliceさんが/コマンドテストを使用しました");
   assert.equal(reply.children[2].children[1].textContent, "Pong!");
   assert.equal(elements.identity.value, "bob", "attribution uses the original actor, independent of selected user");
+  state.messages.general.at(-1).content = "";
+  state.messages.general.at(-1).embeds = [{
+    type: "rich", title: "Alice | lvl", description: "<script>alert(1)</script>", color: 0x12abcd,
+    fields: [{ name: "今のレベルはこれだ", value: "3", inline: true }],
+    footer: { text: "<img src=x onerror=alert(1)>" },
+  }];
+  streams[0].handlers.get("changed")();
+  await setImmediate();
+  const card = elements.messages.children.at(-1).children[2].children[2];
+  assert.equal(card.tagName, "SECTION");
+  assert.equal(card.style.borderLeftColor, "#12abcd");
+  assert.equal(card.children[0].textContent, "Alice | lvl");
+  assert.equal(card.children[1].textContent, "<script>alert(1)</script>");
+  assert.match(textOf(card), /今のレベルはこれだ3/);
+  assert.equal(card.children[2].children[0].className, "embed-field inline");
+  assert.equal(card.children[3].className, "embed-footer");
+  assert.equal(card.children[3].textContent, "<img src=x onerror=alert(1)>");
 });
 
 test("admin screen opens a session without subscribing to the test timeline", async () => {

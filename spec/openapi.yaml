@@ -51,6 +51,10 @@ paths:
                       type: object
                   messages:
                     type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/BrowserMessage"
                   selectedUserId:
                     type: string
                   botConnections:
@@ -271,6 +275,84 @@ paths:
           description: No DB provider installed
         "500":
           description: Database read failed; no SQL or connection details returned
+  /_admin/test-runs:
+    get:
+      operationId: listTestRuns
+      summary: 自動テスト実行の概要を新しい順に取得
+      security: [{adminSession: []}, {adminKey: []}]
+      responses:
+        "200":
+          description: 最大20件の実行概要
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runs:
+                    type: array
+                    items: {$ref: "#/components/schemas/TestRunSummary"}
+        "403": {description: 管理認証が必要}
+    post:
+      operationId: createTestRun
+      summary: UT の表示用コピーを作成
+      security: [{adminSession: [], adminCsrf: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/TestRunPublication"}
+      responses:
+        "201":
+          description: 実行を作成
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TestRunSummary"}
+        "400": {description: 入力不正または64KB超過}
+        "403": {description: 管理セッションと CSRF が必要}
+        "415": {description: JSON Content-Type が必要}
+        "429": {description: 同時実行20件の上限}
+  /_admin/test-runs/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getTestRun
+      summary: 実行の経過とメッセージ・Embed を取得
+      security: [{adminSession: []}, {adminKey: []}]
+      responses:
+        "200": {description: TestRunSummary に steps・guild・messages を加えた表示データ。詳細は testing.md}
+        "403": {description: 管理認証が必要}
+        "404": {description: 実行が存在しない}
+    put:
+      operationId: updateTestRun
+      summary: 表示用コピーと結果を更新
+      security: [{adminSession: [], adminCsrf: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/TestRunPublication"}
+      responses:
+        "200": {description: 更新した実行概要}
+        "400": {description: 入力不正または64KB超過}
+        "403": {description: 管理セッションと CSRF が必要}
+        "404": {description: 実行が存在しない}
+        "409": {description: すでに結果が確定している}
+        "415": {description: JSON Content-Type が必要}
+  /_admin/test-runs/events:
+    get:
+      operationId: subscribeTestRuns
+      summary: 表示データの changed 通知を受信
+      security: [{adminSession: []}, {adminKey: []}]
+      responses:
+        "200":
+          description: changed の data は空オブジェクト。取得 API で再読込する
+          content:
+            text/event-stream:
+              schema: {type: string}
+        "403": {description: 管理認証が必要}
 components:
   securitySchemes:
     browserSession:
@@ -294,6 +376,93 @@ components:
       in: header
       name: x-discord-mock-secret
   schemas:
+    TestRunSummary:
+      type: object
+      required: [id, name, status, step, startedAt, updatedAt]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, minLength: 1, maxLength: 200}
+        status: {type: string, enum: [running, passed, failed, cancelled]}
+        step: {type: string, maxLength: 200}
+        startedAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    TestRunPublication:
+      type: object
+      required: [name, snapshot]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+        status: {type: string, enum: [running, passed, failed, cancelled], default: running}
+        step: {type: string, minLength: 1, maxLength: 200}
+        snapshot:
+          type: object
+          description: testing.md の MockSnapshot。保存形式と同じ参照整合性を検証する
+    BrowserMessage:
+      type: object
+      required: [author, content, timestamp, embeds]
+      properties:
+        author:
+          type: object
+        content:
+          type: string
+          description: Empty string for embed-only messages
+        timestamp:
+          type: string
+          format: date-time
+        embeds:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/TextEmbed"
+        interaction:
+          type: object
+          description: Original command actor and name; omitted for ordinary messages
+    TextEmbed:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          type: string
+          const: rich
+        title:
+          type: string
+          minLength: 1
+          maxLength: 256
+        description:
+          type: string
+          minLength: 1
+          maxLength: 4096
+        color:
+          type: integer
+          minimum: 0
+          maximum: 16777215
+        footer:
+          type: object
+          additionalProperties: false
+          required: [text]
+          properties:
+            text:
+              type: string
+              minLength: 1
+              maxLength: 2048
+        fields:
+          type: array
+          maxItems: 25
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, value]
+            properties:
+              name:
+                type: string
+                minLength: 1
+                maxLength: 256
+              value:
+                type: string
+                minLength: 1
+                maxLength: 1024
+              inline:
+                type: boolean
     AdminSession:
       type: object
       required: [authenticated, databaseAvailable]

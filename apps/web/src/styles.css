@@ -269,6 +269,24 @@ a:hover {
 }
 
 .message-body { min-width: 0; }
+.message-embed { margin-top: 8px; max-width: 520px; border-left: 4px solid #58657b; border-radius: 4px; background: #20232c; padding: 14px 16px; white-space: pre-wrap; }
+.embed-title { margin: 0 0 8px; font-size: 15px; color: #edf1ff; }
+.embed-description { margin: 0 0 8px; color: #c6ccdc; }
+.embed-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.embed-field { grid-column: 1/-1; min-width: 0; }
+.embed-field.inline { grid-column: auto; }
+.embed-field strong { display: block; margin-bottom: 3px; font-size: 13px; }
+.embed-footer { margin: 12px 0 0; font-size: 12px; color: #a9b1c6; }
+.test-run { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; white-space: normal; }
+.test-run strong { font-size: 12px; overflow-wrap: anywhere; }
+.test-status { font-size: 12px; font-weight: 600; }
+.test-status.running { color: #e5bc69; }
+.test-status.passed { color: #81cfa3; }
+.test-status.failed { color: #f58d91; }
+.test-status.cancelled { color: #a9b1c6; }
+.test-progress { border-bottom: 1px solid #303541; padding: 4px 24px; max-height: 160px; overflow: auto; color: #bbc4d7; font-size: 13px; }
+.test-progress li { margin: 6px 0; }
+.test-channel-title { padding: 8px 24px; color: #cbd4e5; font-size: 15px; border-bottom: 1px solid #303541; }
 
 .sidebar-tabs {
   display: flex;

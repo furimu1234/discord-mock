@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import { startEphemeralDatabase } from '../dist/database.mjs';
-import { startLevelBot } from '../packages/bot/dist/local.mjs';
+import { startLevelBot } from '../packages/bot/src/local.ts';
 
 const require = createRequire(import.meta.url);
 const { startMock } = require('../../../apps/server/dist/server.cjs');

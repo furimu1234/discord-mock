@@ -1,3 +1,5 @@
+import type { MockEmbed } from "../../server/src/models.js";
+
 /** JSON returned by the local browser API, limited to fields used by the UI. */
 export interface BrowserUser {
   id: string;
@@ -15,6 +17,7 @@ export interface BrowserMessage {
   author: BrowserUser;
   content: string;
   timestamp: string;
+  embeds?: MockEmbed[];
   interaction?: {
     id: string;
     type: number;

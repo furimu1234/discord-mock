@@ -27,7 +27,6 @@ export const MakeDataStore = <TResult extends PgQueryResultHKT>(
 						return result;
 					} catch (er) {
 						error = er;
-						console.log(er);
 						tx.rollback();
 					}
 				});

@@ -1,6 +1,8 @@
-import type { BrowserCommand, BrowserMessage, BrowserState, IdentityResponse, SessionResponse } from "./types.js";
+import type { BrowserCommand, BrowserState, IdentityResponse, SessionResponse } from "./types.js";
 import { createElement, getElement } from "./dom.js";
 import { DatabaseView } from "./database.js";
+import { renderMessage } from "./message.js";
+import { TestRunsView } from "./test-runs.js";
 
 const elements = {
   testPanel: getElement("test-panel", "main"),
@@ -23,6 +25,7 @@ const elements = {
 
 const isAdmin = location.pathname === "/admin";
 const isDatabase = location.pathname === "/database";
+const isTestRuns = location.pathname === "/tests";
 const ui = { csrf: "", selectedUserId: "", selectedChannelId: "" };
 let commands: BrowserCommand[] = [];
 let suggestions: BrowserCommand[] = [];
@@ -143,36 +146,6 @@ function renderUsers(state: BrowserState): void {
   elements.identity.value = ui.selectedUserId;
 }
 
-function renderMessage(message: BrowserMessage): HTMLElement {
-  const item = createElement("article", "message");
-  const initial = (message.author.username || "?").slice(0, 1).toUpperCase();
-  const avatarClass = message.author.bot ? "avatar bot" : "avatar";
-  const avatar = createElement("div", avatarClass, initial);
-  const body = createElement("div", "message-body");
-  const meta = createElement("div", "meta");
-
-  meta.append(createElement("strong", "", message.author.username));
-  if (message.author.bot) meta.append(createElement("span", "badge", "BOT"));
-  const time = new Date(message.timestamp).toLocaleTimeString("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  meta.append(createElement("time", "", time));
-  body.append(meta, createElement("div", "content", message.content));
-  if (message.interaction?.type === 2) {
-    const invocation = createElement("div", "command-invocation");
-    const user = message.interaction.user;
-    invocation.append(createElement("span", "invocation-avatar", user.username.slice(0, 1).toUpperCase()));
-    invocation.append(createElement("strong", "invocation-user", user.username));
-    invocation.append(createElement("span", "", "さんが"));
-    invocation.append(createElement("span", "invocation-command", `/${message.interaction.name}`));
-    invocation.append(createElement("span", "", "を使用しました"));
-    item.classList.toggle("has-invocation", true);
-    item.append(invocation);
-  }
-  item.append(avatar, body);
-  return item;
-}
 
 function renderMessages(state: BrowserState): void {
   const channel = state.guild.channels.find((channel) => channel.id === ui.selectedChannelId);
@@ -261,15 +234,23 @@ async function submitMessage(event: SubmitEvent): Promise<void> {
 }
 
 async function initialize(): Promise<void> {
-  elements.testPanel.classList.toggle("hidden", isAdmin || isDatabase);
+  elements.testPanel.classList.toggle("hidden", isAdmin || isDatabase || isTestRuns);
   elements.adminPanel.classList.toggle("hidden", !isAdmin);
   getElement("database-panel", "main").classList.toggle("hidden", !isDatabase);
-  getElement("channel-sidebar", "div").classList.toggle("hidden", isDatabase);
+  getElement("channel-sidebar", "div").classList.toggle("hidden", isDatabase || isTestRuns);
   getElement("database-sidebar", "div").classList.toggle("hidden", !isDatabase);
-  getElement("user-panel", "div").classList.toggle("hidden", isDatabase);
-  getElement("test-link", "a").classList.toggle("active", !isAdmin && !isDatabase);
+  getElement("user-panel", "div").classList.toggle("hidden", isDatabase || isTestRuns);
+  getElement("test-link", "a").classList.toggle("active", !isAdmin && !isDatabase && !isTestRuns);
   getElement("database-link", "a").classList.toggle("active", isDatabase);
   getElement("admin-link", "a").classList.toggle("active", isAdmin);
+  getElement("tests-panel", "main").classList.toggle("hidden", !isTestRuns);
+  getElement("tests-sidebar", "div").classList.toggle("hidden", !isTestRuns);
+  getElement("tests-link", "a").classList.toggle("active", isTestRuns);
+  if (isTestRuns) {
+    elements.serverTitle.textContent = "自動テスト";
+    await new TestRunsView().initialize();
+    return;
+  }
   if (isDatabase) {
     elements.serverTitle.textContent = "Database Explorer";
     await new DatabaseView().initialize();

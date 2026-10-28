@@ -18,12 +18,13 @@ export function renderPage(): string {
     <div class="mark" aria-label="Discord Mock">M</div>
     <a href="/test" id="test-link" class="active">TEST</a>
     <a href="/database" id="database-link">DB</a>
+    <a href="/tests" id="tests-link">UT</a>
     <a href="/admin" id="admin-link">ADMIN</a>
   </aside>
   <aside class="sidebar">
     <header id="server-title" class="server-title">Mock Guild</header>
     <nav class="sidebar-tabs" aria-label="表示切替">
-      <a href="/test">チャット</a><a href="/database">データベース</a>
+      <a href="/test">チャット</a><a href="/database">データベース</a><a href="/tests">自動テスト</a>
     </nav>
     <div id="channel-sidebar">
     <div class="minor">テキストチャンネル</div>
@@ -32,6 +33,10 @@ export function renderPage(): string {
     <div id="database-sidebar" class="hidden">
       <div class="minor">テーブル</div>
       <nav id="database-tables" class="channels" aria-label="テーブル一覧"></nav>
+    </div>
+    <div id="tests-sidebar" class="hidden">
+      <div class="minor">テスト実行</div>
+      <nav id="test-runs" class="channels" aria-label="テスト実行一覧"></nav>
     </div>
     <div id="user-panel" class="userpanel">
       <label for="identity">テスト用ダミーユーザー</label>
@@ -88,6 +93,15 @@ export function renderPage(): string {
         </div>
       </footer>
     </section>
+  </main>
+  <main class="main hidden" id="tests-panel">
+    <header class="topbar">
+      <strong id="test-run-title">自動テスト</strong>
+      <div class="presence"><span id="test-run-status">実行待ち</span><button id="test-runs-refresh" class="quiet-button" type="button">最新を表示</button></div>
+    </header>
+    <div id="test-run-error" class="error" role="alert"></div>
+    <section class="test-progress" aria-label="実行の経過"><ol id="test-run-steps" aria-live="polite"></ol></section>
+    <div id="test-run-messages" class="messages" role="log" aria-live="polite"></div>
   </main>
   <section id="admin-panel" class="admin-page hidden">
     <h2>管理画面</h2>

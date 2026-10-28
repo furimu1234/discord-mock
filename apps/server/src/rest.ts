@@ -3,6 +3,7 @@ import { APPLICATION_ID } from "./fixtures.js";
 import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
 import { isRecord } from "./models.js";
 import { handleCommandRoute } from "./command-routes.js";
+import { parseMessageContent } from "./message-content.js";
 
 async function handleInteractionCallback(
   { request, response, url }: RouteContext,
@@ -34,10 +35,10 @@ async function handleInteractionCallback(
     sendJson(response, 400, { message: "Interaction has already been acknowledged", code: 40060 });
     return;
   }
+  const message = reply.type === 4 ? parseMessageContent(data) : undefined;
   interaction.response = reply;
-  const content = data?.content;
-  if (reply.type === 4 && typeof content === "string" && interaction.channelId) {
-    await environment.postMessage(interaction.channelId, content, environment.state.user, interaction.command);
+  if (message && interaction.channelId) {
+    await environment.postMessage(interaction.channelId, message, environment.state.user, interaction.command);
   }
 
   if (url.searchParams.get("with_response") === "true") {
@@ -139,12 +140,8 @@ export async function handleRestRoute(
       return;
     }
     if (method === "POST") {
-      const body = await readJsonBody(request);
-      if (typeof body.content !== "string" || body.content.length > 2000) {
-        sendError(response, 400, "Invalid content");
-        return;
-      }
-      const message = await environment.postMessage(channelId, body.content, state.user);
+      const body = parseMessageContent(await readJsonBody(request));
+      const message = await environment.postMessage(channelId, body, state.user);
       sendJson(response, 200, message);
       return;
     }

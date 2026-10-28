@@ -5,6 +5,8 @@ import { createInitialState } from "./fixtures.js";
 import { restoreCommands } from "./commands.js";
 import type { LoadedMockState, MockState } from "./models.js";
 import { isRecord } from "./models.js";
+import { validateResources } from "./resource-validation.js";
+import { parseEmbeds } from "./message-content.js";
 
 function isId(value: unknown): boolean {
   return typeof value === "string" && /^\d{17,20}$/.test(value);
@@ -22,6 +24,7 @@ function validateMessageMetadata(messages: MockState["messages"]): void {
     if (!Array.isArray(list)) throw new Error("Invalid saved messages");
     for (const message of list) {
       if (!isRecord(message)) throw new Error("Invalid saved message");
+      message.embeds = parseEmbeds(message.embeds);
       const interaction = message.interaction;
       const metadata = message.interaction_metadata;
       if (interaction !== undefined && (!isRecord(interaction) || interaction.type !== 2 || !isId(interaction.id) ||
@@ -59,12 +62,20 @@ export async function loadState(dataPath: string | null): Promise<LoadedMockStat
     }
   }
 
-  validateMessageMetadata(state.messages);
-  const users = Array.isArray(state.users) && state.users.length
-    ? state.users
-    : createInitialState().users;
+  return restoreState(state);
+}
 
-  return { ...state, users, commands: restoreCommands(state.commands, state.guild.id) };
+export function restoreState(input: MockState): LoadedMockState {
+  const state = structuredClone(input);
+  if (state.version !== undefined && state.version !== 1) throw new Error("未対応の状態 JSON バージョンです");
+  validateMessageMetadata(state.messages);
+  const users = state.users ?? createInitialState().users;
+  const members = state.members ?? [state.user, ...users].map((user) => ({
+    user, roles: [], joined_at: "2026-01-01T00:00:00.000Z", deaf: false, mute: false, flags: 0,
+  }));
+  const loaded: LoadedMockState = { ...state, version: 1, users, members, commands: restoreCommands(state.commands, state.guild.id) };
+  validateResources(loaded);
+  return loaded;
 }
 
 export async function saveState(dataPath: string | null, state: MockState): Promise<void> {

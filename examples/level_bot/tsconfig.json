@@ -2,7 +2,25 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@discord-mock/client-js/testing": [
+        "../../packages/client-js/src/testing.ts"
+      ],
+      "@discord-mock/client-js": [
+        "../../packages/client-js/src/index.ts"
+      ],
+      "@ex/db": [
+        "./packages/db/src/index.ts"
+      ]
+    }
   },
-  "include": ["src/**/*.ts", "../../apps/web/src/assets.d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "../../apps/web/src/assets.d.ts",
+    "tests/**/*.ts",
+    "vitest*.config.ts"
+  ]
 }

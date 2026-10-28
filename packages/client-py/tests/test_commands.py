@@ -22,6 +22,58 @@ APPLICATION_ID = 123456789000000001
 GUILD_ID = 123456789000000000
 
 
+def test_web_test_runs_require_admin_and_keep_the_app_state_separate(mock_server):
+    """Python SDK を追加せず、共有の表示用 HTTP 契約だけを確認する。"""
+    base = mock_server["url"]
+    opener = build_opener(ProxyHandler({}))
+    with opener.open(
+        Request(
+            f"{base}/_mock/state",
+            headers={"x-discord-mock-secret": mock_server["adminSecret"]},
+        ),
+        timeout=5,
+    ) as response:
+        snapshot = json.load(response)
+    with pytest.raises(HTTPError) as denied:
+        opener.open(f"{base}/_admin/test-runs", timeout=5)
+    assert denied.value.code == 403
+    with opener.open(
+        Request(
+            f"{base}/_admin/session",
+            data=b"{}",
+            headers={"content-type": "application/json", "x-discord-mock-local": "1"},
+        ),
+        timeout=5,
+    ) as response:
+        cookie = response.headers["set-cookie"].split(";", 1)[0]
+        csrf = json.load(response)["csrf"]
+    headers = {
+        "cookie": cookie,
+        "x-discord-mock-admin-csrf": csrf,
+        "content-type": "application/json",
+    }
+    body = {"name": "表示用 HTTP 契約", "status": "passed", "snapshot": snapshot}
+    with opener.open(
+        Request(f"{base}/_admin/test-runs", data=json.dumps(body).encode(), headers=headers),
+        timeout=5,
+    ) as response:
+        assert response.status == 201
+        run = json.load(response)
+    with opener.open(
+        Request(f"{base}/_admin/test-runs/{run['id']}", headers={"cookie": cookie}),
+        timeout=5,
+    ) as response:
+        assert json.load(response)["status"] == "passed"
+    with opener.open(
+        Request(
+            f"{base}/_mock/state",
+            headers={"x-discord-mock-secret": mock_server["adminSecret"]},
+        ),
+        timeout=5,
+    ) as response:
+        assert json.load(response) == snapshot
+
+
 @pytest.fixture
 def mock_server():
     bundle = Path(__file__).resolve().parents[3] / "apps/server/dist/server.cjs"
@@ -168,7 +220,22 @@ def test_admin_database_contract_uses_an_independent_session(mock_server):
     assert revoked.value.code == 403
 
 
-def test_command_reply_metadata_preserves_the_invoking_user(mock_server):
+@pytest.mark.parametrize(
+    "reply_data",
+    [
+        {"content": "Pong!"},
+        {
+            "embeds": [
+                {
+                    "title": "Level",
+                    "fields": [{"name": "Current level", "value": "3"}],
+                    "footer": {"text": "by テスター"},
+                }
+            ]
+        },
+    ],
+)
+def test_command_reply_metadata_preserves_the_invoking_user(mock_server, reply_data):
     base = mock_server["url"]
 
     async def exercise():
@@ -213,7 +280,7 @@ def test_command_reply_metadata_preserves_the_invoking_user(mock_server):
                     assert response.status == 200
                 async with client.post(
                     f"{base}/api/v10/interactions/{interaction['id']}/{interaction['token']}/callback",
-                    json={"type": 4, "data": {"content": "Pong!"}},
+                    json={"type": 4, "data": reply_data},
                 ) as response:
                     assert response.status == 204
                 async with client.post(
@@ -232,5 +299,23 @@ def test_command_reply_metadata_preserves_the_invoking_user(mock_server):
                 assert reply["interaction_metadata"]["id"] == interaction["id"]
                 assert reply["interaction_metadata"]["user"]["id"] == actor_id
                 assert interaction["token"] not in json.dumps(reply)
+                if "embeds" in reply_data:
+                    assert reply["content"] == ""
+                    assert reply["embeds"][0]["type"] == "rich"
+                    assert reply["embeds"][0]["fields"][0]["value"] == "3"
+                    assert reply["embeds"][0]["footer"]["text"] == "by テスター"
+
+            # Parse the stored reply using discord.py's public REST model API.
+            sdk = discord.Client(intents=discord.Intents.none(), application_id=APPLICATION_ID)
+            async with sdk:
+                with mock_routes(base):
+                    await sdk.login(mock_server["token"])
+                    channel = await sdk.fetch_channel(123456789000000002)
+                    history = [message async for message in channel.history(limit=1)]
+                    assert len(history) == 1
+                    if "embeds" in reply_data:
+                        assert history[0].embeds[0].title == "Level"
+                        assert history[0].embeds[0].fields[0].value == "3"
+                        assert history[0].embeds[0].footer.text == "by テスター"
 
     asyncio.run(exercise())

@@ -1,5 +1,7 @@
 import type { LoadedMockState, MockUser } from "./models.js";
 
+import { DEFAULT_PERMISSIONS } from "./permissions.js";
+
 export const APPLICATION_ID = "123456789000000001";
 export const DEFAULT_CHANNEL_ID = "123456789000000002";
 export const DEFAULT_USER_ID = "123456789000000099";
@@ -11,12 +13,13 @@ export function createUser(id: string, username: string, bot = false): MockUser 
 export function createInitialState(): LoadedMockState {
   const guildId = "123456789000000000";
 
+  const bot = createUser(APPLICATION_ID, "MockBot", true);
+  const users = [createUser(DEFAULT_USER_ID, "Alice"), createUser("123456789000000098", "Bob")];
   return {
-    user: createUser(APPLICATION_ID, "MockBot", true),
-    users: [
-      createUser(DEFAULT_USER_ID, "Alice"),
-      createUser("123456789000000098", "Bob"),
-    ],
+    version: 1,
+    members: [bot, ...users].map((user) => ({ user, roles: [], joined_at: "2026-01-01T00:00:00.000Z", deaf: false, mute: false, flags: 0 })),
+    user: bot,
+    users,
     guild: {
       id: guildId,
       name: "Mock Guild",
@@ -27,7 +30,7 @@ export function createInitialState(): LoadedMockState {
         color: 0,
         hoist: false,
         position: 0,
-        permissions: "0",
+        permissions: String(DEFAULT_PERMISSIONS),
         managed: false,
         mentionable: false,
       }],

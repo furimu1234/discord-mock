@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { BrowserState, SessionResponse } from "../../web/src/types.js";
 import type { MockEnvironment } from "./environment.js";
 import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
+import { channelPermissions, requireChannelPermission, USE_APPLICATION_COMMANDS, VIEW_CHANNEL } from "./permissions.js";
 
 interface BrowserSession {
   selectedUserId: string;
@@ -58,10 +59,11 @@ export class BrowserRoutes {
 
   private view(session: BrowserSession): BrowserState {
     const { guild, users, messages } = this.environment.state;
+    const channels = guild.channels.filter((channel) => (channelPermissions(this.environment.state, session.selectedUserId, channel.id) & VIEW_CHANNEL) !== 0n);
     return {
-      guild,
+      guild: { ...guild, channels },
       users,
-      messages,
+      messages: Object.fromEntries(channels.map((channel) => [channel.id, messages[channel.id] ?? []])),
       commands: this.environment.availableCommands(),
       selectedUserId: session.selectedUserId,
       botConnections: this.botConnectionCount(),
@@ -158,6 +160,7 @@ export class BrowserRoutes {
       }
       const actor = state.users.find((user) => user.id === session.selectedUserId);
       if (!actor) throw new Error("Browser session has no dummy user");
+      requireChannelPermission(state, actor.id, channel.id, USE_APPLICATION_COMMANDS);
       const interaction = this.environment.createInteraction({
         actor,
         channelId: channel.id,

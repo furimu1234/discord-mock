@@ -12,3 +12,5 @@
 - `login` はブラウザの `/_ui/session` で選んだユーザーをCSRF検証済みの `/_ui/test-cases/run` からテスト実行へ渡す。任意IDの偽装リクエストを受け付けない。CLIからの実行時は `DISCORD_MOCK_SELECTED_USER_ID` を利用できる。
 
 - Bot UTは通常 `actor.sendMessage` → 実Botイベント → pg/Drizzle 更新を検証する。初期条件や例外検証に限り、任意で `bot.levels.set(user, level, guildId?)` による共有PGliteへの直接設定も利用できる。対象Guildのレコードを挿入・更新するため後続テストにも値が残り、ケースごとにDBを初期化しない。Appがない場合はVitest globalSetupで共有一時PGliteを作り全ケース終了後に閉じる。
+
+- `LocalTestCaseRunner` のケース収集は正規表現ではなくTypeScript構文解析を使い、静的 `describe` のネストと `test` / `it` を解析する。セレクト表示は「親 › 子 › ケース」、Vitestの `--testNamePattern` は親から末端までの完全名をエスケープして前後一致で指定し、同名の別階層ケースを誤実行しない。`describe.each`・動的タイトル等は収集しない。

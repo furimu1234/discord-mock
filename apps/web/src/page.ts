@@ -92,7 +92,13 @@ export function renderPage(): string {
     </div>
     <div id="test-case-composer" class="composer test-case-composer hidden">
       <div class="test-case-caption"><strong>テストケース</strong><span id="test-case-status" role="status">読み込み中…</span></div>
-      <div id="test-case-buttons" class="test-case-buttons" aria-label="テストケースを実行"></div>
+      <div class="test-case-controls">
+        <label for="test-case-select">実行するテスト</label>
+        <select id="test-case-select" aria-label="テストケースを選択" disabled>
+          <option value="">読み込み中…</option>
+        </select>
+        <button id="test-case-run" type="button" disabled>実行</button>
+      </div>
       <p class="hint">UTで users: "login" を指定すると、右側で切り替えたユーザーとして実行します。ユーザー操作と Bot の応答はチャット、検証結果は右のログに表示します。</p>
     </div>
   </main>

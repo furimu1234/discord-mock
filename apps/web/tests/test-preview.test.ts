@@ -14,6 +14,9 @@ const settle = async () => {
 test("/test のチャットは投稿と Bot 返信だけ、実行ステップと合否は別のログ欄に表示する", async () => {
   const fixture = createBrowserFixture("/test");
   const testCase = { id: "showLvl.test.ts:0", name: "投稿後にレベルを確認する" };
+  const nestedCase = { id: "showLvl.test.ts:1", name: "/レベル確認 › 直接設定 › レベル確認" };
+  let cases = [testCase, nestedCase];
+  let runningId: string | null = null;
   const report = {
     id: "test-1",
     name: testCase.name,
@@ -72,7 +75,7 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
         selectedUserId = (JSON.parse(options.body as string) as { user_id: string }).user_id;
         return { ok: true, json: async () => ({ selectedUserId }) };
       }
-      if (url === "/_admin/test-cases") return { ok: true, json: async () => ({ cases: [testCase], runningId: null, error: null }) };
+      if (url === "/_admin/test-cases") return { ok: true, json: async () => ({ cases, runningId, error: null }) };
       if (url === "/_ui/test-cases/run") return { ok: true, json: async () => ({ started: true }) };
       if (url === "/_admin/test-runs") return { ok: true, json: async () => ({ runs }) };
       if (url === "/_admin/test-runs/test-1") return { ok: true, json: async () => structuredClone(report) };
@@ -130,7 +133,29 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.equal((switchRequest.options.headers as Record<string, string>)["x-discord-mock-csrf"], "test-csrf");
   assert.equal(selectedUserId, "123456789000000098");
   assert.equal(fixture.elements["test-log-panel"].classes.has("hidden"), false);
-  assert.equal(fixture.elements["test-case-buttons"].children.length, 1);
+  const select = fixture.elements["test-case-select"];
+  const runButton = fixture.elements["test-case-run"];
+  assert.equal(select.children.length, 2);
+  assert.equal(select.value, testCase.id);
+  assert.equal(runButton.disabled, false);
+  const firstOption = select.children[0];
+  select.value = nestedCase.id;
+  const caseStream = fixture.streams.find((item) => item.url === "/_admin/test-runs/events");
+  assert.ok(caseStream);
+  caseStream.handlers.get("changed")?.();
+  await settle();
+  assert.equal(select.value, nestedCase.id, "ポーリングしても選択したテストを維持する");
+  assert.equal(select.children[0], firstOption, "選択肢が同じならセレクトを再構築しない");
+  runningId = nestedCase.id;
+  caseStream.handlers.get("changed")?.();
+  await settle();
+  assert.equal(select.disabled, true);
+  assert.equal(runButton.disabled, true);
+  assert.equal(runButton.textContent, "実行中…");
+  runningId = null;
+  caseStream.handlers.get("changed")?.();
+  await settle();
+  assert.equal(runButton.disabled, false);
   assert.equal(fixture.elements.channels.children.length, 1);
   assert.equal(fixture.elements["channel-title"].textContent, "# general");
   // サイドバーからチャンネル作成し、チャット切替とライブ一覧更新を検証する。
@@ -151,12 +176,17 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.equal(calls.some((call) => call.url === "/_ui/state"), true);
 
   // ケースのボタンは CSRF 付き API に送信する。
-  fixture.elements["test-case-buttons"].children[0].onclick();
+  runButton.onclick();
   await settle();
   const start = calls.find((call) => call.url === "/_ui/test-cases/run");
   assert.ok(start);
   assert.equal((start.options.headers as Record<string, string>)["x-discord-mock-csrf"], "test-csrf");
-  assert.deepEqual(JSON.parse(start.options.body as string), { id: testCase.id });
+  assert.deepEqual(JSON.parse(start.options.body as string), { id: nestedCase.id });
+  cases = [testCase];
+  caseStream.handlers.get("changed")?.();
+  await settle();
+  assert.equal(select.children.length, 1);
+  assert.equal(select.value, testCase.id);
 
   runs = [{ id: report.id }];
   const stream = fixture.streams.find((s) => s.url === "/_admin/test-runs/events");
@@ -253,4 +283,7 @@ test("/test は起動直後に # general と空のチャンネル開始画面を
   assert.match(textOf(fixture.elements.messages), /generalへようこそ/);
   assert.doesNotMatch(textOf(fixture.elements.messages), /実行待機中|結果:/);
   assert.match(textOf(fixture.elements["test-log-entries"]), /まだ実行ログはありません/);
+  assert.equal(fixture.elements["test-case-select"].disabled, true);
+  assert.equal(fixture.elements["test-case-run"].disabled, true);
+  assert.equal(fixture.elements["test-case-select"].children[0].textContent, "テストケースがありません");
 });

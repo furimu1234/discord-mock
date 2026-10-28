@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { discoverTestCases } from "./test-case-discovery.js";
 import { fileURLToPath } from "node:url";
 import type { TestCaseInfo, TestCaseService } from "../../../apps/server/src/test-cases.js";
 
@@ -26,18 +27,14 @@ export class LocalTestCaseRunner implements TestCaseService {
     const cases: ListedCase[] = [];
     for (const file of files.filter((f) => f.isFile() && /^[a-zA-Z0-9_-]+\.test\.ts$/.test(f.name)).sort((a,b) => a.name.localeCompare(b.name))) {
       const source = await readFile(resolve(this.testsDir, file.name), "utf8");
-      // The current tests use literal names. Dynamic test definitions are not exposed as buttons.
-      const regexp = /^\s*(?:test|it)\(\s*(["'`])([^\r\n]+?)\1\s*,/gm;
-      let match: RegExpExecArray | null = regexp.exec(source);
-      let index = 0;
-      while (match) {
+      const discovered = discoverTestCases(source, file.name);
+      for (const [index, item] of discovered.entries()) {
         cases.push({
-          id: `${file.name}:${index++}`,
-          name: match[2],
+          id: `${file.name}:${index}`,
+          name: item.name,
           file: `tests/bot/${file.name}`,
-          testName: match[2],
+          testName: item.fullName,
         });
-        match = regexp.exec(source);
       }
     }
     return cases;
@@ -59,7 +56,7 @@ export class LocalTestCaseRunner implements TestCaseService {
     this.runningId = id;
     this.error = null;
     try {
-      const pattern = `${chosen.testName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`;
+      const pattern = `^${chosen.testName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`;
       const child = spawn(process.execPath, [
         this.vitest, "run", "--config", "vitest.web.config.ts", chosen.file,
         "--testNamePattern", pattern,

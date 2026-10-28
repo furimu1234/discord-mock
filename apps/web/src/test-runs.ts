@@ -191,7 +191,10 @@ export class TestRunChatView {
   private readonly usersList = getElement("test-user-list", "div");
   private readonly userProfile = getElement("test-user-profile", "div");
   private readonly userMenu = getElement("test-user-menu", "div");
-  private readonly buttons = getElement("test-case-buttons", "div");
+  private readonly caseSelect = getElement("test-case-select", "select");
+  private readonly caseRun = getElement("test-case-run", "button");
+  private caseSignature = "";
+  private caseLaunching = false;
   private readonly status = getElement("test-case-status", "span");
   private readonly error = getElement("error", "div");
   private userCsrf = "";
@@ -211,6 +214,9 @@ export class TestRunChatView {
     this.logTab.onclick = () => this.selectSidebarTab("log");
     this.usersTab.onclick = () => this.selectSidebarTab("users");
     this.selectSidebarTab("log");
+    this.caseRun.onclick = () => {
+      if (!this.caseRun.disabled && this.caseSelect.value) void this.execute(this.caseSelect.value);
+    };
     this.createChannelButton.onclick = () => {
       this.createChannelForm.classList.toggle("hidden", false);
       this.createChannelName.focus();
@@ -453,24 +459,46 @@ export class TestRunChatView {
         runningId: string | null;
         error: string | null;
       }>("/_admin/test-cases");
-      this.buttons.replaceChildren();
-      for (const item of result.cases) {
-        const button = createElement("button", "test-case-button", item.name);
-        button.type = "button";
-        button.disabled = result.runningId !== null;
-        if (result.runningId === item.id) button.classList.add("running");
-        button.onclick = () => { void this.execute(item.id); };
-        this.buttons.append(button);
+      // ポーリング時にoptionを再作成すると開いているネイティブselectが閉じる。
+      // 一覧が実際に変化した場合だけDOMを更新し、選択IDを引き継ぐ。
+      const signature = JSON.stringify(result.cases);
+      if (signature !== this.caseSignature) {
+        const previous = this.caseSelect.value;
+        const options = result.cases.map((item) => {
+          const option = createElement("option", "", item.name);
+          option.value = item.id;
+          return option;
+        });
+        if (options.length === 0) {
+          const empty = createElement("option", "", "テストケースがありません");
+          empty.value = "";
+          options.push(empty);
+        }
+        this.caseSelect.replaceChildren(...options);
+        this.caseSelect.value = result.cases.some((item) => item.id === previous)
+          ? previous : (result.cases[0]?.id ?? "");
+        this.caseSignature = signature;
       }
+      const running = result.runningId !== null || this.caseLaunching;
+      this.caseSelect.disabled = running || result.cases.length === 0;
+      this.caseRun.disabled = running || !this.caseSelect.value;
+      this.caseRun.textContent = running ? "実行中…" : "実行";
       this.status.textContent = result.runningId
         ? "テスト実行中…"
         : result.error ?? `${result.cases.length} 件のテストケース`;
     } catch {
-      this.status.textContent = "テストボタンの取得に失敗（pnpm app を確認）";
+      this.caseSelect.disabled = true;
+      this.caseRun.disabled = true;
+      this.status.textContent = "テストケース一覧を取得できません（pnpm app を確認）";
     }
   }
 
   private async execute(id: string): Promise<void> {
+    if (this.caseLaunching || this.caseRun.disabled) return;
+    this.caseLaunching = true;
+    this.caseSelect.disabled = true;
+    this.caseRun.disabled = true;
+    this.caseRun.textContent = "起動中…";
     this.showError("");
     this.status.textContent = "テストを開始しています…";
     try {
@@ -488,6 +516,8 @@ export class TestRunChatView {
       await this.refreshCases();
     } catch (error) {
       this.showError(error instanceof Error ? error.message : "テストを開始できませんでした");
+    } finally {
+      this.caseLaunching = false;
       await this.refreshCases();
     }
   }

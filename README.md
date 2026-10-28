@@ -455,3 +455,17 @@ Python の `discord.py` / `commands.Bot` は、[`packages/client-py/README.md`](
 - **未実装または未検証:** ダミーユーザーの新規登録・複雑なロール操作、管理 UI の CRUD、DM、細かなロール・権限判定、完全な Slash Command / Button / Select Menu、Sapphire Piece の一連の動作、全 Discord API・Gateway の互換性、VC の Voice Gateway / UDP / RTP・ブラウザで聴ける音声。
 - npm / PyPI のクライアント公開は別々に管理しますが、**現時点の公開ワークフローは無効**です。
 - Discord 公式の**公開 API 仕様**を参照した独自実装を前提とし、非公開 API のリバースエンジニアリングは行いません。OSS 配布の規約確認については [`AGENTS.md`](AGENTS.md) を参照してください。
+
+## Create Message / Message Object の対応範囲
+
+`POST /api/v10/channels/{id}/messages` のJSONリクエストで `content`, `nonce`,
+`enforce_nonce`, `tts`, `embeds`, `allowed_mentions`, `message_reference`,
+`components`, `sticker_ids`, `attachments`（メタデータ）, `flags`,
+`poll`, `shared_client_theme` を受け付けます。rich Embedの画像・著者・
+フッターなども保持します。保存したMessageはRESTとGatewayに反映され、
+`GET /api/v10/channels/{id}/messages/{message_id}` から1件ずつ取得できます。
+
+**現時点でDiscord本番APIとの完全互換を保証するものではありません。**
+ファイル本体の `multipart/form-data` アップロード、Poll投票、コンポーネント押下、
+レートリミットなどは未実装です。フィールド対応と機能の実動作は区別してください。
+詳細は [Message API対応範囲](spec/messages.md) を参照してください。

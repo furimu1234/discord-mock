@@ -7,3 +7,6 @@
 - Gateway は JSON encoding の基礎接続（Hello / Identify / Ready / Heartbeat）から段階的に拡充する。voice 音声互換は未対応であることを明記する。
 - `pnpm build` は手動。配布後は `node apps/server/dist/discord-mock.cjs` で実行し、pnpm 不要。
 - API を追加したときは `spec/` と JS・Python のテストを同じ PR で更新する。
+
+- Discord公式のCreate Message JSONフィールドとMessage Objectの追加時は `spec/messages.md` とREST/Gateway/永続化の回帰テストを更新する。既知のリクエストフィールドを黙って捨てない。
+- multipartバイナリアップロードやPoll投票・コンポーネント相互作用などはJSON対応とは別機能であり、未実装のまま実装済みとしない。

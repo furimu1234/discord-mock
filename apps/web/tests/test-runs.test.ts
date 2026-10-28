@@ -26,10 +26,10 @@ test("自動テストの状況・コマンド返信を SSE で更新し、結果
   const urls = [];
   script.runInNewContext({
     ...fixture.globals,
-    fetch: async (url, options = {}) => {
+    fetch: async (url: string, options: { headers?: Record<string, string> } = {}) => {
       urls.push(url);
       if (url === "/_admin/session") {
-        assert.equal(options.headers["x-discord-mock-local"], "1");
+        assert.equal(options.headers?.["x-discord-mock-local"], "1");
         return { ok: true, json: async () => ({ authenticated: true }) };
       }
       if (url === "/_admin/test-runs")

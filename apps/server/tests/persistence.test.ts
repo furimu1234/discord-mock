@@ -73,7 +73,7 @@ test("malformed persisted command attribution fails startup without losing exist
       state.messages[channelId] = [message];
       const content = JSON.stringify(state);
       await writeFile(statePath, content);
-      await assert.rejects(startMock({ port: 0, statePath }), /Invalid saved|Embed/);
+      await assert.rejects(startMock({ port: 0, statePath }), /Invalid saved|Embed/i);
       assert.equal(await readFile(statePath, "utf8"), content);
     }
   } finally {

@@ -75,8 +75,8 @@ function parseEmbed(value: unknown): MockEmbed {
   if (data.type !== undefined && data.type !== "rich")
     throw new MessageContentError("Only rich embeds can be created");
   const result: MockEmbed = { type: "rich" };
-  result.title = optionalText(data, "title", 256, "embed.title");
-  result.description = optionalText(data, "description", 4096, "embed.description");
+  result.title = optionalText(data, "title", 256, "embed.title", true);
+  result.description = optionalText(data, "description", 4096, "embed.description", true);
   result.url = optionalText(data, "url", 2048, "embed.url");
   result.timestamp = optionalText(data, "timestamp", 128, "embed.timestamp");
   if (result.timestamp && !Number.isFinite(Date.parse(result.timestamp)))
@@ -114,6 +114,10 @@ function parseEmbed(value: unknown): MockEmbed {
     const provider = record(data.provider, "embed.provider");
     result.provider = { ...provider } as MockEmbed["provider"];
   }
+  if (!result.title && !result.description && !result.fields?.length &&
+      !result.footer && !result.author && !result.image && !result.thumbnail &&
+      !result.video && !result.provider && !result.url)
+    throw new MessageContentError("Embed must contain content or media");
   return result;
 }
 export function parseEmbeds(value: unknown): MockEmbed[] {

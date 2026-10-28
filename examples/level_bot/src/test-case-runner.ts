@@ -84,7 +84,8 @@ export class LocalTestCaseRunner implements TestCaseService {
         this.child = undefined;
         this.runningId = null;
         // 先頭にpass/failがなく「n skipped」のみなら、パターンが一致していない。
-        const report = summary.replace(/\x1b\[[0-9;]*m/g, "");
+        const ansi = new RegExp(String.fromCharCode(27) + String.raw`\[[0-9;]*m`, "g");
+        const report = summary.replace(ansi, "");
         const allSkipped = /Tests\s+\d+\s+skipped\b/.test(report) &&
           !/Tests\s+.*(?:passed|failed)\b/.test(report);
         if (allSkipped) {

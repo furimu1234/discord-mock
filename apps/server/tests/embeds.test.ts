@@ -28,7 +28,6 @@ test("Bot REST accepts text embeds and rejects invalid or unsupported input with
       { embeds: [{ description: "x".repeat(4097) }] },
       { embeds: [{ footer: { text: "x".repeat(2049) } }] },
       { embeds: [{ footer: { text: " " } }] },
-      { embeds: [{ footer: { text: "x", icon_url: "https://example.invalid/icon.png" } }] },
       { embeds: [{ ...boundary, footer: { text: "x" } }] },
       { embeds: [{ title: "x", fields: Array(26).fill({ name: "n", value: "v" }) }] },
       { embeds: [{ fields: [{ name: "x".repeat(257), value: "v" }] }] },
@@ -37,13 +36,17 @@ test("Bot REST accepts text embeds and rejects invalid or unsupported input with
       { embeds: [{ ...boundary, title: "t".repeat(256), fields: [...boundary.fields, { name: "x", value: "y" }] }] },
       { embeds: [{ title: "x", color: -1 }] }, { embeds: [{ title: "x", color: 0x1000000 }] },
       { embeds: [{ title: "x", color: "red" }] }, { embeds: [{ title: "x", type: "image" }] },
-      { embeds: [{ title: "x", image: { url: "https://example.invalid/not-fetched.png" } }] },
     ]) {
       const rejected = await send(body);
       assert.equal(rejected.status, 400);
       assert.equal((await rejected.json()).code, 50035);
     }
+    const rich = await send({ embeds: [{
+      title: "Rich Embed", footer: { text: "x", icon_url: "https://example.invalid/icon.png" },
+      image: { url: "https://example.invalid/not-fetched.png" },
+    }] });
+    assert.equal(rich.status, 200, "Rich Embed image and footer icon URL are supported");
     const messages = await (await fetch(`${mock.url}/api/v10/channels/${channel}/messages`, { headers })).json();
-    assert.equal(messages.length, 2);
+    assert.equal(messages.length, 3);
   } finally { await mock.close(); }
 });

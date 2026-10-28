@@ -94,7 +94,7 @@ export function renderPage(): string {
       <div class="test-case-caption"><strong>テストケース</strong><span id="test-case-status" role="status">読み込み中…</span></div>
       <div class="test-case-controls">
         <label for="test-case-select">実行するテスト</label>
-        <select id="test-case-select" aria-label="テストケースを選択" disabled>
+        <select id="test-case-select" aria-label="テストケースを選択" size="5" disabled>
           <option value="">読み込み中…</option>
         </select>
         <button id="test-case-run" type="button" disabled>実行</button>

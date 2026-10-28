@@ -529,15 +529,29 @@ a:hover {
 .test-case-caption { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .test-case-caption strong { font-size: 14px; }
 .test-case-caption span { color: #aab2c6; font-size: 12px; }
-.test-case-controls { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-.test-case-controls label { color: #b8c1d3; font-size: 12px; flex-shrink: 0; }
+.test-case-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px 10px;
+  margin-top: 12px;
+}
+.test-case-controls label { grid-column: 1 / -1; color: #b8c1d3; font-size: 12px; }
 .test-case-controls select {
-  flex: 1; min-width: 0; width: 100%;
+  grid-column: 1; grid-row: 2;
+  min-width: 0; width: 100%; height: min(164px, 21vh);
+  overflow-x: hidden; overflow-y: auto;
+  overscroll-behavior-y: contain; scrollbar-gutter: stable;
   border: 1px solid #596385; border-radius: 7px;
-  background: #30364b; color: #ecf0ff; padding: 9px 12px;
+  background: #30364b; color: #ecf0ff; padding: 4px;
   font-size: 12px;
 }
+.test-case-controls select option {
+  padding: 7px 10px;
+  white-space: normal;
+}
 .test-case-controls button {
+  grid-column: 2; grid-row: 2; align-self: end;
   border: 1px solid #687bc4; border-radius: 7px;
   background: #4e60b2; color: #fff; padding: 9px 20px;
   font-size: 12px; font-weight: 600; flex-shrink: 0;
@@ -545,8 +559,8 @@ a:hover {
 .test-case-controls button:hover:not(:disabled) { background: #6477d0; }
 .test-case-controls button:disabled, .test-case-controls select:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 650px) {
-  .test-case-controls { flex-wrap: wrap; }
-  .test-case-controls label { flex-basis: 100%; }
+  .test-case-controls { grid-template-columns: minmax(0, 1fr) auto; }
+  .test-case-controls select { height: min(130px, 18vh); }
 }
 
 /* /test: Discord 風のメッセージ領域と独立した操作ログ。既存の配色を使用する。 */

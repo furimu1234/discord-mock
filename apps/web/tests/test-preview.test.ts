@@ -15,7 +15,10 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   const fixture = createBrowserFixture("/test");
   const testCase = { id: "showLvl.test.ts:0", name: "投稿後にレベルを確認する" };
   const nestedCase = { id: "showLvl.test.ts:1", name: "/レベル確認 › 直接設定 › レベル確認" };
-  let cases = [testCase, nestedCase];
+  let cases = [testCase, nestedCase, ...Array.from({ length: 8 }, (_, index) => ({
+    id: `leveling.test.ts:${index}`,
+    name: `連続テストケース ${index + 1}`,
+  }))];
   let runningId: string | null = null;
   const report = {
     id: "test-1",
@@ -135,17 +138,19 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.equal(fixture.elements["test-log-panel"].classes.has("hidden"), false);
   const select = fixture.elements["test-case-select"];
   const runButton = fixture.elements["test-case-run"];
-  assert.equal(select.children.length, 2);
+  assert.equal(select.children.length, 10, "5行を超えるテストでも選択肢をすべて保持する");
   assert.equal(select.value, testCase.id);
   assert.equal(runButton.disabled, false);
   const firstOption = select.children[0];
   select.value = nestedCase.id;
+  select.scrollTop = 80; // 常時展開リストのスクロールを保持する
   const caseStream = fixture.streams.find((item) => item.url === "/_admin/test-runs/events");
   assert.ok(caseStream);
   caseStream.handlers.get("changed")?.();
   await settle();
   assert.equal(select.value, nestedCase.id, "ポーリングしても選択したテストを維持する");
   assert.equal(select.children[0], firstOption, "選択肢が同じならセレクトを再構築しない");
+  assert.equal(select.scrollTop, 80, "更新してもリスト内のスクロール位置を保持する");
   runningId = nestedCase.id;
   caseStream.handlers.get("changed")?.();
   await settle();

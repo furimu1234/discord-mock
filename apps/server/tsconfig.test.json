@@ -8,6 +8,7 @@
     ]
   },
   "include": [
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "../web/src/assets.d.ts"
   ]
 }

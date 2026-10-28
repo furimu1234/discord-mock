@@ -89,7 +89,7 @@ export class AdminPage {
   private readonly status = getElement("admin-status", "p");
 
   private async api<T>(path: string, method = "GET", body?: unknown): Promise<T> {
-    const response = await fetch("/_admin/ui/" + path, {
+    const response = await fetch(`/_admin/ui/${path}`, {
       method,
       credentials: "same-origin",
       headers: {
@@ -100,7 +100,7 @@ export class AdminPage {
     });
     if (!response.ok) {
       const data: { message?: string } = await response.json().catch(() => ({}));
-      throw new Error(data.message ?? "HTTP " + response.status);
+      throw new Error(data.message ?? `HTTP ${response.status}`);
     }
     return response.json() as Promise<T>;
   }
@@ -161,7 +161,7 @@ export class AdminPage {
     for (const user of state.users) {
       const line = element("div");
       line.className = "admin-item";
-      line.append(action(user.username + " · " + user.id, () => {
+      line.append(action(`${user.username} · ${user.id}`, () => {
         this.selectedUser = user.id;
         this.renderUsers(state);
       }));
@@ -175,10 +175,10 @@ export class AdminPage {
       const name = input(user.username);
       editor.append(field("表示名", name));
       editor.append(action("名前を保存", () => void this.run(() =>
-        this.api("users/" + user.id, "PATCH", { username: name.value }))));
+        this.api(`users/${user.id}`, "PATCH", { username: name.value }))));
       if (user.id !== state.guild.owner_id) {
         editor.append(action("削除", () => {
-          if (confirm("ユーザーを削除しますか？")) void this.run(() => this.api("users/" + user.id, "DELETE"));
+          if (confirm("ユーザーを削除しますか？")) void this.run(() => this.api(`users/${user.id}`, "DELETE"));
         }));
       }
     }
@@ -212,7 +212,7 @@ export class AdminPage {
     for (const role of state.guild.roles) {
       const line = element("div");
       line.className = "admin-item";
-      line.append(action(role.name + " · " + role.id, () => {
+      line.append(action(`${role.name} · ${role.id}`, () => {
         this.selectedRole = role.id;
         this.renderRoles(state);
       }));
@@ -242,9 +242,9 @@ export class AdminPage {
       });
       editor.append(field("名前", name), field("権限ビット（10進数）", decimal), permissions);
       editor.append(action("ロールの権限を保存", () => void this.run(() =>
-        this.api("roles/" + role.id, "PATCH", { name: name.value, permissions: decimal.value }))));
+        this.api(`roles/${role.id}`, "PATCH", { name: name.value, permissions: decimal.value }))));
       if (role.id !== state.guild.id) editor.append(action("削除", () => {
-        if (confirm("このロールを削除しますか？")) void this.run(() => this.api("roles/" + role.id, "DELETE"));
+        if (confirm("このロールを削除しますか？")) void this.run(() => this.api(`roles/${role.id}`, "DELETE"));
       }));
     }
     getElement("admin-role-create", "form").onsubmit = (event) => {
@@ -263,7 +263,7 @@ export class AdminPage {
     list.replaceChildren();
     if (!state.guild.channels.some((c) => c.id === this.selectedChannel)) this.selectedChannel = state.guild.channels[0]?.id ?? "";
     for (const channel of state.guild.channels) {
-      list.append(action((channel.type === 2 ? "🔊 " : "# ") + channel.name, () => {
+      list.append(action(`${channel.type === 2 ? "🔊 " : "# "}${channel.name}`, () => {
         this.selectedChannel = channel.id;
         this.renderChannels(state);
       }));
@@ -293,8 +293,8 @@ export class AdminPage {
           const deny = BigInt(overwrite.deny);
           selector.value = allow & bit ? "allow" : deny & bit ? "deny" : "inherit";
           selector.onchange = () => {
-            overwrite!.allow = String((BigInt(overwrite!.allow) & ~bit) | (selector.value === "allow" ? bit : 0n));
-            overwrite!.deny = String((BigInt(overwrite!.deny) & ~bit) | (selector.value === "deny" ? bit : 0n));
+            overwrite.allow = String((BigInt(overwrite.allow) & ~bit) | (selector.value === "allow" ? bit : 0n));
+            overwrite.deny = String((BigInt(overwrite.deny) & ~bit) | (selector.value === "deny" ? bit : 0n));
           };
           line.append(document.createTextNode(label), selector);
           grid.append(line);
@@ -304,9 +304,9 @@ export class AdminPage {
       renderOverwrites();
       editor.append(field("チャンネル名", name), field("権限を編集するロール", roles), grid);
       editor.append(action("チャンネル設定を保存", () => void this.run(() =>
-        this.api("channels/" + channel.id, "PATCH", { name: name.value, permission_overwrites: overrides.filter((o) => BigInt(o.allow) !== 0n || BigInt(o.deny) !== 0n) }))));
+        this.api(`channels/${channel.id}`, "PATCH", { name: name.value, permission_overwrites: overrides.filter((o) => BigInt(o.allow) !== 0n || BigInt(o.deny) !== 0n) }))));
       editor.append(action("削除", () => {
-        if (confirm("チャンネルと履歴を削除しますか？")) void this.run(() => this.api("channels/" + channel.id, "DELETE"));
+        if (confirm("チャンネルと履歴を削除しますか？")) void this.run(() => this.api(`channels/${channel.id}`, "DELETE"));
       }));
     }
     getElement("admin-channel-create", "form").onsubmit = (event) => {
@@ -338,7 +338,7 @@ export class AdminPage {
       }));
     }
     editor.append(action("所属ロールを保存", () => void this.run(() =>
-      this.api("members/" + member.user.id, "PATCH", { roles: [...roles] }))));
+      this.api(`members/${member.user.id}`, "PATCH", { roles: [...roles] }))));
   }
 
   private async initializeDesktop(bridge: DesktopBridge): Promise<void> {
@@ -353,7 +353,7 @@ export class AdminPage {
     cwd.value = config.cwd;
     const updateStatus = async (): Promise<void> => {
       const info = await bridge.status();
-      status.textContent = info.running ? "Bot 実行中 (PID: " + info.pid + ")" : "Bot 停止中";
+      status.textContent = info.running ? `Bot 実行中 (PID: ${info.pid})` : "Bot 停止中";
     };
     getElement("desktop-save", "button").onclick = () => void this.run(async () => {
       const value = JSON.parse(args.value) as unknown;

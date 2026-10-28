@@ -31,8 +31,10 @@ export class AdminUiRoutes {
 
   private startSession(response: ServerResponse): AdminSession {
     const id = this.issueDesktopSession();
-    response.setHeader("set-cookie", COOKIE + "=" + id + "; HttpOnly; SameSite=Strict; Path=" + COOKIE_PATH);
-    return this.sessions.get(id)!;
+    response.setHeader("set-cookie", `${COOKIE}=${id}; HttpOnly; SameSite=Strict; Path=${COOKIE_PATH}`);
+    const session = this.sessions.get(id);
+    if (!session) throw new Error("管理者セッションの作成に失敗しました");
+    return session;
   }
 
   private view() {
@@ -72,7 +74,7 @@ export class AdminUiRoutes {
     if (path === "/_admin/ui/logout" && method === "POST") {
       const id = /(?:^|;\s*)discord_mock_admin=([a-f0-9]{48})(?:;|$)/.exec(request.headers.cookie ?? "")?.[1];
       if (id) this.sessions.delete(id);
-      response.setHeader("set-cookie", COOKIE + "=; HttpOnly; SameSite=Strict; Path=" + COOKIE_PATH + "; Max-Age=0");
+      response.setHeader("set-cookie", `${COOKIE}=; HttpOnly; SameSite=Strict; Path=${COOKIE_PATH}; Max-Age=0`);
       sendJson(response, 200, { loggedOut: true });
       return;
     }

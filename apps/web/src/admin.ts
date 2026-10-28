@@ -193,7 +193,8 @@ export class AdminPage {
     };
   }
 
-  private permissionEditor(bits: bigint, onChange: (next: bigint) => void): HTMLElement {
+  private permissionEditor(initialBits: bigint, onChange: (next: bigint) => void): HTMLElement {
+    let bits = initialBits;
     const group = element("div");
     group.className = "admin-permissions";
     for (const [label, bit] of PERMISSIONS) {

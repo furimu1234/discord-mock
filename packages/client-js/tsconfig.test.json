@@ -6,11 +6,13 @@
       "node"
     ],
     "paths": {
-      "@discord-mock/client-js/testing": ["./src/testing.ts"]
+      "@discord-mock/client-js/testing": [
+        "./src/testing.ts"
+      ]
     }
   },
   "include": [
-    "tests/**/*.test.ts",
+    "tests/**/*.ts",
     "vitest.config.ts"
   ]
 }

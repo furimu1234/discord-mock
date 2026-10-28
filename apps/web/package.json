@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json && esbuild src/browser.ts --bundle --platform=browser --target=es2022 --format=iife --outfile=dist/browser.js.txt",
-    "test": "tsc --noEmit -p tsconfig.json && node --test tests/*.test.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "test": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json && node --test tests/*.test.mjs tests/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json"
   }
 }

@@ -200,7 +200,7 @@
 | `tests/` | 両クライアント・サーバー横断の統合 / 互換テスト |
 | `.github/workflows/` | 領域別 CI と JS / Python の独立リリース |
 
-- **JS:** Node.js 22+ と pnpm 11、`pnpm-workspace.yaml`。Web・Server・client-js の workspace を管理する。
+- **JS / TypeScript:** Node.js 24.17+ と pnpm 11、`pnpm-workspace.yaml`。Web・Server・client-js と `examples/level_bot` の workspace を管理する。
 - **Python:** `packages/client-py/pyproject.toml` をルートに持つ独立した uv プロジェクト。`uv` / `ruff` / `pytest` を使用する。Python を pnpm workspace に入れない。
 - 共通仕様に変更があれば **Web / Server / JS / Python で影響するテストと仕様を同じ PR で更新**する。実装していないテストを動作済みと報告しない。
 - 作業対象にある `AGENTS.md` はルート規則への追加要件とする。ルートの規約・セキュリティ要件と矛盾する場合はルートを優先する。
@@ -222,7 +222,11 @@
 
 ## 16. TypeScript / Corepack / manual build / platform support
 
-- `apps/web`、`apps/server`、`packages/client-js` のアプリケーションソースは **TypeScript** に統一する。Python クライアントは Python のまま。
+- **JavaScript 関連の実装成果物は、AI エージェントの種類（Codex / Claude / Gemini 等）を問わず TypeScript を必須とする。** 対象は `apps/web/`、`apps/server/`、`packages/client-js/`、`examples/level_bot/`、ルート `scripts/` のソース・新規テスト・開発スクリプト。原則 `.ts`、JSX が必要なら `.tsx`、型宣言は `.d.ts` を使用し、`.js` / `.jsx` / `.mjs` / `.cjs` の新規ソースを作らない。既存ファイルに JS の追加実装を継ぎ足すのではなく、新規の実装・テストは TS で作成する。
+- 既存の `.mjs` テスト・補助スクリプトは既存動作のため移行までは保持する。例外は `scripts/check-typescript.ts` の既存ファイル許可リストだけとし、新規 JS ファイルを例外へ安易に追加しない。やむを得ないランタイム事情がある場合のみ理由を記録し、明示的な承認を得る。
+- `tsconfig.base.json` の `allowJs: false`、各パッケージの TS 型チェック、`pnpm check:ts` の拡張子検査を維持する。新規 `*.test.ts` は各パッケージのテスト実行・型チェック対象にする。作業後は `pnpm check`、`pnpm build`、該当テストを実行する（未実行ならその旨を報告する）。
+- **ソースを `.ts` で書くことと公開・配布物の拡張子は別。** `esbuild` 等で生成した `.js` / `.cjs` / `.mjs` や `.d.ts` は従来どおり `dist/` 等の生成物とし、必要な `package.json` の `main` / `exports` と実行コマンドを維持する。TypeScript 内の ESM import 指定子が `.js` を指す場合も、対応する実体ソースは `.ts` とする。
+- Python クライアントの `.py`、`pyproject.toml`、Python のテスト・ビルド・配布方式は本方針の対象外で変更しない。
 - 開発時は pnpm workspace と Corepack（導入されている場合）を使用し、`pnpm install`、`pnpm build`、`pnpm test` を実行する。
 - `pnpm dev` や実行時にビルドを暗黙的に行わない。開発者・配布担当者が必要なときに手動でビルドする。
 - ビルド成果物は `dist/` に出力。**配布物の実行には pnpm・Corepack・tsc・esbuild・node_modules を要求しない**。現時点では Node.js ランタイムは必要。単一ネイティブバイナリと混同しない。
@@ -243,7 +247,7 @@
 
 ## 18. サンプル Bot と VS Code の Nix 開発シェル
 
-- サンプル Bot は `examples/sample-bot/` に TypeScript の `discord.js` Bot として実装し、ローカル Mock REST / Gateway / Interaction callback の E2E 検証に用いる。
+- サンプル Bot は `examples/level_bot/` に TypeScript の `discord.js` Bot として実装し、ローカル Mock REST / Gateway / Interaction callback の E2E 検証に用いる。
 - サンプル Bot は実 Discord のトークンを要求してはならず、`mock_` テスト用トークンのみ受け付ける。
 - `pnpm build` は明示的なビルドのみであり、`pnpm sample:test` や `pnpm sample:bot` 時の自動ビルドはしない。
 - `.vscode/settings.json` の `terminal.integrated.defaultProfile.linux` で、新しい VS Code 統合ターミナルから `nix-shell` を直接起動する。グローバル環境には適用しない。

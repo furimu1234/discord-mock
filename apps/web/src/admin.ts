@@ -1,4 +1,4 @@
-import { createElement, getElement } from "./dom.js";
+import { getElement } from "./dom.js";
 
 interface User { id: string; username: string; }
 interface Role { id: string; name: string; permissions: string; color: number; }

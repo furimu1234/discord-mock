@@ -8,7 +8,7 @@ import {
   commandsCollection,
   loadCommands,
   type CommandIssue,
-} from "../../packages/bot/src/commands/main.js";
+} from "../../../../examples/level_bot/packages/bot/src/commands/main.js";
 
 function command(name: string) {
   return `export const data = { toJSON: () => ({ name: '${name}', description: 'test' }) };

@@ -13,7 +13,7 @@
 | --- | --- | --- |
 | `apps/web/` | TypeScript | ブラウザで開くテスト画面・管理画面。ローカル Bot テスト画面（投稿・ユーザー切替・SSE 更新）と管理画面案内 |
 | `apps/server/` | TypeScript | CLI、HTTP REST、Gateway WebSocket、Mock 状態管理、JSON 保存 |
-| `packages/client-js/` | TypeScript | 既存 `discord.js Client` / `SapphireClient` のインスタンス・継承アダプター |
+| `packages/client-js/` | TypeScript | npm パッケージ `dismock`。既存 Client のアダプター、E2E テスト、ローカル App・DB の起動 |
 | `packages/client-py/` | Python | 既存 `discord.Client` / `commands.Bot` のインスタンス・継承アダプター |
 | `spec/` | YAML / Markdown | 共通 API 仕様・対応範囲の記録 |
 | `tests/` | テストごと | 横断テストの構成・方針 |
@@ -91,7 +91,7 @@ flowchart LR
 
 Web は `apps/web/src/page.ts`（HTML）、`styles.css`（見た目）、`browser.ts`（型付き DOM 操作）、`types.ts`（ブラウザ API の表示用の型）に分かれています。ブラウザの処理も通常の TypeScript として型チェックします。
 
-DB 画面は `apps/web/src/database.ts`、PGlite の参照実装は `examples/level_bot/src/database-inspector.ts` に分けています。
+DB 画面は `apps/web/src/database.ts`、PGlite の参照実装は `packages/client-js/src/database-inspector.ts` に分けています。
 
 ルートの `pnpm build` は Web の JavaScript を先に生成し、その内容と CSS をサーバー配布物へ組み込みます。個別にビルドする場合も Web → Server の順で実行してください。配布後は従来どおり `discord-mock.cjs` 単体で起動できます。`pnpm test` はビルド済みのブラウザ処理を DOM フィクスチャで検証し、実ブラウザによる表示確認は行いません。
 
@@ -174,7 +174,7 @@ pnpm build
 pnpm app
 ```
 
-`pnpm app` はローカル REST / Gateway / Web とインメモリ PGlite を起動し、`.discord-mock-data/credentials.json` のトークンを使用します。初回起動は `mock_` トークンを発行して保存します。**起動前から有効なトークン JSON があった場合、app は Bot クライアントも自動起動します。** 環境変数 `TOKEN`（または `DISCORD_MOCK_TOKEN`）が設定され、JSON と一致しない場合は、Bot の自動起動だけを止めてエラーを表示し、app 自体は稼働します。設定を確認し、`pnpm bot:test` でテストしてください。実際の Discord トークンは使用しません。
+`pnpm app` はローカル REST / Gateway / Web とインメモリ PGlite を起動し、サンプルのプロジェクトルート配下の `examples/level_bot/.discord-mock-data/credentials.json` のトークンを使用します。`DISCORD_MOCK_DATA_DIR` で保存先を変更できます。初回起動は `mock_` トークンを発行して保存します。**起動前から有効なトークン JSON があった場合、app は Bot クライアントも自動起動します。** 環境変数 `TOKEN`（または `DISCORD_MOCK_TOKEN`）が設定され、JSON と一致しない場合は、Bot の自動起動だけを止めてエラーを表示し、app 自体は稼働します。設定を確認し、`pnpm bot:test` でテストしてください。実際の Discord トークンは使用しません。
 
 ブラウザで [http://127.0.0.1:3000/test](http://127.0.0.1:3000/test) を開き、右側のユーザータブでログインユーザーを選択して、画面下部の **テストケース一覧を矢印キーやマウスで選び、Enterまたはダブルクリック**すると、そのテストだけを実行できます。全ケースは別のターミナルから次のコマンドで実行します。
 
@@ -184,16 +184,16 @@ pnpm bot
 
 `pnpm bot` は Web へのレポート送信を必須にする `vitest` テスト実行コマンドです。既存の `pnpm bot:test` は app がなくても実行でき、`pnpm bot:test:web` も互換用に維持しています。Bot プロセスのみ手動で起動したい場合のコマンドは `pnpm bot:client` です（app の自動起動と二重起動しないでください）。
 
-テスト一覧は `examples/level_bot/tests/bot/*.test.ts` をTypeScriptの構文解析で読み、静的な名前の `describe(...)` 階層内の `test(...)` / `it(...)` を取得します。ネストした `describe` は `親 › 子 › テスト名` と表示され、個別実行は親から子までの完全名で絞り込みます。コメント・文字列中の疑似テストや動的な名前は対象にせず、同一階層の重複名は検出します。個別実行 API はローカル管理セッションと CSRF を必須とし、リポジトリ外のファイルや任意の OS コマンドは受け付けません。複数テストの同時実行は防止します。実行状況を定期取得しても選択中のケースは維持されます。
+テスト一覧は `examples/level_bot/tests/**/*.test.ts` を再帰的に検索してTypeScriptの構文解析で読み、静的な名前の `describe(...)` 階層内の `test(...)` / `it(...)` を取得します。`tests` 直下にも任意名のサブフォルダーにも配置できます。ネストした `describe` は `親 › 子 › テスト名` と表示され、個別実行は親から子までの完全名で絞り込みます。同名ファイルは相対パスで区別し、シンボリックリンクは追跡しません。コメント・文字列中の疑似テストや動的な名前は対象にせず、同一階層の重複名は検出します。個別実行 API はローカル管理セッションと CSRF を必須とし、リポジトリ外のファイルや任意の OS コマンドは受け付けません。複数テストの同時実行は防止します。実行状況を定期取得しても選択中のケースは維持されます。
 
 **アプリの再起動でテスト実行履歴はリセット**されます。画面を開いたままの再接続にも対応しますが、ビルド済み JavaScript を差し替えた場合はブラウザを再読み込みしてください。ソースを変更したときは `pnpm build` を再実行し、`pnpm app` を再起動してください。Mockのチャット履歴はテストケースごとに独立します。一方、DBレコードはAppのPGliteに蓄積され、Appを停止するまで保持します。
 
 ## Vitest / Jest 形式で Bot を自動テストする（JS / TS）
 
-`@discord-mock/client-js/testing` の `createTestEnvironment()` で、テストごとに専用の Mock を起動できます。テストコードで Bot を接続するため、`pnpm app`・`pnpm bot:client` の別起動や `.env` のトークン設定は不要です。
+`dismock/e2e` の `createTestEnvironment()` で、テストごとに専用の Mock を起動できます。テストコードで Bot を接続するため、`pnpm app`・`pnpm bot:client` の別起動や `.env` のトークン設定は不要です。
 
 ```ts
-import { createTestEnvironment } from "@discord-mock/client-js/testing";
+import { createTestEnvironment } from "dismock/e2e";
 
 const mock = await createTestEnvironment();
 try {
@@ -222,23 +222,29 @@ pnpm automation:test # SDK のテスト例 + Bot テスト
 
 ### Bot の機能をまとめてテストする
 
-`pnpm bot` / `pnpm bot:test` は `examples/level_bot/tests/bot/**/*.test.ts` の Bot テストだけを実行します。Web・Server・SDK のテストは含めません。Bot・Mockの準備・後片付けと共有DBへの接続は共通ヘルパーが担当するため、テスト本文は次のように書けます。
+`pnpm bot` / `pnpm bot:test` は `examples/level_bot/tests/**/*.test.ts` の Bot テストを実行します。準備・ユーザー選択・後片付け・レポートは `dismock/e2e` が担当します。利用側の `src`、`tests/helpers`、`tests/integration`、Vitest 設定ファイルは不要です。Bot 固有の起動・DBスキーマ・検証 API は `testClient.ts` の `runTestClient(import.meta.url, ...)` で一度だけ設定します。ファイル名は任意です。
+
+```sh
+# リポジトリ直下から、Mock・画面・PGlite・Botをまとめて起動
+pnpm --dir examples/level_bot exec tsx --tsconfig packages/bot/tsconfig.json packages/bot/src/testClient.ts
+# 同じコマンドに --test を付けると、tests/**/*.test.ts を実行
+```
+
+この直接起動は初回から Bot も起動します。`main.ts` の変更や実トークンの設定は不要です。npm 利用先でも同じ形の起動ファイルとテストケースだけで使用できます。導入方法は [JS クライアント](packages/client-js/README.md) を参照してください。
 
 ```ts
-import { test, expect } from '../helpers/bot-test.js';
+import { test, expect } from 'dismock/e2e';
 
-test('レベルを確認できる', async ({ bot }) => {
-  await bot.levels.set(bot.alice, 7);
-
-  const reply = await bot.as(bot.alice).command('レベル確認');
-
-  expect(reply.embeds[0].fields?.[0].value).toBe('7');
+test('投稿でレベルが上がる', { users: 'login' }, async ({ bot, actor }) => {
+  const before = await bot.levels.get(actor);
+  await actor.sendMessage('こんにちは');
+  await expect.poll(() => bot.levels.get(actor)).toBe((before ?? 1) + 1);
 });
 ```
 
 [レベル確認の UT](examples/level_bot/tests/bot/showLvl.test.ts) と [投稿によるレベル更新の UT](examples/level_bot/tests/bot/leveling.test.ts) を用意しています。機能が増えたら同じフォルダーへ `*.test.ts` を追加すると、同じコマンドでまとめて実行できます。Bot の TypeScript は直接読み込みます。Mock のソースを変更したときは、従来どおり手動で `pnpm build` してください。
 
-`pnpm sample:test` は app・DB・起動処理の統合テストも実行します。これらは `tests/integration/*.test.ts` にまとめ、元の長い `leveling.test.mjs` のブラウザ・SDK 検証もそこへ移しています。
+`pnpm sample:test` は利用側の Bot テストを実行します。app・DB・起動処理の統合テストはライブラリ側の `packages/client-js/tests/level-bot/` に移し、`pnpm --filter dismock test:integration` または `pnpm test` で実行します。
 
 普段の app に実行内容を表示する場合:
 
@@ -368,7 +374,7 @@ pnpm lint        # lint のみ（dist と node_modules は対象外）
 pnpm check:py    # Python の Ruff lint・整形チェック（uv が必要）
 ```
 
-型チェックは Web・Server・JS クライアントに加え、サンプル app / Bot 本体 / DB / Drizzle 設定も対象です。 手書きのソース・テスト・開発スクリプトは `.ts`（JSX が必要な場合 `.tsx`）に統一しています。Node 組み込みテストは TypeScript を直接実行し、`packages/client-js` の Node テスト（`*.node.test.ts`）と Vitest テスト（`*.test.ts`）は重複実行しません。配布用 `dist/*.js`・`dist/*.cjs`・`dist/*.mjs` のみビルドで生成します。`pnpm check:ts` は手書き JavaScript を検出します。Bot と DB はルートの TypeScript 設定を継承します。`pnpm bot:client` は `tsx` と Bot の tsconfig を使い、`@ex/db`・`@discord-mock/client-js` もソースから読み込むため、それらの古い `dist` に依存しません。型チェックのためのビルドも不要です。VS Code は `node_modules/typescript/lib` の workspace TypeScript を参照します。
+型チェックは Web・Server・JS クライアントに加え、サンプル app / Bot 本体 / DB / Drizzle 設定も対象です。 手書きのソース・テスト・開発スクリプトは `.ts`（JSX が必要な場合 `.tsx`）に統一しています。Node 組み込みテストは TypeScript を直接実行し、`packages/client-js` の Node テスト（`*.node.test.ts`）と Vitest テスト（`*.test.ts`）は重複実行しません。配布用 `dist/*.js`・`dist/*.cjs`・`dist/*.mjs` のみビルドで生成します。`pnpm check:ts` は手書き JavaScript を検出します。Bot と DB はルートの TypeScript 設定を継承します。`pnpm bot:client` は `tsx` と Bot の tsconfig を使い、`@ex/db`・`dismock/client` もソースから読み込むため、それらの古い `dist` に依存しません。型チェックのためのビルドも不要です。VS Code は `node_modules/typescript/lib` の workspace TypeScript を参照します。
 
 VS Code が自動検出する `tsconfig.json` を、Web・Server・JSクライアントの各 `tests/` とルート `scripts/` に置き、CLIでも同じ設定を検証します。テスト用の設定は既存の `tsconfig.test.json` を継承し、ソース側の厳密な型チェックは維持します。JSクライアントのソースとVitest設定にも専用の `tsconfig.json` を使用します。保存済みコードではエラーが出ず、エディターだけに古い診断が残る場合は、関連ファイルを保存し、コマンドパレットから `TypeScript: Restart TS Server` を実行してください。
 

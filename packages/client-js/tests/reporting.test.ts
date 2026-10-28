@@ -4,7 +4,7 @@ import {
   createTestEnvironment,
   type TestRunSummary,
   type TestRunView,
-} from "@discord-mock/client-js/testing";
+} from "dismock/e2e";
 
 async function adminCookie(url: string): Promise<string> {
   const response = await fetch(`${url}/_admin/session`, {

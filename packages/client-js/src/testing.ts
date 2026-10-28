@@ -24,6 +24,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 import { disMockClient } from "./index.js";
+import { createRequire } from "node:module";
+declare const __DISMOCK_BUNDLE__: boolean;
 import { TestReporter } from "./test-reporter.js";
 import type {
   MockTestController,
@@ -33,10 +35,33 @@ import type {
 } from "./testing-types.js";
 export type * from "./testing-types.js";
 export type * from "./test-runs.js";
+/** 利用側のテスト用アダプターから宣言マージして独自の検証 API を追加する。 */
+// biome-ignore lint/suspicious/noEmptyInterface: 利用側が宣言マージで追加する公開の拡張点。
+export interface BotTestExtensions {}
+export {
+  configureE2E,
+  installE2ERunner,
+  test,
+  it,
+  expect,
+  describe,
+} from "./e2e-context.js";
+export type * from "./e2e-context.js";
+export { defineE2EConfig, createSharedDatabaseSetup } from "./e2e-config.js";
+export type * from "./e2e-config.js";
+export { resolveTestUsers } from "./e2e-users.js";
+export type { TestUserTarget } from "./e2e-users.js";
+export { runTestClient, getTestClient } from "./project-entry.js";
+export { startEphemeralDatabase } from "./embedded-database.js";
+export type * from "./embedded-database.js";
+export type * from "./project-entry.js";
+export { monitorApp } from "./app-monitor.js";
+export type * from "./database-types.js";
 
-interface TestRuntime {
+export interface LocalMockRuntime {
   url: string;
   token: string;
+  adminSecret: string;
   testing: MockTestController;
   close(): Promise<void>;
 }
@@ -46,13 +71,38 @@ interface TestServerModule {
       port: number;
       initialState?: TestEnvironmentOptions["fixture"];
     },
-  ): Promise<TestRuntime>;
+  ): Promise<LocalMockRuntime>;
+}
+
+export interface LocalMockOptions {
+  port?: number;
+  tokenPath?: string;
+  statePath?: string;
+  database?: import("./database-types.js").DatabaseInspector;
+  testCases?: {
+    list(): Promise<Array<{ id: string; name: string }>>;
+    start(id: string, selectedUserId?: string): Promise<void>;
+    status(): { runningId: string | null; error: string | null };
+    close(): Promise<void>;
+  };
+}
+export function startLocalMock(
+  options: LocalMockOptions = {},
+): Promise<LocalMockRuntime> {
+  if (typeof __DISMOCK_BUNDLE__ === "undefined") {
+    const compiled = createRequire(import.meta.url)("../dist/testing.cjs") as {
+      startLocalMock(options: LocalMockOptions): Promise<LocalMockRuntime>;
+    };
+    return compiled.startLocalMock(options);
+  }
+  const server = require("../../../apps/server/src/server.ts") as {
+    startMock(options: LocalMockOptions): Promise<LocalMockRuntime>;
+  };
+  return server.startMock(options);
 }
 
 // ビルド時にサーバー・Web・ws を取り込み、このサブパスだけで実行できるようにする。
 // 型は公開契約で定義し、SDK の型生成にサーバーのソースツリーを要求しない。
-const { startMock } =
-  require("../../../apps/server/src/server.ts") as TestServerModule;
 
 async function withDeadline<T>(
   operation: Promise<T>,
@@ -81,7 +131,19 @@ async function withDeadline<T>(
 export async function createTestEnvironment(
   options: TestEnvironmentOptions = {},
 ): Promise<TestEnvironment> {
-  const reporter = options.reportTo ? new TestReporter(options.reportTo) : undefined;
+  if (typeof __DISMOCK_BUNDLE__ === "undefined") {
+    const compiled = createRequire(import.meta.url)("../dist/testing.cjs") as {
+      createTestEnvironment(
+        options: TestEnvironmentOptions,
+      ): Promise<TestEnvironment>;
+    };
+    return compiled.createTestEnvironment(options);
+  }
+  const { startMock } =
+    require("../../../apps/server/src/server.ts") as TestServerModule;
+  const reporter = options.reportTo
+    ? new TestReporter(options.reportTo)
+    : undefined;
   const runtime = await startMock({
     port: 0,
     initialState: options.fixture,
@@ -93,7 +155,9 @@ export async function createTestEnvironment(
   try {
     if (reporter) {
       await reporter.start(controller.snapshot());
-      unsubscribe = controller.subscribe((snapshot) => reporter.changed(snapshot));
+      unsubscribe = controller.subscribe((snapshot) =>
+        reporter.changed(snapshot),
+      );
     }
   } catch (error) {
     await runtime.close();
@@ -132,14 +196,24 @@ export async function createTestEnvironment(
     commands: controller.commands,
     as: (user) => {
       const actor = controller.as(user);
-      const name = controller.users.get(typeof user === "string" ? user : user.id)?.username ?? "ユーザー";
+      const name =
+        controller.users.get(typeof user === "string" ? user : user.id)
+          ?.username ?? "ユーザー";
       return {
         async sendMessage(channelId, content) {
-          if (reporter) await reporter.report({ step: `${name} がメッセージを送信` }, controller.snapshot());
+          if (reporter)
+            await reporter.report(
+              { step: `${name} がメッセージを送信` },
+              controller.snapshot(),
+            );
           return actor.sendMessage(channelId, content);
         },
         async runCommand(channelId, name, options) {
-          if (reporter) await reporter.report({ step: `/${name} を実行` }, controller.snapshot());
+          if (reporter)
+            await reporter.report(
+              { step: `/${name} を実行` },
+              controller.snapshot(),
+            );
           return actor.runCommand(channelId, name, options);
         },
       };
@@ -184,8 +258,11 @@ export async function createTestEnvironment(
         try {
           await reporter?.close(controller.snapshot());
         } finally {
-          try { await disconnect(); }
-          finally { await runtime.close(); }
+          try {
+            await disconnect();
+          } finally {
+            await runtime.close();
+          }
         }
       })();
       return closing;

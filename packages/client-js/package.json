@@ -1,36 +1,52 @@
 {
-  "name": "@discord-mock/client-js",
+  "name": "dismock",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": {
+    "./client": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./testing": {
+    "./e2e": {
       "types": "./dist/testing.d.ts",
       "default": "./dist/testing.cjs"
+    },
+    "./e2e/runner": {
+      "types": "./dist/case-runner.d.ts",
+      "default": "./dist/runner.cjs"
+    },
+    "./runtime": {
+      "types": "./dist/project-runtime.d.ts",
+      "default": "./dist/project-runtime.cjs"
     }
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "engines": {
     "node": ">=24.17.0"
   },
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/index.js && esbuild src/testing.ts --bundle --platform=node --target=node24 --format=cjs --loader:.css=text --outfile=dist/testing.cjs && tsc -p tsconfig.build.json",
+    "build": "node scripts/build.ts",
     "typecheck": "tsc -p tsconfig.json && tsc -p tests/tsconfig.json",
-    "test": "tsc -p tests/tsconfig.json && node --test tests/*.node.test.ts && vitest run",
+    "test": "tsc -p tests/tsconfig.json && node --test tests/*.node.test.ts && vitest run && pnpm test:integration",
+    "test:integration": "tsx --tsconfig ../../examples/level_bot/tsconfig.json --test tests/level-bot/*.node.test.ts",
     "test:automation": "vitest run"
+  },
+  "peerDependencies": { "vitest": "^5.0.5" },
+  "peerDependenciesMeta": { "vitest": { "optional": true } },
+  "optionalDependencies": {
+    "@electric-sql/pglite": "0.5.11",
+    "@electric-sql/pglite-socket": "0.2.14",
+    "tsx": "4.23.15"
   },
   "devDependencies": {
     "@sapphire/framework": "5.5.1",
     "discord.js": "14.27.0",
-    "vitest": "5.0.5"
+    "vitest": "5.0.5",
+    "pg": "^8.15.6",
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.9.0"
   }
 }

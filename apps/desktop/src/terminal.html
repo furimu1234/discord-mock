@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline';">
+<title>discord-mock | Bot ターミナル</title>
+<style>
+html,body{margin:0;background:#15171f;color:#e6edf8;height:100%;font:13px/1.6 Consolas,Monaco,monospace}
+header{height:44px;display:flex;align-items:center;padding:0 16px;background:#222632;font-weight:bold}
+#output{height:calc(100% - 64px);overflow:auto;padding:10px 16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.log-stderr{color:#ff9ea9}.log-system{color:#a5baf5}.log-stdout{color:#edf1ff}
+</style><script defer src="./terminal.js"></script></head>
+<body><header>Bot ターミナル ─ stdout / stderr</header><main id="output" role="log" aria-live="polite"></main></body>
+</html>

@@ -476,3 +476,8 @@ Python の `discord.py` / `commands.Bot` は、[`packages/client-py/README.md`](
 **現時点でDiscord本番APIとの完全互換を保証するものではありません。**
 `multipart/form-data` の `payload_json` と `files[n]` によるバイナリ添付にも対応します。添付ファイルはMockがメモリ内で保持してローカルURLから取得できますが、App再起動で消えます。Poll投票、コンポーネント押下、レートリミットなどは未実装です。フィールド対応と機能の実動作は区別してください。
 詳細は [Message API対応範囲](spec/messages.md) を参照してください。
+
+
+## Electron デスクトップ版（Windows / macOS / Linux）
+
+Web版と同じMock ServerをElectronに組み込み、Discordテスト画面・管理画面・Botターミナルを別ウィンドウで起動します。ポータブルexe、macOS .app、Linux AppImage のビルド方法・実行手順・制約は [apps/desktop/README.md](apps/desktop/README.md) を参照してください。Webの `/admin` ではCLIに表示される管理シークレットを使用し、ユーザー・チャンネル・ロール・権限を編集できます。Mock状態のJSON保存、ループバック限定、テストセッションと管理セッションの分離は維持します。

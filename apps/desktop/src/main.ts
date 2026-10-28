@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, session, type IpcMainInvokeEvent } from "electron";
 import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { MockRuntime, ServerOptions } from "../../server/src/server.js";
 import { BotProcess } from "./bot-process.js";
 
@@ -33,6 +33,14 @@ function localWindow(title: string, width: number, height: number, preload?: str
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-attach-webview", (event) => event.preventDefault());
   return window;
+}
+
+/** 配布物を testclient と同階層に配置した場合は、その階層を初期作業フォルダーにする。 */
+function clientDirectory(): string {
+  if (process.env.PORTABLE_EXECUTABLE_DIR) return process.env.PORTABLE_EXECUTABLE_DIR;
+  if (process.env.APPIMAGE) return dirname(process.env.APPIMAGE);
+  if (app.isPackaged && process.platform === "darwin") return resolve(dirname(process.execPath), "../../..");
+  return process.cwd();
 }
 
 function registerWindowNavigation(window: BrowserWindow, kind: "test" | "admin", url: string): void {
@@ -74,7 +82,7 @@ async function start(): Promise<void> {
   });
 
   const current = mock;
-  const projectCwd = process.env.PORTABLE_EXECUTABLE_DIR || process.cwd();
+  const projectCwd = clientDirectory();
   bot = new BotProcess(join(dataDir, "bot-config.json"), () => ({
     DISCORD_MOCK_URL: current.url,
     DISCORD_MOCK_TOKEN: current.token,

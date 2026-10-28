@@ -736,3 +736,30 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
 .message-edit-actions button.danger { border-color: #b85d6b; background: #a74254; }
 .message-edit-actions button:disabled { opacity: .5; cursor: wait; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+
+/* 認証付き管理画面: テスト画面と同じ配色を使用 */
+.admin-page { grid-column: 3; height: 100%; overflow-y: auto; padding: 24px; background: #1c1d24; color: #edf1ff; }
+.admin-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.admin-heading h1 { margin: 0 0 16px; font-size: 24px; }
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); align-items: start; gap: 16px; }
+.admin-box { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; border: 1px solid #3b4256; background: #252833; margin: 12px 0; min-width: 0; }
+.admin-box h2 { font-size: 16px; margin: 0; }
+.admin-box p { color: #b8c3dc; font-size: 12px; margin: 0; }
+.admin-box form { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-box label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: #cbd5ec; }
+.admin-box input, .admin-box textarea, .admin-box select { max-width: 100%; min-width: 0; flex: 1; padding: 8px 10px; border: 1px solid #505a78; border-radius: 5px; background: #181c28; color: #f2f5ff; font: inherit; }
+.admin-box button { padding: 7px 10px; border-radius: 5px; border: 1px solid #657bbd; background: #465b92; color: #f4f7ff; cursor: pointer; font: inherit; }
+.admin-box button:hover { background: #596fa8; }
+.admin-list { max-height: 140px; overflow-y: auto; border: 1px solid #3c4358; border-radius: 6px; }
+.admin-list > button, .admin-item button { width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid #3c4358; font-size: 12px; }
+.admin-editor { display: flex; flex-direction: column; gap: 9px; border-top: 1px solid #444d63; padding-top: 12px; }
+.admin-permissions { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 8px; max-height: 260px; overflow-y: auto; }
+.admin-permissions label, #admin-member-roles label { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.admin-permissions input, #admin-member-roles input { flex: 0 0 auto; }
+#admin-channel-editor > div { max-height: 260px; overflow-y: auto; display: grid; gap: 6px; }
+#admin-channel-editor > div label { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 8px; }
+#admin-channel-editor > div select { flex: 0 0 100px; }
+.admin-buttons { display: flex; flex-wrap: wrap; gap: 9px; }
+#admin-status { color: #b4daff; font-size: 12px; min-height: 1.3em; }
+@media (max-width: 780px) { .admin-page { grid-column: 1; grid-row: 3; padding: 12px; } }

@@ -74,7 +74,7 @@ test("Vitest 5の階層名を指定すると実際に対象1件だけが実行�
   const { stdout, stderr } = await promisify(execFile)(
     process.execPath,
     [vitest, "run", "--config", "vitest.config.ts", "tests/bot/showLvl.test.ts", "--testNamePattern", name],
-    { cwd, env: { ...process.env, DISCORD_MOCK_REPORT_URL: "off" }, timeout: 40_000 },
+    { cwd, env: { ...process.env, DISCORD_MOCK_REPORT_URL: "" }, timeout: 40_000 },
   );
   assert.match(stdout + stderr, /1 passed/);
   assert.doesNotMatch(stdout + stderr, /Tests\s+6 skipped/);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {test} from "node:test";
 import {Client} from "discord.js";
 import {SapphireClient} from "@sapphire/framework";
-const {disMockClient, disMockMixin} = await import(new URL("../dist/index.js", import.meta.url).href);
+const {disMockClient, disMockMixin} = await import(new URL("../dist/index.js", import.meta.url).href) as typeof import("../src/index.js");
 
 test("discord.js Client inherits all existing methods and uses local API route", () => {
   class MyBot extends Client { myMethod() {return 42;} }

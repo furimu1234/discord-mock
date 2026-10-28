@@ -69,7 +69,7 @@ export function restoreCommands(value: unknown, guildId: string): MockApplicatio
     if (ids.has(command.id) || names.has(key)) throw new CommandValidationError("Duplicate saved command");
     ids.add(command.id);
     names.add(key);
-    const scope = command.guild_id ?? "global";
+    const scope = typeof command.guild_id === "string" ? command.guild_id : "global";
     const count = (scopeCounts.get(scope) ?? 0) + 1;
     if (count > 100) throw new CommandValidationError("Too many saved commands in one scope");
     scopeCounts.set(scope, count);

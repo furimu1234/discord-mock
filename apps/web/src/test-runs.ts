@@ -220,8 +220,10 @@ export class TestRunChatView {
     // pointerdown はclickより先に発火。別ユーザーのプロフィールを開く操作も妨げない。
     document.addEventListener("pointerdown", (event) => {
       const target = event.target;
-      if (!this.userMenu.contains(target)) this.userMenu.classList.toggle("hidden", true);
-      if (!this.userProfile.contains(target)) this.userProfile.classList.toggle("hidden", true);
+      if (!(target instanceof Node) || !this.userMenu.contains(target))
+        this.userMenu.classList.toggle("hidden", true);
+      if (!(target instanceof Node) || !this.userProfile.contains(target))
+        this.userProfile.classList.toggle("hidden", true);
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {

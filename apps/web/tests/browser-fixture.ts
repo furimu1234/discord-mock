@@ -129,6 +129,7 @@ export function createBrowserFixture(pathname = "/") {
     fireDocument,
     globals: {
       location: { pathname },
+      Node: Element,
       document: {
         getElementById: (id) => elements[id],
         createElement: (tag) => new Element(tag),

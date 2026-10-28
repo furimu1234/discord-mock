@@ -38,7 +38,11 @@ export class BrowserRoutes {
   private getSession(request: IncomingMessage): BrowserSession | undefined {
     const sessionId = /(?:^|;\s*)discord_mock_session=([a-f0-9]{48})(?:;|$)/
       .exec(request.headers.cookie ?? "")?.[1];
-    return sessionId ? this.sessions.get(sessionId) : undefined;
+    const session = sessionId ? this.sessions.get(sessionId) : undefined;
+    if (session && !this.environment.state.users.some((user) => user.id === session.selectedUserId)) {
+      session.selectedUserId = this.environment.state.users[0]?.id ?? "";
+    }
+    return session;
   }
 
   private openSession(request: IncomingMessage, response: ServerResponse): void {

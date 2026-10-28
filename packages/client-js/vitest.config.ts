@@ -5,7 +5,7 @@ export default defineConfig({
   // テストは手動ビルドした配布物を検証し、型チェックはソースを参照する。
   resolve: {
     alias: {
-      "@discord-mock/client-js/testing": fileURLToPath(
+      "dismock/e2e": fileURLToPath(
         new URL("./dist/testing.cjs", import.meta.url),
       ),
     },

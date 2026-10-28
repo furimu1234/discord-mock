@@ -1,13 +1,14 @@
+import { required } from "./required.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { setTimeout as pause } from "node:timers/promises";
-import { startLevelBot } from "../../packages/bot/src/local.js";
+import { startLevelBot } from "../../../../examples/level_bot/packages/bot/src/testClient.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import pg from "pg";
-import { startApp } from "../helpers/built-app.js";
+import { startApp } from "./built-app.js";
 import type {
   DatabasePage,
   DatabaseTable,
@@ -27,9 +28,9 @@ test(
         fetch(`${mock.url}${path}`, options);
       const dummyResponse = await request("/_ui/session");
       const dummy = await dummyResponse.json();
-      const dummyCookie = dummyResponse.headers
-        .get("set-cookie")!
-        .split(";")[0];
+      const dummyCookie = required(
+        dummyResponse.headers.get("set-cookie"),
+      ).split(";")[0];
       assert.equal((await request("/database")).status, 200);
       assert.deepEqual(await (await request("/_admin/session")).json(), {
         authenticated: false,
@@ -73,12 +74,12 @@ test(
       });
       assert.equal(login.status, 200);
       assert.match(
-        login.headers.get("set-cookie")!,
+        required(login.headers.get("set-cookie")),
         /HttpOnly; SameSite=Strict; Path=\/_admin; Max-Age=3600/,
       );
       const session = await login.json();
       const headers = {
-        cookie: login.headers.get("set-cookie")!.split(";")[0],
+        cookie: required(login.headers.get("set-cookie")).split(";")[0],
       };
 
       // Write using the same PostgreSQL wire endpoint used by the Bot's pg/Drizzle code.
@@ -231,23 +232,35 @@ test(
   },
 );
 
-
 test("任意のテーブルに書いたPGliteレコードをテスト終了後用に取得できる", async () => {
-  const { startEphemeralDatabase } = await import("../../src/database.js");
-  const { captureTestDatabase } = await import("../../src/database-inspector.js");
+  const { startEphemeralDatabase } = await import("./built-app.js");
+  const { captureTestDatabase } = await import("dismock/runtime");
   const database = await startEphemeralDatabase();
   try {
     await database.db.query(
       "INSERT INTO example.lvl (server_id, user_id, lvl) VALUES ($1,$2,$3)",
       ["123456789000000003", "123456789000000099", 2],
     );
-    await database.db.exec("CREATE SCHEMA extra; CREATE TABLE extra.custom_feature(id integer, value text);");
-    await database.db.query("INSERT INTO extra.custom_feature VALUES ($1, $2)", [1, "hello from bot"]);
+    await database.db.exec(
+      "CREATE SCHEMA extra; CREATE TABLE extra.custom_feature(id integer, value text);",
+    );
+    await database.db.query(
+      "INSERT INTO extra.custom_feature VALUES ($1, $2)",
+      [1, "hello from bot"],
+    );
     const captured = await captureTestDatabase(database.db);
-    const levels = captured.tables.find(t => t.schema === "example" && t.name === "lvl");
+    const levels = captured.tables.find(
+      (t) => t.schema === "example" && t.name === "lvl",
+    );
     assert.ok(levels);
-    assert.ok(levels.rows.some(row => row[2] === "123456789000000099" && row[3] === 2));
-    const custom = captured.tables.find(t => t.schema === "extra" && t.name === "custom_feature");
+    assert.ok(
+      levels.rows.some(
+        (row) => row[2] === "123456789000000099" && row[3] === 2,
+      ),
+    );
+    const custom = captured.tables.find(
+      (t) => t.schema === "extra" && t.name === "custom_feature",
+    );
     assert.ok(custom);
     assert.deepEqual(custom.rows, [[1, "hello from bot"]]);
   } finally {
@@ -255,62 +268,79 @@ test("任意のテーブルに書いたPGliteレコードをテスト終了後�
   }
 });
 
-test("複数の独立したBot UTがAppの同じPGliteを利用し、実際の投稿でレベルを累積する", {
-  timeout: 30_000,
-}, async () => {
-  const directory = await mkdtemp(join(tmpdir(), "discord-mock-shared-db-"));
-  const { startMock } = createRequire(import.meta.url)("../../../../apps/server/dist/server.cjs") as
-    typeof import("../../../../apps/server/src/server.js");
-  const app = await startApp({ port: 0, dataDir: directory });
-  const pool = new pg.Pool({ connectionString: app.database.dsn, max: 1 });
-  try {
-    for (const expected of [2, 3]) {
-      const mock = await startMock({ port: 0 });
-      let bot: Awaited<ReturnType<typeof startLevelBot>> | undefined;
-      try {
-        bot = await startLevelBot(mock.url, mock.token, app.database.dsn);
-        const user = mock.testing.users.findByName("Alice");
-        const channel = mock.testing.channels.findByName("general");
-        assert.ok(user);
-        assert.ok(channel);
-        await mock.testing.as(user).sendMessage(channel.id, `共有DBのレベル検証${expected}`);
-        let current: number | undefined;
-        const deadline = Date.now() + 6000;
-        while (Date.now() < deadline) {
-          const result = await pool.query<{ lvl: number }>(
-            "SELECT lvl FROM example.lvl WHERE server_id = $1 AND user_id = $2",
-            [mock.testing.guild.id, user.id],
+test(
+  "複数の独立したBot UTがAppの同じPGliteを利用し、実際の投稿でレベルを累積する",
+  {
+    timeout: 30_000,
+  },
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "discord-mock-shared-db-"));
+    const { startMock } = createRequire(import.meta.url)(
+      "../../../../apps/server/dist/server.cjs",
+    ) as typeof import("../../../../apps/server/src/server.js");
+    const app = await startApp({ port: 0, dataDir: directory });
+    const pool = new pg.Pool({ connectionString: app.database.dsn, max: 1 });
+    try {
+      for (const expected of [2, 3]) {
+        const mock = await startMock({ port: 0 });
+        let bot: Awaited<ReturnType<typeof startLevelBot>> | undefined;
+        try {
+          bot = await startLevelBot(mock.url, mock.token, app.database.dsn);
+          const user = mock.testing.users.findByName("Alice");
+          const channel = mock.testing.channels.findByName("general");
+          assert.ok(user);
+          assert.ok(channel);
+          await mock.testing
+            .as(user)
+            .sendMessage(channel.id, `共有DBのレベル検証${expected}`);
+          let current: number | undefined;
+          const deadline = Date.now() + 6000;
+          while (Date.now() < deadline) {
+            const result = await pool.query<{ lvl: number }>(
+              "SELECT lvl FROM example.lvl WHERE server_id = $1 AND user_id = $2",
+              [mock.testing.guild.id, user.id],
+            );
+            current = result.rows[0]?.lvl;
+            if (current === expected) break;
+            await pause(50);
+          }
+          assert.equal(
+            current,
+            expected,
+            "独立したBot再起動後もレベルは同一DBに蓄積される",
           );
-          current = result.rows[0]?.lvl;
-          if (current === expected) break;
-          await pause(50);
+        } finally {
+          await bot?.close();
+          await mock.close();
         }
-        assert.equal(current, expected, "独立したBot再起動後もレベルは同一DBに蓄積される");
-      } finally {
-        await bot?.close();
-        await mock.close();
       }
-    }
 
-    // WebのDB ExplorerとBotから見たレコードは同じ。
-    const login = await fetch(`${app.mock.url}/_admin/session`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-discord-mock-local": "1" },
-      body: "{}",
-    });
-    assert.equal(login.status, 200);
-    const cookie = login.headers.get("set-cookie")?.split(";")[0];
-    assert.ok(cookie);
-    const result = await fetch(`${app.mock.url}/_admin/database/rows?schema=example&table=lvl`, {
-      headers: { cookie },
-    });
-    assert.equal(result.status, 200);
-    const data = await result.json() as DatabasePage;
-    assert.equal(data.totalRows, 1);
-    assert.equal(data.rows[0][3], 3);
-  } finally {
-    await pool.end();
-    await app.close();
-    await rm(directory, { recursive: true, force: true });
-  }
-});
+      // WebのDB ExplorerとBotから見たレコードは同じ。
+      const login = await fetch(`${app.mock.url}/_admin/session`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-discord-mock-local": "1",
+        },
+        body: "{}",
+      });
+      assert.equal(login.status, 200);
+      const cookie = login.headers.get("set-cookie")?.split(";")[0];
+      assert.ok(cookie);
+      const result = await fetch(
+        `${app.mock.url}/_admin/database/rows?schema=example&table=lvl`,
+        {
+          headers: { cookie },
+        },
+      );
+      assert.equal(result.status, 200);
+      const data = (await result.json()) as DatabasePage;
+      assert.equal(data.totalRows, 1);
+      assert.equal(data.rows[0][3], 3);
+    } finally {
+      await pool.end();
+      await app.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);

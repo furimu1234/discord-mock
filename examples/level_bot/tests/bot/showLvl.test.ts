@@ -1,4 +1,4 @@
-import { describe, test, expect } from "../helpers/bot-test.js";
+import { describe, test, expect } from "dismock/e2e";
 
 describe("/レベル確認", () => {
   test(

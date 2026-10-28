@@ -4,24 +4,20 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/app.ts src/app-runtime.ts src/database.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outdir=dist --out-extension:.js=.mjs",
-    "test": "pnpm test:integration && pnpm test:bot",
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm test:bot",
     "typecheck": "tsc -p tsconfig.json",
-    "lint": "biome lint --error-on-warnings src packages scripts tests biome.json tsconfig.json package.json vitest.config.ts vitest.web.config.ts",
-    "app": "node dist/app.mjs",
-    "start": "tsx --tsconfig packages/bot/tsconfig.json src/bot.ts",
+    "lint": "biome lint --error-on-warnings packages scripts tests biome.json tsconfig.json package.json",
+    "app": "tsx --tsconfig packages/bot/tsconfig.json packages/bot/src/testClient.ts --app",
+    "start": "tsx --tsconfig packages/bot/tsconfig.json packages/bot/src/testClient.ts --bot",
     "demo": "tsx --tsconfig tsconfig.json scripts/demo.ts",
     "test:level": "pnpm test:bot",
     "test:level:web": "pnpm test:bot:web",
-    "test:integration": "tsx --tsconfig tsconfig.json --test tests/integration/*.test.ts",
-    "test:bot": "vitest run",
-    "test:bot:web": "vitest run --config vitest.web.config.ts"
+    "test:bot": "tsx --tsconfig packages/bot/tsconfig.json packages/bot/src/testClient.ts --test",
+    "test:bot:web": "tsx --tsconfig packages/bot/tsconfig.json packages/bot/src/testClient.ts --test-web"
   },
   "dependencies": {
-    "@discord-mock/client-js": "workspace:*",
-    "@electric-sql/pglite": "0.5.11",
-    "@electric-sql/pglite-socket": "0.2.14",
-    "pg": "^8.15.6"
+    "dismock": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "^8.23.1",

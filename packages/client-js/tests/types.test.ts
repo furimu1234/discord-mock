@@ -1,9 +1,17 @@
 import { Client, type ClientOptions } from "discord.js";
 import type { SapphireClient } from "@sapphire/framework";
-import { disMockClient, disMockClientClass, disMockMixin } from "../src/index.js";
+import {
+  Client as mockClient,
+  disMockClient,
+  disMockClientClass,
+  disMockMixin,
+} from "../src/index.js";
 
 class CustomBot extends Client {
-  constructor(readonly label: string, options: ClientOptions) {
+  constructor(
+    readonly label: string,
+    options: ClientOptions,
+  ) {
     super(options);
   }
 
@@ -17,6 +25,18 @@ function verifyPublicTypes(client: Client, sapphire: SapphireClient): void {
   const wrappedSapphire: SapphireClient = disMockClient(sapphire).client;
   wrappedClient.emit("customEvent", { userId: "alice" });
   wrappedSapphire.emit("customEvent", { userId: "alice" });
+  const start = mockClient(client, async (original, connect) => {
+    const same: Client = original;
+    await connect();
+    return { same, failures: [] as Error[] };
+  });
+  const returned: Promise<{ same: Client; failures: Error[] }> =
+    start("mock_test");
+  void returned;
+  const sapphireStart = mockClient(sapphire, async () => ({
+    client: sapphire,
+  }));
+  void sapphireStart;
 
   class MixedBot extends disMockMixin(CustomBot) {}
   const mixed = new MixedBot("test", { intents: [] });

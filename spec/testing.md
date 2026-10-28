@@ -1,6 +1,8 @@
 # JS 自動テスト API（初版）
 
-`@discord-mock/client-js/testing` の Node.js 所有者向け API。公開型は `packages/client-js/src/testing-types.ts` を Server と JS が共有する。Python の新 API は JS の仕様確定後に検討する。
+インストール対象は npm パッケージ `dismock`。Client の公開入口を `dismock/client`、E2E テスト環境の公開入口を `dismock/e2e` とする。以前の `@discord-mock/client-js` / `@discord-mock/client-js/testing` から変更し、物理ディレクトリは `packages/client-js/` のまま維持する。npm 名は小文字に統一する。REST / Gateway / Voice の仕様と Python クライアントの名前は変更しない。
+
+`dismock/e2e` の Node.js 所有者向け API。公開型は `packages/client-js/src/testing-types.ts` を Server と JS が共有する。Python の新 API は JS の仕様確定後に検討する。
 
 `createTestEnvironment({ fixture?, now?, timeoutMs? })` は `127.0.0.1:0` で専用の Mock を起動する。fixture は既存の Mock JSON / `snapshot()` の結果で、読み込み時にコピー・検証する。省略時は既定の Bot・単一 Guild・Alice / Bob・general・@everyone を作る。テスト環境が生成する `mock_` トークンを `connect(client)` で使用し、`.env` や本番サービスを必要としない。URL・トークン・状態を外部へ送信しない。
 
@@ -66,8 +68,42 @@ app の `/tests` では実行一覧・経過・メッセージ・Embed とコマ
 
 ## サンプル Bot のテスト構成
 
-`pnpm bot:test` は `examples/level_bot/tests/bot/**/*.test.ts` を Vitest で実行する。機能ごとの TS ファイルを置くと同じコマンドで検出する。Web / Server / SDK のテストはこのコマンドに含めない。`pnpm sample:test` は `tests/integration/*.test.ts` の app / DB / プロセス起動の検証も行う。
+利用側の起動ファイルから `runTestClient(import.meta.url, {bot, database?, extend?, root?, tsconfig?, name?, environment?, channel?})` を呼ぶ。ファイル名は固定せず、実行ファイルと `import.meta.url` の実パスが一致するときだけ CLI を起動する。import 時は設定登録だけを行う。`bot({url, token, databaseDsn?, onDisconnect?})` は既存 Bot のローカル接続を行い、`{close(), failures?}` を返す。Bot の `main.ts`・業務ロジックは変更しない。singleton を export する既存 Bot の再読込・DB接続終了など、Bot 固有の処理はこの起動ファイルで行う。
 
-共通の `tests/helpers/bot-test.ts` はテスト単位の fixture として実 Bot / Mock を起動・終了し、既存の共有 DB を利用する。テストのコンテキストは `{ bot, actor }` とし、`actor` に対象ユーザーの全情報（`id`・`username` など）と `sendMessage(content)` / `command(name)` をまとめる。別の `user` は渡さない。`bot.levels.get(actor)` / `bot.levels.set(actor, level)` にも同じ actor を渡せる。`users: { ids: [...] }` では指定順に対象ユーザーの actor を作成して本文を実行する。`bot.levels.set/get` はサンプル固有のデータ準備 / 確認用で、汎用 SDK の新 API ではない。HTTP ヘッダー・接続・後片付けは本文に含めない。Web 反映は既存の reportTo と管理セッションを使う。
+| 起動引数 | 動作 |
+| --- | --- |
+| なし | Mock・Web・任意の DB・Bot 子プロセスを起動。初回から生成したダミートークンを使用 |
+| `--test [tests配下の.test.ts] [--testNamePattern パターン]` | 配布済み Vitest 設定でテスト実行。App がなければ単一の一時 DB を共有 |
+| `--test-web` | 起動済み App へのレポートを必須にして全テスト実行 |
+| `--bot` | ローカル接続設定と `mock_` トークンを検証して Bot 単体起動 |
+| `--app` | 従来の初回トークン保存・次回からの Bot 自動起動 |
+
+App の起動・DB・プロセス監視・ケース実行はライブラリ側へ移し、利用側の `src` と Vitest 設定ファイルを不要にする。プロジェクトルートは起動ファイルの祖先で `tests` と `package.json` のあるディレクトリを優先し、見つからなければ最寄りの `package.json` を使う。`root` / `tsconfig` の明示指定も可能。CLI からは任意の Vitest 設定・任意の OS コマンドを受け取らない。テストファイル引数は実パスを検証し、プロジェクトの `tests` の外や `.test.ts` 以外を拒否する。
+
+`database: {sql?}` を指定すると PGlite とループバック限定・動的ポートの TCP リスナーを起動する。SQL とスキーマは Bot 側が持ち、ライブラリにレベル Bot 固有のテーブル定義は含めない。App 稼働中は同じ DB を通常 Bot と全 UT が共有し、ケース間で初期化しない。App なしでは Vitest globalSetup が DB を1つ所有して終了時に閉じる。DB不要の Bot では database を省略する。PGlite・socket・TypeScript 起動用 tsx は optionalDependencies とし、これらの機能を使う場合だけ読み込む。テスト実行には利用側の optional peer Vitest 5 が必要。
+
+App の `.discord-mock-data/runtime.json` は `schemaVersion: 1`、ループバックの `url` と任意の `postgresDsn` を持つ。DSN の外部ホスト・接続先を上書きするクエリパラメーターを拒否する。接続設定は権限0600の一時ファイルを rename して保存し、App / Bot の排他ロックと終了処理を維持する。既定の待受先は127.0.0.1で、ポート・保存先・JSON状態パスは既存の環境変数から指定する。終了時に Bot 子プロセス・テスト・Mock・DB を閉じ、接続設定とロックを除去する。直接実行の CLI だけがシグナルとプロセス終了を扱い、createTestEnvironment やプログラム用 startApp は process.exit を呼ばない。
+
+プログラムからの起動・読込・DB検査は `dismock/runtime` の `startApp({entry, ...})` / `loadTestClient(entry)` としても公開する。Bot 単体やテスト fixture が重いケース収集用 TypeScript パーサーを常時読み込まないよう、App runtime を遅延ロードする。任意名の起動ファイル、ファイル名変更後の実行、利用側の src・helpers・integration・Vitest 設定がない npm インストール環境を実テストで検証する。Discord プロトコルと Python API は変更しない。
+
+`pnpm bot:test` / `pnpm sample:test` は `examples/level_bot/tests/**/*.test.ts` を Vitest で実行する。`tests` 直下・任意のサブフォルダーを同じコマンドで検出する。利用側にはテストケースだけを置き、helpers / integration は不要とする。app / DB / プロセス起動の統合テストは `packages/client-js/tests/level-bot/*.node.test.ts` へ移し、`pnpm --filter dismock test:integration` とライブラリの通常の test で検証する。
+
+共通 fixture は `dismock/e2e` の `test` / `expect` / `describe` として提供する。`configureE2E({start, extend?, environment?, channel?})` を既存のテスト用 Bot アダプターで一度だけ呼び、Bot 固有の起動・終了と検証 API を登録する。テストのコンテキストは `{ bot, actor }` とし、`actor` に対象ユーザーの全情報（`id`・`username` など）と `sendMessage(content)` / `command(name)` をまとめる。別の `user` は渡さない。`users: { ids: [...] }` では指定順に対象ユーザーの actor を作成して本文を実行する。標準 bot は mock / guild / channel / users / channels / roles / messages() / as(user) を提供する。extend は標準名を上書きできない。`bot.levels.set/get` はサンプルのアダプターに置き、汎用ライブラリへレベル DB のスキーマや Drizzle 処理を埋め込まない。独自 API の型は公開の `BotTestExtensions` を宣言マージする。HTTP ヘッダー・接続・後片付けは本文に含めない。Web 反映は既存の reportTo と管理セッションを使う。
+
+`defineE2EConfig({setup, globalSetup?, runtimeFile?, root?, requireWeb?, resolve?})` は tests 配下の再帰検索と配布済みの Vitest setup を設定する。Vitest は optional peer とし、低レベルの createTestEnvironment / Node.js Bot アダプターの import 時には読み込まない。setup はプロジェクト所有者のローカル設定で指定し、ブラウザからファイルパスを受け取らない。`createSharedDatabaseSetup(startDatabase)` は既存の DB 起動関数を Vitest globalSetup として使い、実行全体で1つの DB を所有して終了時に閉じる。App がある場合は runtimeFile のループバック URL / PostgreSQL DSN を検証し、App の DB を再利用する。ケース間で DB を初期化しない。
+
+`dismock/e2e/runner` の `LocalTestCaseRunner(origin, {root?, testsDir?, configFile?})` は TypeScript AST による静的ケース収集を利用側から取り除く。tests の相対パスとケース番号で ID を作り、同名ファイルを別ディレクトリとして区別する。シンボリックリンクと隠しディレクトリは追跡せず、プロジェクト外の testsDir を拒否する。HTTP の ID は再収集した登録済みケースと一致する場合だけ受け付け、引数配列で Vitest を起動する。公開 API の管理認証・CSRF・ブラウザ選択ユーザーの境界は変更しない。配布物にはケース解析用 TypeScript とそのライセンス・第三者表示を同梱する。
+
+2026-10-28 に Vitest の公開 [fixture API](https://vitest.dev/guide/test-context.html)、[setupFiles](https://vitest.dev/config/setupfiles.html)、[globalSetup](https://vitest.dev/config/globalsetup.html)、[include](https://vitest.dev/config/include.html) を確認した。Vitest 5.0.5 と npm 配布物を使い、helpers/integration のない別プロジェクトの tests 直下・任意階層・Web 個別実行を検証する。Discord プロトコルや Python API は追加しない。
 
 登録関数は通常の Client を受け取り、公開 `Client.isReady()` で Ready 後であることを確認してから、既存のローカル REST 設定を検証する。呼出側へ Client<true> の型アサーションを要求しない。2026-10-28 に [discord.js 14.27.0 の公開 Client API](https://discord.js.org/docs/packages/discord.js/14.27.0/Client:Class#isReady) と、上記の公式規約を確認した。Mock のプロトコルや本番への接続経路は追加しない。
+
+## 既存 Bot の起動関数をラップする JS API
+
+`Client(client, main, {baseUrl?})` は `(mockToken) => Promise<mainの戻り値>` を返す。Bot 本文を変更せず、公開 `rest.options.api` とインスタンスの公開 `login()` を利用する。`main(client, connect)` と引数なしの `main()` の両方を受け付ける。起動関数が行う login と connect は単一の接続にまとめ、元の環境変数の値ではなく引数のダミートークンを SDK に渡す。URL はループバック HTTP の origin、トークンは `mock_` に限定する。無効な入力では main を実行しない。
+
+接続前に登録済みの `clientReady` リスナーは Node.js の公開 `rawListeners` / `on` / `once` / `removeListener` で追跡し、イベントの発火と返された Promise の完了を待つ。login が Ready より先に解決しても待機を省略しない。登録順・this・引数・once の消費を維持し、起動終了時に残存リスナーと元の login のプロパティ属性を復元する。同じ Client の並行起動を拒否する。起動失敗時は Client を切断する。稼働中の REST 通信は引き続きローカルへ送る。main や Ready が起動する非同期処理は、その関数が返す Promise の範囲だけを追跡する。タイムアウトは利用先のテストランナーで設定する。
+
+モジュール import 時点での自動ログイン、別の REST インスタンス、Voice などの通信は対象外であり、全 Bot の変更不要を保証しない。新たな Discord プロトコル互換や Python API は追加しない。サンプルでは Bot の singleton モジュールをケースごとに別のクエリで import し、DB だけを共有する。npm pack の tarball を別プロジェクトに npm install し、公開 exports・型定義・既存 Bot の接続と返信を検証する。
+
+2026-10-28 に上記 Developer Terms / Developer Policy / Terms of Service / 公式資料ライセンス、[discord.js の公開 RESTOptions.api](https://discord.js.org/docs/packages/rest/2.6.0/RESTOptions:Interface#api)、[Node EventEmitter の公開 API](https://nodejs.org/api/events.html#emitterrawlistenerseventname)、[discord.js 14.27.0 の Apache-2.0 ライセンス](https://github.com/discordjs/discord.js/blob/14.27.0/LICENSE) を確認した。変更は利用者の Bot をローカルで起動する独自のラッパーとテストに限定し、公式コードの複製・本番データの取得・非公開 API の利用は追加しない。パッケージには SDK 自体を同梱しない。この確認を公開配布の許諾や公式承認の保証として扱わず、npm 公開の既存の明示的な有効化条件を維持する。

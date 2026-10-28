@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { test } from "node:test";
 import { LocalTestCaseRunner } from "../../src/test-case-runner.js";
 import { discoverTestCases } from "../../src/test-case-discovery.js";
@@ -60,4 +63,19 @@ test("実際のレベルテストはdescribeの二段階ネストもケース一
     assert.ok(cases.some((item) =>
       item.name === "/レベル確認 › 直接設定 › 任意のレベルを直接設定し、通常の投稿でさらにレベルアップできる"));
   } finally { await runner.close(); }
+});
+
+test("Vitest 5の階層名を指定すると実際に対象1件だけが実行され全skipにならない", {
+  timeout: 45_000,
+}, async () => {
+  const vitest = fileURLToPath(new URL("../../node_modules/vitest/vitest.mjs", import.meta.url));
+  const cwd = fileURLToPath(new URL("../../", import.meta.url));
+  const name = "^/レベル確認 > 直接設定 > 任意のレベルを直接設定し、通常の投稿でさらにレベルアップできる$";
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    [vitest, "run", "--config", "vitest.config.ts", "tests/bot/showLvl.test.ts", "--testNamePattern", name],
+    { cwd, env: { ...process.env, DISCORD_MOCK_REPORT_URL: "off" }, timeout: 40_000 },
+  );
+  assert.match(stdout + stderr, /1 passed/);
+  assert.doesNotMatch(stdout + stderr, /Tests\s+6 skipped/);
 });

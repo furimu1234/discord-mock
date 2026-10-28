@@ -257,9 +257,9 @@ test("既定のMockにはBotを除く10人のダミーユーザーとプロフ�
     };
     assert.equal(session.users.filter((user) => !user.bot).length, 10);
     assert.ok(session.roles.some((role) => role.name === "Moderator"));
-    const alice = session.users.find((user) => user.username === "Alice");
-    assert.ok(alice);
-    assert.ok(session.members.find((member) => member.user.id === alice.id)?.roles.length);
+    const moderator = session.users.find((user) => user.username === "Charlie");
+    assert.ok(moderator);
+    assert.ok(session.members.find((member) => member.user.id === moderator.id)?.roles.length);
   } finally {
     await mock.close();
   }

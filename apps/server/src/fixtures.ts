@@ -30,7 +30,7 @@ export function createInitialState(): LoadedMockState {
     version: 1,
     members: [bot, ...users].map((user) => ({
       user,
-      roles: user.id === DEFAULT_USER_ID ? ["123456789000000010"] : user.username === "Bob" ? ["123456789000000011"] : [],
+      roles: user.username === "Charlie" ? ["123456789000000010"] : user.username === "Diana" ? ["123456789000000011"] : [],
       joined_at: "2026-01-01T00:00:00.000Z",
       deaf: false, mute: false, flags: 0,
     })),

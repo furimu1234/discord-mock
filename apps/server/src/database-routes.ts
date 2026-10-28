@@ -54,9 +54,7 @@ function parseQuery(url: URL): DatabaseQuery | null {
 /** Admin sessions never inherit the selected dummy user's privileges. */
 export class DatabaseRoutes {
   private readonly sessions = new Map<string, AdminSession>();
-  private readonly testRuns = new TestRunRoutes();
-
-  constructor(private readonly secret: string, private readonly database?: DatabaseInspector, private readonly testCases?: TestCaseService) {}
+  constructor(private readonly secret: string, private readonly database?: DatabaseInspector, private readonly testCases?: TestCaseService, readonly testRuns = new TestRunRoutes()) {}
 
   private appDatabase(): DatabaseInspector {
     if (!this.database) throw new Error("App database is unavailable");

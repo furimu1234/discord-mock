@@ -714,3 +714,25 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
 .channel-create-form input { min-width: 0; width: 100%; background: #303341; color: #fff; border: 1px solid #52576d; border-radius: 6px; padding: 7px 9px; }
 .channel-create-actions { display: flex; justify-content: flex-end; gap: 7px; }
 .channel-create-actions button { border: 1px solid #505c80; background: #30364b; color: #eaf0ff; border-radius: 6px; padding: 5px 9px; font-size: 11px; }
+
+/* メッセージのリンク先、操作メニューと編集・削除確認。 */
+.message-target { background: #738bdf26; box-shadow: inset 3px 0 #9aafff; outline: none; }
+.message-edited { color: #969fb7; font-size: 10px; }
+.test-log-run[href] { display: block; color: inherit; text-decoration: none; cursor: pointer; }
+.test-log-run[href]:hover, .test-log-run[href]:focus-visible { background: #30374e; border-color: #8399e2; outline: none; }
+.message-menu { position: fixed; z-index: 40; width: 220px; padding: 6px; border: 1px solid #4b5470; border-radius: 8px; background: #202430; box-shadow: 0 10px 30px #0007; }
+.message-menu button { display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: 4px; text-align: left; background: transparent; color: #e5ebfb; font-size: 12px; }
+.message-menu button:hover, .message-menu button:focus-visible { background: #718bdd40; outline: none; }
+.message-menu button.danger { color: #ffacb3; }
+.message-dialog { position: fixed; z-index: 50; inset: 0; display: flex; align-items: center; justify-content: center; background: #080b14b8; padding: 20px; }
+.message-edit-form { width: min(480px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid #515c7c; border-radius: 10px; background: #282d3c; box-shadow: 0 20px 60px #0008; }
+.message-edit-form strong { color: #f0f3ff; font-size: 15px; }
+.message-edit-form textarea { width: 100%; resize: vertical; min-height: 100px; border: 1px solid #657496; border-radius: 6px; background: #1c2130; color: #edf1ff; padding: 10px; font: inherit; }
+.message-edit-form p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+#message-edit-error { color: #ffacb3; font-size: 12px; }
+.message-edit-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.message-edit-actions button { border: 1px solid #6376b6; border-radius: 6px; padding: 8px 15px; color: #fff; background: #4d61a6; }
+.message-edit-actions button:first-child { background: transparent; }
+.message-edit-actions button.danger { border-color: #b85d6b; background: #a74254; }
+.message-edit-actions button:disabled { opacity: .5; cursor: wait; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

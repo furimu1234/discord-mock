@@ -14,7 +14,7 @@ export type TestRunMessage = Pick<
   | "timestamp"
   | "embeds"
   | "interaction"
->;
+> & { edited_timestamp?: string | null; canEdit?: boolean; canDelete?: boolean };
 export interface TestDatabaseColumn {
   name: string;
   type: string;

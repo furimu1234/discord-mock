@@ -6,6 +6,9 @@ import type { TestCaseService } from "./test-cases.js";
 import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
 import { channelPermissions, requireChannelPermission, USE_APPLICATION_COMMANDS, VIEW_CHANNEL } from "./permissions.js";
 import { MockResources } from "./resources.js";
+import { findMessage, messageCapabilities } from "./message-actions.js";
+import { ResourceError, validateId } from "./resource-validation.js";
+import type { TestRunRoutes } from "./test-runs.js";
 
 interface BrowserSession {
   selectedUserId: string;
@@ -21,6 +24,7 @@ export class BrowserRoutes {
     private readonly environment: MockEnvironment,
     private readonly botConnectionCount: () => number,
     private readonly testCases?: TestCaseService,
+    private readonly testRuns?: TestRunRoutes,
   ) {
     environment.on("changed", this.notifySubscribers);
   }
@@ -68,7 +72,9 @@ export class BrowserRoutes {
     return {
       guild: { ...guild, channels },
       users,
-      messages: Object.fromEntries(channels.map((channel) => [channel.id, messages[channel.id] ?? []])),
+      messages: Object.fromEntries(channels.map((channel) => [channel.id, (messages[channel.id] ?? []).map((message) => ({
+        ...message, ...messageCapabilities(this.environment.state, session.selectedUserId, message),
+      }))])),
       commands: this.environment.availableCommands(),
       selectedUserId: session.selectedUserId,
       botConnections: this.botConnectionCount(),
@@ -90,7 +96,7 @@ export class BrowserRoutes {
     });
   }
 
-  async handle({ request, response, method, path }: RouteContext): Promise<void> {
+  async handle({ request, response, method, path, url }: RouteContext): Promise<void> {
     if (method === "GET" && path === "/_ui/session") {
       this.openSession(request, response);
       return;
@@ -107,6 +113,36 @@ export class BrowserRoutes {
     }
     if (method === "GET" && path === "/_ui/events") {
       this.subscribe(request, response);
+      return;
+    }
+    const runPath = path.match(/^\/_ui\/test-runs\/([a-f0-9-]{36})$/);
+    if (method === "GET" && runPath && this.testRuns) {
+      sendJson(response, 200, this.testRuns.browserView(runPath[1], session.selectedUserId));
+      return;
+    }
+    const messagePath = path.match(/^\/_ui\/messages\/([^/]+)\/([^/]+)$/);
+    if (messagePath && ["GET", "PATCH", "DELETE"].includes(method)) {
+      const [, channelId, messageId] = messagePath;
+      validateId(channelId);
+      validateId(messageId);
+      const runId = url.searchParams.get("runId");
+      if (runId !== null && !/^[a-f0-9-]{36}$/.test(runId)) throw new ResourceError("テスト実行IDが不正です");
+      if (runId !== null && !this.testRuns) throw new ResourceError("テスト実行が見つかりません", 404);
+      if (method !== "GET" && request.headers["x-discord-mock-csrf"] !== session.csrf) {
+        sendError(response, 403, "Invalid browser CSRF token");
+        return;
+      }
+      const read = () => {
+        if (runId && this.testRuns) return this.testRuns.browserMessage(runId, session.selectedUserId, channelId, messageId);
+        const message = findMessage(this.environment.state, session.selectedUserId, channelId, messageId);
+        return { ...message, ...messageCapabilities(this.environment.state, session.selectedUserId, message) };
+      };
+      if (method === "GET") { sendJson(response, 200, read()); return; }
+      const body = method === "PATCH" ? await readJsonBody(request) : {};
+      if (runId && this.testRuns) this.testRuns.changeMessage(runId, session.selectedUserId, channelId, messageId, method as "PATCH" | "DELETE", body.content);
+      else if (method === "PATCH") await this.environment.editMessage(session.selectedUserId, channelId, messageId, body.content);
+      else await this.environment.deleteMessage(session.selectedUserId, channelId, messageId);
+      sendJson(response, 200, method === "PATCH" ? read() : { deleted: true });
       return;
     }
     if (method !== "POST") {

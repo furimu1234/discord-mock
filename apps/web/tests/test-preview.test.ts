@@ -81,7 +81,7 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
       if (url === "/_admin/test-cases") return { ok: true, json: async () => ({ cases, runningId, error: null }) };
       if (url === "/_ui/test-cases/run") return { ok: true, json: async () => ({ started: true }) };
       if (url === "/_admin/test-runs") return { ok: true, json: async () => ({ runs }) };
-      if (url === "/_admin/test-runs/test-1") return { ok: true, json: async () => structuredClone(report) };
+      if (url === "/_ui/test-runs/test-1") return { ok: true, json: async () => structuredClone(report) };
       throw new Error(`Unexpected request: ${url}`);
     },
   });

@@ -1,7 +1,8 @@
 import type { BrowserCommand, BrowserState, IdentityResponse, SessionResponse } from "./types.js";
 import { createElement, getElement } from "./dom.js";
 import { DatabaseView } from "./database.js";
-import { renderMessage } from "./message.js";
+import { MessageActions } from "./message-actions.js";
+import { readMessageTarget, revealMessage } from "./message-links.js";
 import { TestRunChatView, TestRunsView } from "./test-runs.js";
 
 const elements = {
@@ -28,6 +29,12 @@ const isAdmin = location.pathname === "/admin";
 const isDatabase = location.pathname === "/database";
 const isTestRuns = location.pathname === "/tests";
 const ui = { csrf: "", selectedUserId: "", selectedChannelId: "" };
+let messageActions: MessageActions;
+let target = readMessageTarget();
+let jumpPending = target !== null;
+let latestState: BrowserState | null = null;
+let identityChange: Promise<void> = Promise.resolve();
+if (target) ui.selectedChannelId = target.channelId;
 let commands: BrowserCommand[] = [];
 let suggestions: BrowserCommand[] = [];
 let activeSuggestion = 0;
@@ -126,6 +133,9 @@ function renderChannels(state: BrowserState): void {
     const button = createElement("button", className, `#  ${channel.name}`);
     button.type = "button";
     button.onclick = () => {
+      target = null;
+      jumpPending = false;
+      location.hash = "";
       ui.selectedChannelId = channel.id;
       renderState(state);
     };
@@ -149,6 +159,7 @@ function renderUsers(state: BrowserState): void {
 
 
 function renderMessages(state: BrowserState): void {
+  const previousScroll = elements.messages.scrollTop;
   const channel = state.guild.channels.find((channel) => channel.id === ui.selectedChannelId);
   const title = `# ${channel?.name ?? "general"}`;
   elements.channelTitle.textContent = title;
@@ -167,11 +178,16 @@ function renderMessages(state: BrowserState): void {
       "まだメッセージはありません。最初の投稿を送信してください。 /コマンド名 でスラッシュコマンドも実行できます。",
     ));
   }
-  elements.messages.append(...messages.map(renderMessage));
-  elements.messages.scrollTop = elements.messages.scrollHeight;
+  elements.messages.append(...messages.map((message) => messageActions.render(message)));
+  if (target) {
+    elements.messages.scrollTop = previousScroll;
+    if (revealMessage(target, jumpPending)) jumpPending = false;
+    else showError("リンク先のメッセージは削除済み、または閲覧する権限がありません");
+  } else elements.messages.scrollTop = elements.messages.scrollHeight;
 }
 
 function renderState(state: BrowserState): void {
+  latestState = state;
   commands = state.commands;
   ui.selectedUserId = state.selectedUserId;
   if (!state.guild.channels.some((channel) => channel.id === ui.selectedChannelId)) {
@@ -190,14 +206,15 @@ function renderState(state: BrowserState): void {
 
 async function refresh(): Promise<void> {
   try {
-    renderState(await request<BrowserState>("/_ui/state"));
     showError("");
+    renderState(await request<BrowserState>("/_ui/state"));
   } catch (error) {
     showError(errorMessage(error));
   }
 }
 
 async function switchIdentity(): Promise<void> {
+  messageActions.close();
   try {
     const result = await request<IdentityResponse>("/_ui/identity", "POST", {
       user_id: elements.identity.value,
@@ -266,7 +283,16 @@ async function initialize(): Promise<void> {
     await new DatabaseView().initialize();
     return;
   }
-  elements.identity.onchange = () => { void switchIdentity(); };
+  messageActions = new MessageActions({
+    csrf: () => ui.csrf, refresh, showError, beforeChange: () => identityChange,
+  });
+  addEventListener("hashchange", () => {
+    target = readMessageTarget();
+    jumpPending = target !== null;
+    if (target) ui.selectedChannelId = target.channelId;
+    if (latestState) { showError(""); renderState(latestState); }
+  });
+  elements.identity.onchange = () => { identityChange = switchIdentity(); };
   elements.messageForm.onsubmit = (event) => { void submitMessage(event); };
   elements.messageInput.oninput = () => {
     activeSuggestion = 0;

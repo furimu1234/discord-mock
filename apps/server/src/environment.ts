@@ -6,6 +6,7 @@ import { type CommandInput, CommandValidationError } from "./commands.js";
 import { saveState } from "./persistence.js";
 import { requireChannelPermission, SEND_MESSAGES, channelPermissions } from "./permissions.js";
 import { ResourceError } from "./resource-validation.js";
+import { deleteMessage, editMessage } from "./message-actions.js";
 
 interface InteractionOptions {
   actor: MockUser;
@@ -215,6 +216,19 @@ export class MockEnvironment extends EventEmitter<{
     });
     await this.commit();
     return message;
+  }
+
+  async editMessage(userId: string, channelId: string, messageId: string, content: unknown): Promise<MockMessage> {
+    const message = editMessage(this.state, userId, channelId, messageId, content, this.timestamp());
+    this.dispatch("MESSAGE_UPDATE", { ...message, guild_id: this.state.guild.id });
+    await this.commit();
+    return message;
+  }
+
+  async deleteMessage(userId: string, channelId: string, messageId: string): Promise<void> {
+    deleteMessage(this.state, userId, channelId, messageId);
+    this.dispatch("MESSAGE_DELETE", { id: messageId, channel_id: channelId, guild_id: this.state.guild.id });
+    await this.commit();
   }
 
   createInteraction(options: InteractionOptions) {

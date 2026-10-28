@@ -16,6 +16,7 @@ export function renderMessage(message: BrowserMessage): HTMLElement {
     minute: "2-digit",
   });
   meta.append(createElement("time", "", time));
+  if (message.edited_timestamp) meta.append(createElement("span", "message-edited", "（編集済み）"));
   body.append(meta, createElement("div", "content", message.content));
   for (const embed of message.embeds ?? []) {
     const card = createElement("section", "message-embed");

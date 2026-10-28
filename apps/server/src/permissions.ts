@@ -3,6 +3,7 @@ import { ResourceError } from "./resource-validation.js";
 
 export const VIEW_CHANNEL = 1n << 10n;
 export const SEND_MESSAGES = 1n << 11n;
+export const MANAGE_MESSAGES = 1n << 13n;
 export const USE_APPLICATION_COMMANDS = 1n << 31n;
 export const DEFAULT_PERMISSIONS =
   VIEW_CHANNEL | SEND_MESSAGES | USE_APPLICATION_COMMANDS;

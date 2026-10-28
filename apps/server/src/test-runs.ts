@@ -15,6 +15,8 @@ import {
 import type { LoadedMockState, MockState, MockUser } from "./models.js";
 import { restoreState } from "./persistence.js";
 import { sanitizeTestDatabase } from "./test-database.js";
+import { deleteMessage, editMessage, findMessage, messageCapabilities } from "./message-actions.js";
+import { channelPermissions, VIEW_CHANNEL } from "./permissions.js";
 import {
   ResourceError,
   validateId,
@@ -37,8 +39,67 @@ function publicUser(user: MockUser): MockUser {
 
 /** 実行中 app の状態と分離した、UT の表示用コピー。Bot へ再配信しない。 */
 export class TestRunRoutes {
+  constructor(private readonly currentState?: () => LoadedMockState) {}
   private readonly runs = new Map<string, TestRunView>();
   private readonly subscribers = new Set<ServerResponse>();
+  private readonly snapshots = new Map<string, LoadedMockState>();
+  private readonly messageChanges = new Map<string, Map<string, { content: string; edited_timestamp: string } | null>>();
+
+  private notify(): void {
+    for (const subscriber of this.subscribers)
+      subscriber.write("event: changed\ndata: {}\n\n");
+  }
+
+  private stateFor(id: string): LoadedMockState {
+    const state = this.snapshots.get(id);
+    if (!state) throw new ResourceError("テスト実行が見つかりません（App再起動後の履歴は保持されません）", 404);
+    const app = this.currentState?.();
+    if (!app || app.guild.id !== state.guild.id) return state;
+    // ログイン中ユーザーの現在のロールと、Appにあるチャンネルの上書きを優先する。
+    // UTだけで作られたチャンネルは、報告時のチャンネル定義を使う。
+    return {
+      ...state, user: app.user, users: app.users, members: app.members,
+      guild: { ...state.guild, owner_id: app.guild.owner_id, roles: app.guild.roles,
+        channels: state.guild.channels.map((channel) => app.guild.channels.find((current) => current.id === channel.id) ?? channel),
+      },
+    };
+  }
+
+  browserView(id: string, userId: string): TestRunView {
+    const state = this.stateFor(id);
+    const run = this.runs.get(id);
+    if (!run) throw new ResourceError("テスト実行が見つかりません", 404);
+    const channels = run.guild.channels.filter((channel) => (channelPermissions(state, userId, channel.id) & VIEW_CHANNEL) !== 0n);
+    const { database: _database, ...view } = run;
+    return { ...view, guild: { ...run.guild, channels }, messages: Object.fromEntries(channels.map((channel) => [
+      channel.id, (run.messages[channel.id] ?? []).map((message) => ({ ...message, ...messageCapabilities(state, userId, message) })),
+    ])) };
+  }
+
+  browserMessage(id: string, userId: string, channelId: string, messageId: string) {
+    const state = this.stateFor(id);
+    findMessage(state, userId, channelId, messageId);
+    return this.browserView(id, userId).messages[channelId].find((message) => message.id === messageId);
+  }
+
+  changeMessage(id: string, userId: string, channelId: string, messageId: string, method: "PATCH" | "DELETE", content?: unknown): void {
+    const state = this.stateFor(id);
+    const run = this.runs.get(id);
+    if (!run) throw new ResourceError("テスト実行が見つかりません", 404);
+    const changes = this.messageChanges.get(id) ?? new Map();
+    if (method === "PATCH") {
+      const message = editMessage(state, userId, channelId, messageId, content, new Date().toISOString());
+      const displayed = run.messages[channelId].find((item) => item.id === messageId);
+      if (displayed) { displayed.content = message.content; displayed.edited_timestamp = message.edited_timestamp; }
+      changes.set(`${channelId}/${messageId}`, { content: message.content, edited_timestamp: message.edited_timestamp });
+    } else {
+      deleteMessage(state, userId, channelId, messageId);
+      run.messages[channelId] = run.messages[channelId].filter((item) => item.id !== messageId);
+      changes.set(`${channelId}/${messageId}`, null);
+    }
+    this.messageChanges.set(id, changes);
+    this.notify();
+  }
 
   private summary(run: TestRunView): TestRunSummary {
     const { id, name, status, step, startedAt, updatedAt } = run;
@@ -119,6 +180,15 @@ export class TestRunRoutes {
       throw new ResourceError("表示用スナップショットが不正です");
     }
     const messages: TestRunView["messages"] = {};
+    // UTの次の進捗報告で、閲覧中に行った編集・削除が元に戻らないようにする。
+    const changes = previous ? this.messageChanges.get(previous.id) : undefined;
+    for (const [channelId, entries] of Object.entries(state.messages)) {
+      state.messages[channelId] = entries.filter((message) => changes?.get(`${channelId}/${message.id}`) !== null);
+      for (const message of state.messages[channelId]) {
+        const changed = changes?.get(`${channelId}/${message.id}`);
+        if (changed) { message.content = changed.content; message.edited_timestamp = changed.edited_timestamp; }
+      }
+    }
     for (const [channelId, entries] of Object.entries(state.messages)) {
       messages[channelId] = entries.map((message) => {
         validateId(message.id);
@@ -137,6 +207,7 @@ export class TestRunRoutes {
           content: message.content,
           author: publicUser(message.author),
           timestamp: message.timestamp,
+          edited_timestamp: message.edited_timestamp,
           embeds: message.embeds,
           ...(message.interaction
             ? {
@@ -161,6 +232,8 @@ export class TestRunRoutes {
         return;
       }
       this.runs.delete(completed.id);
+      this.snapshots.delete(completed.id);
+      this.messageChanges.delete(completed.id);
     }
     const now = new Date().toISOString();
     const step =
@@ -189,8 +262,8 @@ export class TestRunRoutes {
         : previous?.database ? { database: previous.database } : {}),
     };
     this.runs.set(run.id, run);
-    for (const subscriber of this.subscribers)
-      subscriber.write("event: changed\ndata: {}\n\n");
+    this.snapshots.set(run.id, state);
+    this.notify();
     sendJson(response, creating ? 201 : 200, this.summary(run));
   }
 
@@ -198,5 +271,7 @@ export class TestRunRoutes {
     for (const subscriber of this.subscribers) subscriber.end();
     this.subscribers.clear();
     this.runs.clear();
+    this.snapshots.clear();
+    this.messageChanges.clear();
   }
 }

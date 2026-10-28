@@ -14,7 +14,7 @@ export class Element {
   declare className: string;
   declare focused: boolean;
   declare onchange: () => void;
-  declare onclick: () => void;
+  declare onclick: (event?: { preventDefault(): void }) => void;
   declare ondblclick: () => void;
   declare onpointerenter: () => void;
   declare onpointermove: () => void;
@@ -23,11 +23,13 @@ export class Element {
   declare onsubmit: (event: { preventDefault(): void }) => void;
   declare onkeydown: (event: { key: string; preventDefault(): void; repeat?: boolean; isComposing?: boolean }) => void;
   declare oncontextmenu: (event: { preventDefault(): void; clientX?: number; clientY?: number }) => void;
+  declare id: string;
   contains(target: unknown): boolean { return target === this || this.children.some((child) => child.contains(target)); }
   classList = {
     toggle: (name: string, enabled: boolean) => enabled ? this.classes.add(name) : this.classes.delete(name),
     contains: (name: string) => this.classes.has(name),
     add: (name: string) => { this.classes.add(name); },
+    remove: (name: string) => { this.classes.delete(name); },
   };
 
   constructor(tag: string) {
@@ -63,6 +65,15 @@ export function createBrowserFixture(pathname = "/") {
     "test-case-composer": "div",
     "test-case-list": "div",
     "test-case-status": "span",
+    "message-menu": "div",
+    "message-dialog": "div",
+    "message-dialog-title": "strong",
+    "message-edit-form": "form",
+    "message-edit-content": "textarea",
+    "message-delete-preview": "p",
+    "message-edit-save": "button",
+    "message-edit-cancel": "button",
+    "message-edit-error": "p",
     "test-log-panel": "aside",
     "test-log-entries": "div",
     "test-log-tab": "button",
@@ -116,9 +127,10 @@ export function createBrowserFixture(pathname = "/") {
   elements["database-limit"].value = "50";
   const streams: EventSource[] = [];
   const copied: string[] = [];
-  const documentEvents = new Map<string, (event: { target?: unknown; key?: string }) => void>();
+  const documentEvents = new Map<string, Array<(event: { target?: unknown; key?: string }) => void>>();
+  const windowEvents = new Map<string, () => void>();
   const fireDocument = (name: string, event: { target?: unknown; key?: string }) => {
-    documentEvents.get(name)?.(event);
+    for (const handler of documentEvents.get(name) ?? []) handler(event);
   };
   class EventSource {
     handlers = new Map<string, () => void>();
@@ -132,13 +144,21 @@ export function createBrowserFixture(pathname = "/") {
     streams,
     copied,
     fireDocument,
+    fireWindow: (name: string) => windowEvents.get(name)?.(),
     globals: {
-      location: { pathname },
+      location: { pathname, origin: "http://127.0.0.1:3000", hash: "" },
+      addEventListener: (name: string, handler: () => void) => { windowEvents.set(name, handler); },
       Node: Element,
       document: {
-        getElementById: (id) => elements[id],
+        getElementById: (id: string) => {
+          const find = (element: Element): Element | undefined => element.id === id
+            ? element : element.children.map(find).find(Boolean);
+          return elements[id] ?? Object.values(elements).map(find).find(Boolean);
+        },
         createElement: (tag) => new Element(tag),
-        addEventListener: (name: string, callback: (event: { target?: unknown; key?: string }) => void) => { documentEvents.set(name, callback); },
+        addEventListener: (name: string, callback: (event: { target?: unknown; key?: string }) => void) => {
+          documentEvents.set(name, [...(documentEvents.get(name) ?? []), callback]);
+        },
       },
       EventSource,
       URLSearchParams,

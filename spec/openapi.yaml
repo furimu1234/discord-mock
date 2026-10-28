@@ -8,6 +8,77 @@ info:
 servers:
   - url: http://127.0.0.1:3000
 paths:
+  /_ui/messages/{channelId}/{messageId}:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[0-9]{17,20}$'}
+      - name: messageId
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[0-9]{17,20}$'}
+      - name: runId
+        in: query
+        description: 表示用テスト実行を指定。省略時は通常Mockのメッセージ。
+        schema: {type: string, format: uuid}
+    get:
+      operationId: getBrowserMessage
+      summary: 閲覧可能なメッセージと編集・削除可否を取得する
+      security:
+        - browserSession: []
+      responses:
+        '200': {description: 本文・ID・送信者・編集時刻・canEdit・canDelete。詳細はbrowser-messages.md参照。}
+        '401': {description: ブラウザセッションが必要}
+        '403': {description: チャンネル閲覧権限が不足}
+        '404': {description: メッセージまたは実行が存在しない}
+    patch:
+      operationId: editBrowserMessage
+      summary: ログイン中のダミーユーザー本人の本文を編集する
+      security:
+        - browserSession: []
+          browserCsrf: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: 編集後のメッセージ}
+        '400': {description: 本文またはIDが不正}
+        '401': {description: ブラウザセッションが必要}
+        '403': {description: 本人ではない・閲覧権限なし・CSRF不正}
+        '404': {description: メッセージまたは実行が存在しない}
+    delete:
+      operationId: deleteBrowserMessage
+      summary: 本人またはMANAGE_MESSAGESを持つダミーユーザーが投稿を削除する
+      security:
+        - browserSession: []
+          browserCsrf: []
+      responses:
+        '200': {description: '削除完了 {deleted: true}'}
+        '401': {description: ブラウザセッションが必要}
+        '403': {description: 権限不足またはCSRF不正}
+        '404': {description: メッセージまたは実行が存在しない}
+  /_ui/test-runs/{runId}:
+    get:
+      operationId: getBrowserTestRun
+      summary: 選択ユーザーの閲覧可能なチャンネル・メッセージだけを含む実行結果
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      security:
+        - browserSession: []
+      responses:
+        '200': {description: DBスナップショットを除いた表示用の実行結果}
+        '401': {description: ブラウザセッションが必要}
+        '404': {description: 実行が存在しない}
   /health:
     get:
       operationId: getHealth

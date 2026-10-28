@@ -4,8 +4,9 @@ import type {
   TestRunView,
 } from "../../../packages/client-js/src/test-runs.js";
 import { createElement, getElement } from "./dom.js";
-import { renderMessage } from "./message.js";
 import { TestCasePicker } from "./test-case-picker.js";
+import { MessageActions } from "./message-actions.js";
+import { firstMessage, messageFragment, messageLink, readMessageTarget, revealMessage, type MessageTarget } from "./message-links.js";
 
 const STATUS: Record<TestRunStatus, string> = {
   running: "実行中",
@@ -14,8 +15,14 @@ const STATUS: Record<TestRunStatus, string> = {
   cancelled: "中断",
 };
 
-/** 普段の app 上で、独立した UT の経過を読み取り専用で表示する。 */
+/** 普段の app 上で、独立した UT の経過と表示用メッセージを確認する。 */
 export class TestRunsView {
+  private userCsrf = "";
+  private readonly messageActions = new MessageActions({
+    csrf: () => this.userCsrf,
+    refresh: () => this.refresh(),
+    showError: (message) => this.showError(new Error(message)),
+  });
   private readonly elements = {
     runs: getElement("test-runs", "nav"),
     title: getElement("test-run-title", "strong"),
@@ -74,6 +81,8 @@ export class TestRunsView {
         },
         body: "{}",
       });
+      const session = await this.request<{ csrf: string }>("/_ui/session");
+      this.userCsrf = session.csrf;
       await this.refresh();
     } catch (error) {
       this.showError(error);
@@ -135,7 +144,7 @@ export class TestRunsView {
         return;
       }
       const run = await this.request<TestRunView>(
-        `/_admin/test-runs/${this.selected}`,
+        `/_ui/test-runs/${this.selected}`,
       );
       if (generation !== this.generation) return;
       this.render(run);
@@ -159,7 +168,7 @@ export class TestRunsView {
       if (!messages.length) continue;
       e.messages.append(
         createElement("h2", "test-channel-title", `# ${channel.name}`),
-        ...messages.map(renderMessage),
+        ...messages.map((message) => this.messageActions.render(message, run.id)),
       );
     }
     if (!e.messages.children.length)
@@ -209,9 +218,27 @@ export class TestRunChatView {
   private selectedChannelId = "general";
   private runs: TestRunView[] = [];
   private appChannels: Array<{ id: string; name: string; type: number }> = [];
+  private target = readMessageTarget();
+  private jumpPending = this.target !== null;
+  private runsLoaded = false;
+  private readonly messageActions = new MessageActions({
+    csrf: () => this.userCsrf,
+    refresh: () => this.refreshRuns(),
+    showError: (message) => this.showError(message),
+    beforeChange: async () => { await this.identityChange; if (this.identityError) throw new Error(this.identityError); },
+  });
 
   async initialize(): Promise<void> {
     this.logPanel.classList.toggle("hidden", false);
+    if (this.target) this.selectedChannelId = this.target.channelId;
+    addEventListener("hashchange", () => {
+      this.target = readMessageTarget();
+      this.jumpPending = this.target !== null;
+      if (this.target) this.selectedChannelId = this.target.channelId;
+      this.showError("");
+      this.renderChannels();
+      this.renderMessages();
+    });
     this.logTab.onclick = () => this.selectSidebarTab("log");
     this.usersTab.onclick = () => this.selectSidebarTab("users");
     this.selectSidebarTab("log");
@@ -240,7 +267,7 @@ export class TestRunChatView {
       await Promise.all([this.connectSession(), this.connectUserSession()]);
       await Promise.all([this.refreshCases(), this.refreshRuns(), this.refreshAppChannels()]);
       const appStream = new EventSource("/_ui/events");
-      appStream.addEventListener("changed", () => { void this.refreshAppChannels(); });
+      appStream.addEventListener("changed", () => { void this.refreshAppChannels(); void this.refreshRuns(); });
       const stream = new EventSource("/_admin/test-runs/events");
       stream.addEventListener("open", () => { void this.refreshRuns(); });
       stream.addEventListener("changed", () => {
@@ -295,6 +322,7 @@ export class TestRunChatView {
   }
 
   private async switchIdentity(userId: string): Promise<void> {
+    this.messageActions.close();
     this.identityError = null;
     try {
       const result = await this.request<{ selectedUserId: string }>("/_ui/identity", {
@@ -307,6 +335,7 @@ export class TestRunChatView {
       });
       this.identity.value = result.selectedUserId;
       this.selectedUserId = result.selectedUserId;
+      await Promise.all([this.refreshRuns(), this.refreshAppChannels()]);
       this.renderUserList();
       this.userMenu.classList.toggle("hidden", true);
       this.showError("");
@@ -360,6 +389,7 @@ export class TestRunChatView {
     this.usersTab.setAttribute("aria-selected", String(usersVisible));
     this.userProfile.classList.toggle("hidden", true);
     this.userMenu.classList.toggle("hidden", true);
+    if (!usersVisible && !this.target) this.logEntries.scrollTop = this.logEntries.scrollHeight;
   }
 
   private renderUserList(): void {
@@ -486,6 +516,8 @@ export class TestRunChatView {
         },
         body: JSON.stringify({ id }),
       });
+      this.resumeFollowing();
+      this.render(this.runs);
       await this.refreshCases();
     } catch (error) {
       this.showError(error instanceof Error ? error.message : "テストを開始できませんでした");
@@ -500,25 +532,51 @@ export class TestRunChatView {
     try {
       const { runs } = await this.request<{ runs: TestRunSummary[] }>("/_admin/test-runs");
       const details = await Promise.all(runs.map((run) =>
-        this.request<TestRunView>(`/_admin/test-runs/${run.id}`),
+        this.request<TestRunView>(`/_ui/test-runs/${run.id}`),
       ));
       if (generation !== this.generation) return;
-      this.render(details.reverse());
+      const hadRuns = this.runsLoaded;
+      this.runsLoaded = true;
+      this.render(details.reverse(), hadRuns);
     } catch (error) {
       if (generation === this.generation)
         this.showError(error instanceof Error ? error.message : "テストの更新に失敗しました");
     }
   }
 
-  private render(runs: TestRunView[]): void {
+  private render(runs: TestRunView[], followActivity = false): void {
+    // 初回のURL表示や単なる再取得ではリンク先を保持し、テストの新しい進捗で追従を再開する。
+    if (followActivity) {
+      const changed = [...runs].reverse().find((run) => {
+        const previous = this.runs.find((item) => item.id === run.id);
+        if (!previous) return true;
+        if (previous.status !== "running") return false;
+        const previousMessages = new Set(Object.values(previous.messages).flat().map((message) => `${message.channel_id}/${message.id}`));
+        return run.updatedAt !== previous.updatedAt || run.status !== previous.status ||
+          run.step !== previous.step || run.steps.length !== previous.steps.length ||
+          Object.values(run.messages).flat().some((message) => !previousMessages.has(`${message.channel_id}/${message.id}`));
+      });
+      if (changed) this.resumeFollowing(changed);
+    }
     this.runs = runs;
+    this.showError("");
     this.renderChannels();
     this.renderMessages();
     this.renderLog();
-    this.showError("");
+  }
+
+  private resumeFollowing(run?: TestRunView): void {
+    this.target = null;
+    this.jumpPending = false;
+    if (location.hash) location.hash = "";
+    const latest = run && Object.values(run.messages).flat()
+      .sort((a, b) => a.timestamp.localeCompare(b.timestamp)).at(-1);
+    if (latest) this.selectedChannelId = latest.channel_id;
   }
 
   private renderChannels(): void {
+    // 初期描画ではUT専用チャンネルが未取得でも、リンク先の選択を後続の描画へ引き継ぐ。
+    if (this.target && this.jumpPending) this.selectedChannelId = this.target.channelId;
     const channels = new Map<string, string>();
     for (const channel of this.appChannels) channels.set(channel.id, channel.name);
     for (const run of this.runs) {
@@ -540,6 +598,9 @@ export class TestRunChatView {
       );
       button.type = "button";
       button.onclick = () => {
+        this.target = null;
+        this.jumpPending = false;
+        location.hash = "";
         this.selectedChannelId = id;
         this.renderChannels();
         this.renderMessages();
@@ -550,6 +611,7 @@ export class TestRunChatView {
   }
 
   private renderMessages(): void {
+    const previousScroll = this.messages.scrollTop;
     this.messages.replaceChildren();
 
     const name = (this.channelTitle.textContent ?? "").replace(/^#\s*/, "");
@@ -569,13 +631,18 @@ export class TestRunChatView {
     for (const run of this.runs) {
       const items = [...(run.messages[this.selectedChannelId] ?? [])];
       items.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-      this.messages.append(...items.map(renderMessage));
+      this.messages.append(...items.map((message) => this.messageActions.render(message, run.id)));
     }
-    // 自動テストのチャットは常に最新の投稿へ追従する。
-    this.messages.scrollTop = this.messages.scrollHeight;
+    // リンク先の閲覧中は位置を保ち、テストの進捗を受けたら最新の投稿へ追従する。
+    if (this.target) {
+      this.messages.scrollTop = previousScroll;
+      if (revealMessage(this.target, this.jumpPending)) this.jumpPending = false;
+      else if (this.runsLoaded) this.showError("リンク先のメッセージは削除済み、期限切れ、または閲覧する権限がありません");
+    } else this.messages.scrollTop = this.messages.scrollHeight;
   }
 
   private renderLog(): void {
+    const previousScroll = this.logEntries.scrollTop;
     this.logEntries.replaceChildren();
     if (!this.runs.length) {
       this.logEntries.append(createElement(
@@ -586,7 +653,13 @@ export class TestRunChatView {
       return;
     }
     for (const run of this.runs) {
-      const card = createElement("section", "test-log-run");
+      const first = firstMessage(run);
+      const card = createElement(first ? "a" : "section", "test-log-run");
+      if (first) {
+        card.setAttribute("href", messageLink(first));
+        card.setAttribute("aria-label", `${run.name}の最初のメッセージへ移動`);
+        card.onclick = (event) => { event.preventDefault(); this.jumpTo(first); };
+      }
       const heading = createElement("div", "test-log-run-heading");
       heading.append(
         createElement("strong", "", run.name),
@@ -601,5 +674,16 @@ export class TestRunChatView {
       }
       this.logEntries.append(card);
     }
+    this.logEntries.scrollTop = this.target ? previousScroll : this.logEntries.scrollHeight;
+  }
+
+  private jumpTo(target: MessageTarget): void {
+    this.target = target;
+    this.jumpPending = true;
+    this.selectedChannelId = target.channelId;
+    location.hash = messageFragment(target);
+    this.showError("");
+    this.renderChannels();
+    this.renderMessages();
   }
 }

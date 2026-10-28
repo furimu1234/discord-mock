@@ -22,6 +22,55 @@ APPLICATION_ID = 123456789000000001
 GUILD_ID = 123456789000000000
 
 
+def test_browser_message_actions_share_the_http_contract(mock_server):
+    """Pythonからも同じセッション・CSRF・メッセージ操作契約を確認する。"""
+    base = mock_server["url"]
+    opener = build_opener(ProxyHandler({}))
+    with opener.open(f"{base}/_ui/session", timeout=5) as response:
+        cookie = response.headers["set-cookie"].split(";", 1)[0]
+        session = json.load(response)
+    headers = {
+        "cookie": cookie,
+        "content-type": "application/json",
+        "x-discord-mock-csrf": session["csrf"],
+    }
+
+    def request(path, method="GET", body=None, request_headers=None):
+        return opener.open(
+            Request(
+                f"{base}{path}",
+                method=method,
+                headers=headers if request_headers is None else request_headers,
+                data=None if body is None else json.dumps(body).encode(),
+            ),
+            timeout=5,
+        )
+
+    with request("/_ui/state") as response:
+        channel = json.load(response)["guild"]["channels"][0]["id"]
+    with request(
+        "/_ui/messages", "POST", {"channel_id": channel, "content": "Pythonの投稿"}
+    ) as response:
+        message = json.load(response)
+    path = f"/_ui/messages/{channel}/{message['id']}"
+    with request(path) as response:
+        result = json.load(response)
+        assert result["canEdit"] is True
+        assert result["canDelete"] is True
+    with pytest.raises(HTTPError) as denied:
+        request(path, "PATCH", {"content": "CSRFなし"}, {"cookie": cookie})
+    assert denied.value.code == 403
+    with request(path, "PATCH", {"content": "Pythonの編集"}) as response:
+        result = json.load(response)
+        assert result["content"] == "Pythonの編集"
+        assert result["edited_timestamp"]
+    with request(path, "DELETE") as response:
+        assert response.status == 200
+    with pytest.raises(HTTPError) as missing:
+        request(path)
+    assert missing.value.code == 404
+
+
 def test_web_test_runs_require_admin_and_keep_the_app_state_separate(mock_server):
     """Python SDK を追加せず、共有の表示用 HTTP 契約だけを確認する。"""
     base = mock_server["url"]

@@ -145,6 +145,17 @@ export function renderPage(): string {
     <p><a href="/test">テスト画面に戻る</a></p>
   </section>
 </div>
+<div id="message-menu" class="message-menu hidden" role="menu" aria-label="メッセージの操作"></div>
+<div id="message-dialog" class="message-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="message-dialog-title">
+  <form id="message-edit-form" class="message-edit-form">
+    <strong id="message-dialog-title">メッセージを編集</strong>
+    <label class="sr-only" for="message-edit-content">メッセージ本文</label>
+    <textarea id="message-edit-content" maxlength="2000" rows="5"></textarea>
+    <p id="message-delete-preview" class="hidden"></p>
+    <p id="message-edit-error" role="alert"></p>
+    <div class="message-edit-actions"><button id="message-edit-cancel" type="button">キャンセル</button><button id="message-edit-save" type="submit">保存</button></div>
+  </form>
+</div>
 </body>
 </html>`;
 }

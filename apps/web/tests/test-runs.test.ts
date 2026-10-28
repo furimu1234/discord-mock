@@ -34,7 +34,8 @@ test("自動テストの状況・コマンド返信を SSE で更新し、結果
       }
       if (url === "/_admin/test-runs")
         return { ok: true, json: async () => ({ runs: [run] }) };
-      assert.equal(url, "/_admin/test-runs/run-1");
+      if (url === "/_ui/session") return { ok: true, json: async () => ({ csrf: "user-csrf" }) };
+      assert.equal(url, "/_ui/test-runs/run-1");
       return { ok: true, json: async () => structuredClone(run) };
     },
   });
@@ -44,8 +45,8 @@ test("自動テストの状況・コマンド返信を SSE で更新し、結果
   assert.equal(fixture.elements["test-run-status"].textContent, "実行中");
   assert.equal(fixture.streams[0].url, "/_admin/test-runs/events");
   assert.equal(
-    urls.some((url) => url.startsWith("/_ui/")),
-    false,
+    urls.includes("/_ui/test-runs/run-1"),
+    true,
   );
   run.status = "passed";
   run.steps.push({ text: "<script>検証完了</script>" });

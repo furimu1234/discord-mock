@@ -17,6 +17,7 @@ import { MessageContentError } from "./message-content.js";
 import type { MockState } from "./models.js";
 import { MockTesting, validateTimeout } from "./testing.js";
 import { ResourceError } from "./resource-validation.js";
+import { TestRunRoutes } from "./test-runs.js";
 
 export type { MockChannel, MockMessage, MockState, MockUser } from "./models.js";
 
@@ -138,8 +139,8 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
 
   const gatewayUrl = () => `${listeningUrl(server, host).replace("http:", "ws:")}/gateway`;
   const gateway = new MockGateway(server, environment, token, gatewayUrl);
-  const browser = new BrowserRoutes(environment, () => gateway.connectionCount, options.testCases);
-  const database = new DatabaseRoutes(adminSecret, options.database, options.testCases);
+  const database = new DatabaseRoutes(adminSecret, options.database, options.testCases, new TestRunRoutes(() => environment.state));
+  const browser = new BrowserRoutes(environment, () => gateway.connectionCount, options.testCases, database.testRuns);
   const testing = new MockTesting(environment, () => gateway.connectionCount, options.timeoutMs);
 
   await new Promise<void>((resolve, reject) => {

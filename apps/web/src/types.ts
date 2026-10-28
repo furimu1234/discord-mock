@@ -14,9 +14,14 @@ export interface BrowserChannel {
 }
 
 export interface BrowserMessage {
+  id: string;
+  channel_id: string;
   author: BrowserUser;
   content: string;
   timestamp: string;
+  edited_timestamp?: string | null;
+  canEdit?: boolean;
+  canDelete?: boolean;
   embeds?: MockEmbed[];
   interaction?: {
     id: string;

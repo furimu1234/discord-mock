@@ -1,10 +1,10 @@
 name: Test Web and Mock Server
 on:
   pull_request:
-    paths: ["apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "tsconfig.tools.json", "scripts/**", "AGENTS.md", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-web.yml"]
+    paths: ["apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "tsconfig.tools.json", "scripts/**", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md", ".cursor/rules/**", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-web.yml"]
   push:
     branches: [main]
-    paths: ["apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "tsconfig.tools.json", "scripts/**", "AGENTS.md", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-web.yml"]
+    paths: ["apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "tsconfig.tools.json", "scripts/**", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md", ".cursor/rules/**", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-web.yml"]
 permissions: {contents: read}
 jobs:
   test:

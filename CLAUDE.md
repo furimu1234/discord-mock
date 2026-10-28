@@ -1,0 +1,8 @@
+# Claude Code 向け開発指示
+
+## TypeScript を標準とする
+- 作業前にルートの `AGENTS.md` と対象ディレクトリの `AGENTS.md` を読み、両方の指示を守る。
+- `apps/web/`、`apps/server/`、`packages/client-js/`、`examples/level_bot/`、`scripts/` の新しい JS 系ソース、テスト、スクリプトは必ず `.ts`（JSX が必要なら `.tsx`）で作成する。型宣言のみ `.d.ts` を使用する。
+- `.js` / `.jsx` / `.mjs` / `.cjs` の新規ソースは作らない。既存の `.mjs` は移行まで保持し、配布用 JavaScript はビルド生成物として扱う。
+- `package.json` の `main` / `exports`、既存 Bot の起動・テスト方式は維持する。Python 関連ファイルと `.py` の成果物は変更対象にしない。
+- JS / TS 関連の変更後は `pnpm check` と該当テストを実行する。新規の JS ファイルは `pnpm check:ts` で検出される。

@@ -1,10 +1,10 @@
 name: Test JavaScript Client
 on:
   pull_request:
-    paths: ["packages/client-js/**", "examples/level_bot/**", "apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "tsconfig.tools.json", "scripts/**", "AGENTS.md", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-js.yml"]
+    paths: ["packages/client-js/**", "examples/level_bot/**", "apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "tsconfig.tools.json", "scripts/**", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md", ".cursor/rules/**", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-js.yml"]
   push:
     branches: [main]
-    paths: ["packages/client-js/**", "examples/level_bot/**", "apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "tsconfig.tools.json", "scripts/**", "AGENTS.md", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-js.yml"]
+    paths: ["packages/client-js/**", "examples/level_bot/**", "apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "tsconfig.tools.json", "scripts/**", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md", ".cursor/rules/**", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-js.yml"]
 permissions: {contents: read}
 jobs:
   test:

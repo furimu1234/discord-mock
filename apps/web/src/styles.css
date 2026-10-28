@@ -338,46 +338,6 @@ a:hover {
 .database-pagination { display: flex; align-items: center; gap: 7px; }
 .database-pagination select { padding: 4px; margin-left: 5px; }
 
-.test-preview {
-  flex: 0 0 auto;
-  margin: 14px 24px 0;
-  border: 1px solid #454b60;
-  border-radius: 10px;
-  background: #222631;
-  overflow: hidden;
-}
-.test-preview-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 12px 16px;
-  border-bottom: 1px solid #3b4053;
-}
-.test-preview-heading { display: grid; flex: 1; gap: 2px; min-width: 170px; }
-.test-preview-heading strong { font-size: 14px; }
-.test-preview-eyebrow { color: #a6afce; font-size: 10px; letter-spacing: .04em; }
-.test-preview-header a { font-size: 12px; }
-.test-preview-body {
-  display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(0, 1.6fr);
-  max-height: 340px;
-}
-.test-preview-activity, .test-preview-messages { min-width: 0; overflow-y: auto; padding: 12px 16px; }
-.test-preview-activity { border-right: 1px solid #3b4053; }
-.test-preview-activity > strong { font-size: 12px; }
-.test-preview-activity ol { padding-left: 21px; margin: 9px 0 0; }
-.test-preview-activity li { padding: 2px 0; color: #c4cbdc; overflow-wrap: anywhere; }
-.test-preview-messages .message { padding: 8px 0; }
-.test-preview-messages .test-channel-title { margin: 4px 0 8px; font-size: 12px; }
-.test-preview-messages .empty { padding: 12px 0; }
-.test-preview-error { padding: 8px 16px; margin: 0; color: #ffc5c5; }
-@media (max-width: 900px) {
-  .test-preview-body { grid-template-columns: minmax(0, 1fr); }
-  .test-preview-activity { border-right: 0; border-bottom: 1px solid #3b4053; }
-  .test-preview { margin: 12px 14px 0; }
-}
-
 .avatar {
   display: grid;
   place-items: center;
@@ -578,14 +538,79 @@ a:hover {
 .test-case-button:hover:not(:disabled) { background: #45547d; }
 .test-case-button:disabled { opacity: .5; cursor: not-allowed; }
 .test-case-button.running { border-color: #e1bc72; color: #ffe2aa; }
-.test-run-heading {
-  background: #262b3a; border-left: 3px solid #6e81bd;
-  border-radius: 6px; padding: 10px 13px; margin: 10px 0 7px;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+
+/* /test: Discord 風のメッセージ領域と独立した操作ログ。既存の配色を使用する。 */
+.test-workspace {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
 }
-.test-run-heading strong { font-size: 13px; }
-.test-run-heading time { margin-left: auto; font-size: 11px; color: #939cb4; }
-.test-run-step { padding: 6px 13px; color: #c4cada; font-size: 12px; white-space: pre-wrap; }
-.test-run-step::before { content: "›"; margin-right: 10px; color: #8f9dd0; }
-.test-run-final { margin: 9px 0 18px; font-weight: 700; }
-.test-run-channel { font-size: 12px; color: #a7b0c7; margin: 8px 13px 0; }
+.test-workspace > .messages { min-width: 0; min-height: 0; }
+
+.test-log-panel {
+  flex: 0 0 280px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #20212a;
+  border-left: 1px solid #343645;
+}
+.test-log-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 16px;
+  border-bottom: 1px solid #343645;
+}
+.test-log-header strong { font-size: 13px; }
+.test-log-header a { font-size: 11px; }
+.test-log-entries { overflow-y: auto; padding: 12px; min-height: 0; flex: 1; }
+.test-log-empty { color: #8f94ab; font-size: 12px; line-height: 1.7; padding: 16px 6px; }
+.test-log-run {
+  margin: 0 0 12px;
+  padding: 10px 11px;
+  border: 1px solid #3b4053;
+  background: #252735;
+  border-radius: 8px;
+}
+.test-log-run-heading { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.test-log-run-heading strong { flex: 1; min-width: 100px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.test-log-run-time { color: #858fa7; font-size: 11px; margin-top: 4px; }
+.test-log-steps { padding-left: 18px; margin: 10px 0 0; color: #bdc4d5; font-size: 12px; overflow-wrap: anywhere; }
+.test-log-steps li { padding: 3px 0; }
+.test-log-result { margin: 10px 0 0; font-size: 12px; }
+.test-chat-welcome {
+  margin-top: auto;
+  padding: 10px 0 24px;
+  max-width: 650px;
+}
+.test-chat-symbol {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: #393d51;
+  display: grid;
+  place-items: center;
+  color: #e6eafa;
+  font-size: 34px;
+  font-weight: 700;
+}
+.test-chat-welcome h2 { margin: 14px 0 3px; font-size: 24px; }
+.test-chat-welcome p { margin: 0; color: #aeb4c4; font-size: 13px; }
+.test-workspace .messages { gap: 3px; }
+.test-workspace .messages .message { flex-shrink: 0; }
+
+@media (max-width: 1080px) {
+  .test-log-panel { flex-basis: 220px; }
+}
+@media (max-width: 850px) {
+  .test-workspace { flex-direction: column; }
+  .test-workspace > .messages { flex: 1 1 auto; min-height: 250px; }
+  .test-log-panel { flex: 0 0 auto; height: 180px; border-left: 0; border-top: 1px solid #343645; }
+  .test-log-entries { display: flex; gap: 10px; }
+  .test-log-run { min-width: 195px; max-width: 260px; }
+}

@@ -238,7 +238,7 @@ async function initialize(): Promise<void> {
   elements.testPanel.classList.toggle("hidden", isAdmin || isDatabase || isTestRuns);
   elements.adminPanel.classList.toggle("hidden", !isAdmin);
   getElement("database-panel", "main").classList.toggle("hidden", !isDatabase);
-  getElement("channel-sidebar", "div").classList.toggle("hidden", isDatabase || isTestRuns || isTestChat);
+  getElement("channel-sidebar", "div").classList.toggle("hidden", isDatabase || isTestRuns);
   getElement("database-sidebar", "div").classList.toggle("hidden", !isDatabase);
   getElement("user-panel", "div").classList.toggle("hidden", isDatabase || isTestRuns || isTestChat);
   getElement("manual-composer", "div").classList.toggle("hidden", isTestChat);
@@ -251,7 +251,7 @@ async function initialize(): Promise<void> {
   getElement("tests-link", "a").classList.toggle("active", isTestRuns);
   if (isTestChat) {
     elements.serverTitle.textContent = "自動テスト";
-    elements.channelTitle.textContent = "# 実行ログ";
+    elements.channelTitle.textContent = "# general";
     elements.onlineLabel.textContent = "テスト結果を受信中";
     await new TestRunChatView().initialize();
     return;

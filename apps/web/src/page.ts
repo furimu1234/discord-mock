@@ -52,7 +52,16 @@ export function renderPage(): string {
       </div>
     </header>
     <div id="error" role="alert" class="error"></div>
-    <div id="messages" class="messages" role="log" aria-live="polite"></div>
+    <div class="test-workspace">
+      <div id="messages" class="messages" role="log" aria-live="polite"></div>
+      <aside id="test-log-panel" class="test-log-panel hidden" aria-label="自動テスト実行ログ">
+        <div class="test-log-header">
+          <strong>実行ログ</strong>
+          <a href="/tests">履歴を見る</a>
+        </div>
+        <div id="test-log-entries" class="test-log-entries" role="log" aria-live="polite"></div>
+      </aside>
+    </div>
     <div class="composer" id="manual-composer">
       <div id="command-picker" class="command-picker hidden">
         <div id="command-suggestions" role="listbox" aria-label="スラッシュコマンド"></div>
@@ -67,7 +76,7 @@ export function renderPage(): string {
     <div id="test-case-composer" class="composer test-case-composer hidden">
       <div class="test-case-caption"><strong>テストケース</strong><span id="test-case-status" role="status">読み込み中…</span></div>
       <div id="test-case-buttons" class="test-case-buttons" aria-label="テストケースを実行"></div>
-      <p class="hint">ボタンを押すと対応するテストが実行され、実行ログ・Bot の返信・検証結果が上のチャットに表示されます。</p>
+      <p class="hint">ボタンを押すとテストを実行します。ユーザー操作と Bot の応答はチャットに、開始・検証・結果は右側の実行ログに表示されます。</p>
     </div>
   </main>
   <main class="main database-page hidden" id="database-panel">

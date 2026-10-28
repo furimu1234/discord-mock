@@ -177,14 +177,21 @@ export class TestRunsView {
 /** /test のチャット欄に、独立した UT 全件の操作と返信を時系列表示する。 */
 export class TestRunChatView {
   private readonly messages = getElement("messages", "div");
+  private readonly channels = getElement("channels", "nav");
+  private readonly channelTitle = getElement("channel-title", "strong");
+  private readonly logPanel = getElement("test-log-panel", "aside");
+  private readonly logEntries = getElement("test-log-entries", "div");
   private readonly buttons = getElement("test-case-buttons", "div");
   private readonly status = getElement("test-case-status", "span");
   private readonly error = getElement("error", "div");
   private csrf = "";
   private generation = 0;
+  private selectedChannelId = "general";
+  private runs: TestRunView[] = [];
 
   async initialize(): Promise<void> {
-    this.messages.replaceChildren(createElement("p", "empty", "テストケースのボタンまたは pnpm bot で実行してください。"));
+    this.logPanel.classList.toggle("hidden", false);
+    this.render([]);
     try {
       await this.connectSession();
       await Promise.all([this.refreshCases(), this.refreshRuns()]);
@@ -294,45 +301,94 @@ export class TestRunChatView {
   }
 
   private render(runs: TestRunView[]): void {
+    this.runs = runs;
+    this.renderChannels();
+    this.renderMessages();
+    this.renderLog();
+    this.showError("");
+  }
+
+  private renderChannels(): void {
+    const channels = new Map<string, string>();
+    for (const run of this.runs) {
+      for (const channel of run.guild.channels) {
+        if (channel.type === 0 && !channels.has(channel.id)) channels.set(channel.id, channel.name);
+      }
+    }
+    // 初回は報告スナップショットがないため、既定チャンネルを表示する。
+    if (channels.size === 0) channels.set("general", "general");
+    if (!channels.has(this.selectedChannelId)) {
+      this.selectedChannelId = channels.keys().next().value ?? "general";
+    }
+    this.channels.replaceChildren();
+    for (const [id, name] of channels) {
+      const button = createElement(
+        "button",
+        id === this.selectedChannelId ? "channel selected" : "channel",
+        "#  " + name,
+      );
+      button.type = "button";
+      button.onclick = () => {
+        this.selectedChannelId = id;
+        this.renderChannels();
+        this.renderMessages();
+      };
+      this.channels.append(button);
+    }
+    this.channelTitle.textContent = "# " + (channels.get(this.selectedChannelId) ?? "general");
+  }
+
+  private renderMessages(): void {
     const wasAtBottom = this.messages.scrollTop + this.messages.clientHeight >= this.messages.scrollHeight - 60;
     this.messages.replaceChildren();
-    if (!runs.length) {
-      this.messages.append(createElement("p", "empty", "実行待機中。下のテストケースを選ぶか pnpm bot で全テストを実行してください。"));
-      return;
-    }
-    for (const run of runs) {
-      const heading = createElement("div", "test-run-heading");
-      heading.append(
-        createElement("strong", "", run.name),
-        createElement("span", `test-status ${run.status}`, STATUS[run.status]),
-        createElement("time", "", new Date(run.startedAt).toLocaleTimeString("ja-JP")),
-      );
-      this.messages.append(heading);
-      type RunEntry =
-        | { kind: "step"; timestamp: string; text: string }
-        | { kind: "message"; timestamp: string; channel: string; message: TestRunView["messages"][string][number] };
-      const entries: RunEntry[] = run.steps.map(({ text, timestamp }) => ({ kind: "step", text, timestamp }));
-      for (const channel of run.guild.channels) {
-        for (const message of run.messages[channel.id] ?? [])
-          entries.push({ kind: "message", channel: channel.name, timestamp: message.timestamp, message });
-      }
-      entries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-      let currentChannel = "";
-      for (const entry of entries) {
-        if (entry.kind === "step") {
-          this.messages.append(createElement("div", "test-run-step", entry.text));
-        } else {
-          if (currentChannel !== entry.channel) {
-            currentChannel = entry.channel;
-            this.messages.append(createElement("div", "test-run-channel", `# ${currentChannel}`));
-          }
-          this.messages.append(renderMessage(entry.message));
-        }
-      }
-      if (run.status !== "running")
-        this.messages.append(createElement("div", `test-run-step test-run-final test-status ${run.status}`, `結果: ${STATUS[run.status]}`));
+
+    const name = (this.channelTitle.textContent ?? "").replace(/^#\s*/, "");
+    const welcome = createElement("section", "test-chat-welcome");
+    welcome.append(
+      createElement("div", "test-chat-symbol", "#"),
+      createElement("h2", "", "# " + name + "へようこそ！"),
+      createElement(
+        "p",
+        "",
+        "ここはテスト用チャンネル「#" + name + "」の始まりです。テストケースを実行するとユーザーの投稿と Bot の返信が表示されます。",
+      ),
+    );
+    this.messages.append(welcome);
+
+    // チャットにはダミーユーザーと Bot の実メッセージのみ。検証ログは別枠。
+    for (const run of this.runs) {
+      const items = [...(run.messages[this.selectedChannelId] ?? [])];
+      items.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      this.messages.append(...items.map(renderMessage));
     }
     if (wasAtBottom) this.messages.scrollTop = this.messages.scrollHeight;
-    this.showError("");
+  }
+
+  private renderLog(): void {
+    this.logEntries.replaceChildren();
+    if (!this.runs.length) {
+      this.logEntries.append(createElement(
+        "p",
+        "test-log-empty",
+        "まだ実行ログはありません。下のテストケースを選ぶと、開始・検証ステップ・結果がここに表示されます。",
+      ));
+      return;
+    }
+    for (const run of this.runs) {
+      const card = createElement("section", "test-log-run");
+      const heading = createElement("div", "test-log-run-heading");
+      heading.append(
+        createElement("strong", "", run.name),
+        createElement("span", "test-status " + run.status, STATUS[run.status]),
+      );
+      const started = createElement("div", "test-log-run-time", new Date(run.startedAt).toLocaleTimeString("ja-JP"));
+      const steps = createElement("ol", "test-log-steps");
+      steps.append(...run.steps.map((step) => createElement("li", "", step.text)));
+      card.append(heading, started, steps);
+      if (run.status !== "running") {
+        card.append(createElement("p", "test-log-result test-status " + run.status, "結果: " + STATUS[run.status]));
+      }
+      this.logEntries.append(card);
+    }
   }
 }

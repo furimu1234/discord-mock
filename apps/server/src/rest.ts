@@ -4,6 +4,7 @@ import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js"
 import { isRecord } from "./models.js";
 import { handleCommandRoute } from "./command-routes.js";
 import { parseMessageContent } from "./message-content.js";
+import { readCreateMessage } from "./message-upload.js";
 
 async function handleInteractionCallback(
   { request, response, url }: RouteContext,
@@ -59,6 +60,22 @@ export async function handleRestRoute(
   gatewayUrl: string,
 ): Promise<void> {
   const { request, response, method, path } = context;
+  const attachment = path.match(/^\/mock-attachments\/(\d+)$/);
+  if (method === "GET" && attachment) {
+    const file = environment.uploadedFile(attachment[1]);
+    if (!file) {
+      sendError(response, 404, "Unknown Attachment");
+      return;
+    }
+    response.writeHead(200, {
+      "content-type": file.contentType,
+      "content-length": String(file.bytes.length),
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    });
+    response.end(file.bytes);
+    return;
+  }
   const callback = path.match(/^\/interactions\/(\d+)\/([^/]+)\/callback$/);
 
   // SDK callbacks omit Bot authorization and authenticate using the URL token.
@@ -150,7 +167,7 @@ export async function handleRestRoute(
       return;
     }
     if (method === "POST") {
-      const body = parseMessageContent(await readJsonBody(request));
+      const body = await readCreateMessage(request, environment);
       const message = await environment.postMessage(channelId, body, state.user);
       sendJson(response, 200, message);
       return;

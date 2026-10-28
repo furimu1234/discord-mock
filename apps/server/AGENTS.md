@@ -9,4 +9,4 @@
 - API を追加したときは `spec/` と JS・Python のテストを同じ PR で更新する。
 
 - Discord公式のCreate Message JSONフィールドとMessage Objectの追加時は `spec/messages.md` とREST/Gateway/永続化の回帰テストを更新する。既知のリクエストフィールドを黙って捨てない。
-- multipartバイナリアップロードやPoll投票・コンポーネント相互作用などはJSON対応とは別機能であり、未実装のまま実装済みとしない。
+- multipartのpayload_json/files[n]によるバイナリ添付はローカルMockプロセス内のみ対応。再起動後にバイナリは失われる。Poll投票・コンポーネント相互作用などはJSON対応とは別機能であり、未実装のまま実装済みとしない。

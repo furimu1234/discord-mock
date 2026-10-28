@@ -17,10 +17,11 @@
 | message_reference | 返信/転送参照、referenced_message/message_snapshotsを生成 |
 | components | コンポーネントJSONを保存（押下は未実装） |
 | sticker_ids | 最大3件、sticker_itemsを返却 |
-| attachments | JSONのメタデータを保存（実ファイル添付・配信は未対応） |
+| attachments | 添付ファイルのメタデータを保存。multipartではfileインデックスと紐付け、ローカルURLを返却 |
 | flags | SUPPRESS_EMBEDS、SUPPRESS_NOTIFICATIONS、IS_VOICE_MESSAGE、IS_COMPONENTS_V2のビットを検証 |
 | poll | JSONを保存（投票と終了処理は未対応） |
 | shared_client_theme | JSONを保存 |
+| files[n] / payload_json | multipart/form-dataで最大10ファイル・合計25MiBまで受け付け、ファイルをMock内メモリに保持し、ローカルURLから取得 |
 
 ## Message Object
 
@@ -37,7 +38,7 @@ JSONを受け取ることと、そのフィールドが持つDiscord側の全挙
 
 ## 未実装・制限
 
-- バイナリ添付のmultipart/form-data、CDN配信、音声アップロード
+- Discord本番CDNの再現・アップロード後の永続保存（バイナリはMockプロセス内メモリのみ）、音声ストリーミング
 - Poll投票・結果集計・締切、Stickerの実体
 - コンポーネント押下などのInteraction全機能
 - Webhook/スレッド/全リアクション・メッセージ編集/削除経路

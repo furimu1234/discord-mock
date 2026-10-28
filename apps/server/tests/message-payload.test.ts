@@ -147,3 +147,52 @@ test("不正なCreate Message入力を400で拒否し、メッセージを追加
     assert.deepEqual(list, []);
   } finally { await mock.close(); }
 });
+
+test("Discord標準のmultipart files[n]とpayload_jsonで実ファイルを保存・取得する", async () => {
+  const mock = await startMock({ port: 0 });
+  try {
+    const ch = mock.testing.channels.findByName("general")?.id;
+    assert.ok(ch);
+    const url = `${mock.url}/api/v10/channels/${ch}/messages`;
+    const form = new FormData();
+    form.set("payload_json", JSON.stringify({
+      content: "添付をテスト",
+      attachments: [{ id: "0", filename: "demo.txt", description: "テストファイル" }],
+    }));
+    form.set("files[0]", new Blob(["Hello from Mock"], { type: "text/plain" }), "demo.txt");
+    const result = await fetch(url, {
+      method: "POST", headers: { authorization: `Bot ${mock.token}` }, body: form,
+    });
+    assert.equal(result.status, 200);
+    const message = await result.json();
+    assert.equal(message.content, "添付をテスト");
+    assert.equal(message.attachments.length, 1);
+    assert.equal(message.attachments[0].filename, "demo.txt");
+    assert.equal(message.attachments[0].description, "テストファイル");
+    assert.equal(message.attachments[0].size, 15);
+    assert.equal(message.attachments[0].content_type, "text/plain");
+    assert.match(message.attachments[0].url, /^http:\/\/127\.0\.0\.1:\d+\/api\/v10\/mock-attachments\/\d+$/);
+    const download = await fetch(message.attachments[0].url);
+    assert.equal(download.status, 200);
+    assert.equal(download.headers.get("content-type"), "text/plain");
+    assert.equal(await download.text(), "Hello from Mock");
+    const get = await fetch(`${url}/${message.id}`, { headers: { authorization: `Bot ${mock.token}` } });
+    assert.deepEqual((await get.json()).attachments, message.attachments);
+
+    const onlyFile = new FormData();
+    onlyFile.set("files[0]", new Blob(["ok"], { type: "text/plain" }), "only.txt");
+    const second = await fetch(url, {
+      method: "POST", headers: { authorization: `Bot ${mock.token}` }, body: onlyFile,
+    });
+    assert.equal(second.status, 200);
+    const secondMessage = await second.json();
+    assert.equal(secondMessage.content, "");
+    assert.equal(secondMessage.attachments.length, 1);
+
+    const invalid = new FormData();
+    invalid.set("files[10]", new Blob(["x"]), "invalid.txt");
+    assert.equal((await fetch(url, {
+      method: "POST", headers: { authorization: `Bot ${mock.token}` }, body: invalid,
+    })).status, 400);
+  } finally { await mock.close(); }
+});

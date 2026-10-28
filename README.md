@@ -466,6 +466,5 @@ Python の `discord.py` / `commands.Bot` は、[`packages/client-py/README.md`](
 `GET /api/v10/channels/{id}/messages/{message_id}` から1件ずつ取得できます。
 
 **現時点でDiscord本番APIとの完全互換を保証するものではありません。**
-ファイル本体の `multipart/form-data` アップロード、Poll投票、コンポーネント押下、
-レートリミットなどは未実装です。フィールド対応と機能の実動作は区別してください。
+`multipart/form-data` の `payload_json` と `files[n]` によるバイナリ添付にも対応します。添付ファイルはMockがメモリ内で保持してローカルURLから取得できますが、App再起動で消えます。Poll投票、コンポーネント押下、レートリミットなどは未実装です。フィールド対応と機能の実動作は区別してください。
 詳細は [Message API対応範囲](spec/messages.md) を参照してください。

@@ -35,7 +35,7 @@ test("Browser dummy user and message routes require a session + CSRF", { timeout
     assert.doesNotMatch(source, /innerHTML/);
     assert.equal((await fetch(`${mock.url}/_ui/state`)).status, 401);
     const { data, cookie } = await session(mock);
-    assert.equal(data.users.length, 2);
+    assert.equal(data.users.length, 10);
     const denied = await fetch(`${mock.url}/_ui/identity`, {
       method: "POST", headers: { cookie, "content-type": "application/json" },
       body: JSON.stringify({ user_id: data.users[1].id }),

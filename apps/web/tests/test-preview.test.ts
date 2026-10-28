@@ -49,6 +49,14 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
           { id: "123456789000000099", username: "Alice", bot: false },
           { id: "123456789000000098", username: "Bob", bot: false },
         ],
+        roles: [
+          { id: "everyone", name: "@everyone", color: 0 },
+          { id: "moderator", name: "Moderator", color: 65535 },
+        ],
+        members: [
+          { user: { id: "123456789000000099" }, roles: ["moderator"] },
+          { user: { id: "123456789000000098" }, roles: [] },
+        ],
       }) };
       if (url === "/_ui/identity") {
         selectedUserId = (JSON.parse(options.body as string) as { user_id: string }).user_id;
@@ -69,6 +77,29 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.equal(fixture.elements["user-panel"].classes.has("hidden"), false);
   assert.equal(fixture.elements.identity.value, "123456789000000099");
   assert.equal(fixture.elements.identity.children.length, 2);
+  const userTab = fixture.elements["test-users-tab"];
+  const logTab = fixture.elements["test-log-tab"];
+  userTab.onclick();
+  assert.equal(fixture.elements["test-log-entries"].classes.has("hidden"), true);
+  assert.equal(fixture.elements["test-user-list"].children.length, 2);
+  const aliceButton = fixture.elements["test-user-list"].children[0];
+  aliceButton.onclick();
+  assert.match(textOf(fixture.elements["test-user-profile"]), /Alice/);
+  assert.match(textOf(fixture.elements["test-user-profile"]), /Moderator/);
+  assert.match(textOf(fixture.elements["test-user-profile"]), /@everyone/);
+  aliceButton.oncontextmenu({ preventDefault() {} });
+  assert.equal(fixture.elements["test-user-menu"].children.length, 2);
+  fixture.elements["test-user-menu"].children[1].onclick();
+  await settle();
+  assert.deepEqual(fixture.copied, ["123456789000000099"]);
+  // 右クリックのメニューからログイン先を切り替えられる。
+  const bobButton = fixture.elements["test-user-list"].children[1];
+  bobButton.oncontextmenu({ preventDefault() {} });
+  fixture.elements["test-user-menu"].children[0].onclick();
+  await settle();
+  assert.equal(selectedUserId, "123456789000000098");
+  logTab.onclick();
+  assert.equal(fixture.elements["test-log-entries"].classes.has("hidden"), false);
   fixture.elements.identity.value = "123456789000000098";
   fixture.elements.identity.onchange();
   await settle();

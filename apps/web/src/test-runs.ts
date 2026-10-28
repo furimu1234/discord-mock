@@ -182,10 +182,19 @@ export class TestRunChatView {
   private readonly channelTitle = getElement("channel-title", "strong");
   private readonly logPanel = getElement("test-log-panel", "aside");
   private readonly logEntries = getElement("test-log-entries", "div");
+  private readonly logTab = getElement("test-log-tab", "button");
+  private readonly usersTab = getElement("test-users-tab", "button");
+  private readonly usersList = getElement("test-user-list", "div");
+  private readonly userProfile = getElement("test-user-profile", "div");
+  private readonly userMenu = getElement("test-user-menu", "div");
   private readonly buttons = getElement("test-case-buttons", "div");
   private readonly status = getElement("test-case-status", "span");
   private readonly error = getElement("error", "div");
   private userCsrf = "";
+  private sessionUsers: Array<{ id: string; username: string; bot: boolean }> = [];
+  private sessionMembers: Array<{ user: { id: string }; roles: string[] }> = [];
+  private sessionRoles: Array<{ id: string; name: string; color: number }> = [];
+  private selectedUserId = "";
   private identityChange: Promise<void> = Promise.resolve();
   private identityError: string | null = null;
   private generation = 0;
@@ -194,6 +203,9 @@ export class TestRunChatView {
 
   async initialize(): Promise<void> {
     this.logPanel.classList.toggle("hidden", false);
+    this.logTab.onclick = () => this.selectSidebarTab("log");
+    this.usersTab.onclick = () => this.selectSidebarTab("users");
+    this.selectSidebarTab("log");
     this.render([]);
     try {
       await Promise.all([this.connectSession(), this.connectUserSession()]);
@@ -233,19 +245,25 @@ export class TestRunChatView {
       csrf: string;
       selectedUserId: string;
       users: { id: string; username: string; bot: boolean }[];
+      members?: Array<{ user: { id: string }; roles: string[] }>;
+      roles?: Array<{ id: string; name: string; color: number }>;
     }>("/_ui/session");
     this.userCsrf = session.csrf;
+    this.sessionUsers = session.users.filter((user) => !user.bot);
+    this.sessionMembers = session.members ?? [];
+    this.sessionRoles = session.roles ?? [];
+    this.selectedUserId = session.selectedUserId;
     this.identity.replaceChildren(...session.users.filter((user) => !user.bot).map((user) => {
       const option = createElement("option", "", user.username);
       option.value = user.id;
       return option;
     }));
     this.identity.value = session.selectedUserId;
-    this.identity.onchange = () => { this.identityChange = this.switchIdentity(); };
+    this.identity.onchange = () => { this.identityChange = this.switchIdentity(this.identity.value); };
+    this.renderUserList();
   }
 
-  private async switchIdentity(): Promise<void> {
-    const userId = this.identity.value;
+  private async switchIdentity(userId: string): Promise<void> {
     this.identityError = null;
     try {
       const result = await this.request<{ selectedUserId: string }>("/_ui/identity", {
@@ -257,12 +275,101 @@ export class TestRunChatView {
         body: JSON.stringify({ user_id: userId }),
       });
       this.identity.value = result.selectedUserId;
+      this.selectedUserId = result.selectedUserId;
+      this.renderUserList();
+      this.userMenu.classList.toggle("hidden", true);
       this.showError("");
     } catch (error) {
       this.identityError = error instanceof Error ? error.message : "ユーザーの切り替えに失敗しました";
       this.showError(this.identityError);
       await this.connectUserSession().catch(() => {});
     }
+  }
+
+
+  private selectSidebarTab(tab: "log" | "users"): void {
+    const usersVisible = tab === "users";
+    this.logEntries.classList.toggle("hidden", usersVisible);
+    this.usersList.classList.toggle("hidden", !usersVisible);
+    this.logTab.classList.toggle("active", !usersVisible);
+    this.usersTab.classList.toggle("active", usersVisible);
+    this.logTab.setAttribute("aria-selected", String(!usersVisible));
+    this.usersTab.setAttribute("aria-selected", String(usersVisible));
+    this.userProfile.classList.toggle("hidden", true);
+    this.userMenu.classList.toggle("hidden", true);
+  }
+
+  private renderUserList(): void {
+    this.usersList.replaceChildren();
+    for (const user of this.sessionUsers) {
+      const button = createElement(
+        "button",
+        user.id === this.selectedUserId ? "test-user-item logged-in" : "test-user-item",
+      );
+      button.type = "button";
+      button.append(
+        createElement("span", "test-user-avatar", user.username.slice(0, 1).toUpperCase()),
+        createElement("span", "test-user-name", user.username),
+      );
+      if (user.id === this.selectedUserId)
+        button.append(createElement("span", "test-user-current", "ログイン中"));
+      button.onclick = () => this.showUserProfile(user);
+      button.oncontextmenu = (event) => {
+        event.preventDefault();
+        this.showUserMenu(user);
+      };
+      this.usersList.append(button);
+    }
+  }
+
+  private showUserProfile(user: { id: string; username: string }): void {
+    this.userMenu.classList.toggle("hidden", true);
+    const profile = this.userProfile;
+    const close = createElement("button", "test-profile-close", "×");
+    close.type = "button";
+    close.setAttribute("aria-label", "プロフィールを閉じる");
+    close.onclick = () => profile.classList.toggle("hidden", true);
+    const header = createElement("div", "test-profile-header");
+    header.append(
+      createElement("span", "test-profile-avatar", user.username.slice(0, 1).toUpperCase()),
+      createElement("strong", "test-profile-name", user.username),
+      close,
+    );
+    const member = this.sessionMembers.find((item) => item.user.id === user.id);
+    const assigned = new Set(member?.roles ?? []);
+    const roles = this.sessionRoles.filter((role) => role.name === "@everyone" || assigned.has(role.id));
+    const roleList = createElement("div", "test-profile-roles");
+    roleList.append(...roles.map((role) => {
+      const badge = createElement("span", "test-profile-role", role.name);
+      if (role.color) badge.style.borderColor = `#${role.color.toString(16).padStart(6, "0")}`;
+      return badge;
+    }));
+    profile.replaceChildren(
+      header,
+      createElement("div", "test-profile-id", `ID: ${user.id}`),
+      createElement("strong", "", "ロール"),
+      roleList,
+    );
+    profile.classList.toggle("hidden", false);
+  }
+
+  private showUserMenu(user: { id: string; username: string }): void {
+    this.userProfile.classList.toggle("hidden", true);
+    const change = createElement("button", "", "このユーザーでログイン");
+    change.type = "button";
+    change.onclick = () => {
+      this.identityChange = this.switchIdentity(user.id);
+    };
+    const copy = createElement("button", "", "ユーザーIDをコピー");
+    copy.type = "button";
+    copy.onclick = () => {
+      void navigator.clipboard.writeText(user.id).then(
+        () => this.userMenu.classList.toggle("hidden", true),
+        () => this.showError("IDをコピーできませんでした"),
+      );
+    };
+    this.userMenu.replaceChildren(change, copy);
+    this.userMenu.classList.toggle("hidden", false);
   }
 
   private showError(message: string): void {

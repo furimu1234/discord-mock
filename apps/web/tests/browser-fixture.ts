@@ -15,6 +15,7 @@ export class Element {
   declare oninput: () => void;
   declare onsubmit: (event: { preventDefault(): void }) => void;
   declare onkeydown: (event: { key: string; preventDefault(): void; repeat?: boolean; isComposing?: boolean }) => void;
+  declare oncontextmenu: (event: { preventDefault(): void; clientX?: number; clientY?: number }) => void;
   classList = {
     toggle: (name: string, enabled: boolean) => enabled ? this.classes.add(name) : this.classes.delete(name),
     contains: (name: string) => this.classes.has(name),
@@ -55,6 +56,11 @@ export function createBrowserFixture(pathname = "/") {
     "test-case-status": "span",
     "test-log-panel": "aside",
     "test-log-entries": "div",
+    "test-log-tab": "button",
+    "test-users-tab": "button",
+    "test-user-list": "div",
+    "test-user-profile": "div",
+    "test-user-menu": "div",
     "channel-sidebar": "div",
     "database-sidebar": "div",
     "user-panel": "div",
@@ -94,6 +100,7 @@ export function createBrowserFixture(pathname = "/") {
   const elements = Object.fromEntries(Object.entries(tags).map(([id, tag]) => [id, new Element(tag)])) as Record<string, Element>;
   elements["database-limit"].value = "50";
   const streams: EventSource[] = [];
+  const copied: string[] = [];
   class EventSource {
     handlers = new Map<string, () => void>();
     url: string;
@@ -104,6 +111,7 @@ export function createBrowserFixture(pathname = "/") {
   return {
     elements,
     streams,
+    copied,
     globals: {
       location: { pathname },
       document: {
@@ -116,6 +124,7 @@ export function createBrowserFixture(pathname = "/") {
       setTimeout,
       clearTimeout,
       setInterval: () => 1,
+      navigator: { clipboard: { writeText: async (text: string) => { copied.push(text); } } },
     },
   };
 }

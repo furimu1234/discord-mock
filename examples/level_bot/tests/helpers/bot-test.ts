@@ -1,4 +1,4 @@
-import { test as base, expect } from "vitest";
+import { test as base, expect, type TestContext } from "vitest";
 import {
   createTestEnvironment,
   type MockUser,
@@ -24,7 +24,7 @@ export type { TestUserTarget } from "./user-target.js";
 export { describe, expect } from "vitest";
 
 /** Bot・DB・Mock はテストごとに新しく作り、本文は操作と検証だけを書く。 */
-export const test = base.extend("bot", async ({ task }, { onCleanup }) => {
+async function setupBot({ task }: TestContext, { onCleanup }: { onCleanup(callback: () => Promise<void>): void }) {
   const previousDsn = process.env.POST_URL;
   const baseUrl = process.env.DISCORD_MOCK_REPORT_URL;
   const mock = await createTestEnvironment({
@@ -80,40 +80,6 @@ export const test = base.extend("bot", async ({ task }, { onCleanup }) => {
     as(user: MockUser) {
       return createBotActor(mock, channel.id, user);
     },
-    /**
-     * UT 内のユーザー起因操作の対象を選択する。
-     * users: "all" | "logged-in" | { id: "123..." }
-     */
-    async forUsers<T>(
-      options: { users: TestUserTarget },
-      execute: (user: MockUser, actor: BotActor) => Promise<T>,
-    ): Promise<Array<{ user: MockUser; result: T }>> {
-      const selected = resolveTestUsers(
-        mock.users.list(),
-        options.users,
-        process.env.DISCORD_MOCK_SELECTED_USER_ID,
-      );
-      const results: Array<{ user: MockUser; result: T }> = [];
-      // 全員は順番に実行し、操作・返信のログが安定した順序で記録される。
-      for (const user of selected) {
-        results.push({ user, result: await execute(user, createBotActor(mock, channel.id, user)) });
-      }
-      return results;
-    },
-    /** user 別の返信を返す。全員の場合も各ユーザーの返信を分離する。 */
-    async command(name: string, options: { users: TestUserTarget; timeoutMs?: number }) {
-      const selected = resolveTestUsers(
-        mock.users.list(),
-        options.users,
-        process.env.DISCORD_MOCK_SELECTED_USER_ID,
-      );
-      const replies = [];
-      for (const user of selected) {
-        const reply = await createBotActor(mock, channel.id, user).command(name, { timeoutMs: options.timeoutMs });
-        replies.push({ user, reply });
-      }
-      return replies;
-    },
     levels: {
       async set(user: MockUser, level: number, guildId = mock.guild.id) {
         await mock.report({
@@ -141,4 +107,15 @@ export const test = base.extend("bot", async ({ task }, { onCleanup }) => {
         ),
     },
   };
-});
+}
+
+/** テスト宣言側で選んだユーザーを操作・検証に共通して提供する。 */
+const baseBotTest = base.extend("bot", setupBot);
+type BotHarness = Awaited<ReturnType<typeof setupBot>>;
+export type BotCaseContext = { bot: BotHarness; user: MockUser; actor: BotActor };
+export function test(name: string, options: { users: TestUserTarget }, execute: (context: BotCaseContext) => Promise<void>): void {
+  baseBotTest(name, async ({ bot }) => {
+    const targets = resolveTestUsers(bot.users.list(), options.users, process.env.DISCORD_MOCK_SELECTED_USER_ID);
+    for (const user of targets) await execute({ bot, user, actor: bot.as(user) });
+  });
+}

@@ -14,10 +14,26 @@ export function createInitialState(): LoadedMockState {
   const guildId = "123456789000000000";
 
   const bot = createUser(APPLICATION_ID, "MockBot", true);
-  const users = [createUser(DEFAULT_USER_ID, "Alice"), createUser("123456789000000098", "Bob")];
+  const users = [
+    createUser(DEFAULT_USER_ID, "Alice"),
+    createUser("123456789000000098", "Bob"),
+    createUser("123456789000000097", "Charlie"),
+    createUser("123456789000000096", "Diana"),
+    createUser("123456789000000095", "Eve"),
+    createUser("123456789000000094", "Frank"),
+    createUser("123456789000000093", "Grace"),
+    createUser("123456789000000092", "Heidi"),
+    createUser("123456789000000091", "Ivan"),
+    createUser("123456789000000090", "Judy"),
+  ];
   return {
     version: 1,
-    members: [bot, ...users].map((user) => ({ user, roles: [], joined_at: "2026-01-01T00:00:00.000Z", deaf: false, mute: false, flags: 0 })),
+    members: [bot, ...users].map((user) => ({
+      user,
+      roles: user.id === DEFAULT_USER_ID ? ["123456789000000010"] : user.username === "Bob" ? ["123456789000000011"] : [],
+      joined_at: "2026-01-01T00:00:00.000Z",
+      deaf: false, mute: false, flags: 0,
+    })),
     user: bot,
     users,
     guild: {
@@ -33,6 +49,24 @@ export function createInitialState(): LoadedMockState {
         permissions: String(DEFAULT_PERMISSIONS),
         managed: false,
         mentionable: false,
+      }, {
+        id: "123456789000000010",
+        name: "Moderator",
+        color: 5793266,
+        hoist: false,
+        position: 1,
+        permissions: "0",
+        managed: false,
+        mentionable: true,
+      }, {
+        id: "123456789000000011",
+        name: "Tester",
+        color: 7506394,
+        hoist: false,
+        position: 2,
+        permissions: "0",
+        managed: false,
+        mentionable: true,
       }],
       channels: [{
         id: DEFAULT_CHANNEL_ID,

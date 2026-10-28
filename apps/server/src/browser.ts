@@ -55,6 +55,8 @@ export class BrowserRoutes {
       csrf: session.csrf,
       selectedUserId: session.selectedUserId,
       users: this.environment.state.users,
+      members: this.environment.state.members,
+      roles: this.environment.state.guild.roles,
     };
     sendJson(response, 200, result);
   }

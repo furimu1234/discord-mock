@@ -111,27 +111,34 @@ flowchart TD
 
 ## サンプル Bot と Web テストランナー
 
-`/test` は、**Discord 風の自動テスト画面**です。左にテキストチャンネル一覧、中央にダミーユーザーの投稿・コマンド操作と Bot の返信・Embed だけを表示するチャット、右にテスト開始・検証ステップ・成功／失敗を表示する独立した実行ログを配置します。初期状態は `# general` のチャンネル開始画面です。下部のテストケース名ボタンから各ケースを実行できます。配色は既存のダークテーマを維持します。従来の手動投稿はデフォルトの `/test` では行いません。テストは各ケース専用の Mock / PGlite / Bot 環境で実行され、起動中 app の通常のデータを変更しません。`/tests` では個別実行の履歴を参照できます。
+`/test` は、**Discord 風の自動テスト画面**です。左にテキストチャンネル一覧、中央にダミーユーザーの投稿・コマンド操作と Bot の返信・Embed だけを表示するチャット、右に「実行ログ／ユーザー」タブを配置し、実行の進行状況とユーザー一覧・プロフィールを切り替えます。初期状態は `# general` のチャンネル開始画面です。下部のテストケース名ボタンから各ケースを実行できます。配色は既存のダークテーマを維持します。従来の手動投稿はデフォルトの `/test` では行いません。テストは各ケース専用の Mock / PGlite / Bot 環境で実行され、起動中 app の通常のデータを変更しません。`/tests` では個別実行の履歴を参照できます。
 
-### UTから実行ユーザーを指定する
+### UT の実行ユーザーを test() で指定
 
-ユーザー起因のテスト操作は、UTの TypeScript ソースで `users` 引数を指定できます。
+`test("ケース名", { users: "login" }, async ({ bot, user, actor }) => { ... })` のように、第2引数でテスト対象を指定します。
 
 ```ts
-// Bot テスト（examples/level_bot/tests/bot/*.test.ts）
-await bot.command("レベル確認", { users: "all" }); // 全ダミーユーザー（Bot除外）で順次実行
-await bot.command("レベル確認", { users: "logged-in" }); // /test にログイン中のユーザー
-await bot.command("レベル確認", { users: { id: "123456789000000099" } }); // 指定ID
+// /test の右側でログインしたユーザーとして実行
+test("レベル確認", { users: "login" }, async ({ bot, user, actor }) => {
+  await bot.levels.set(user, 7);
+  const reply = await actor.command("レベル確認");
+  expect(reply.embeds[0].fields?.[0].value).toBe("7");
+});
 
-// メッセージなどコマンド以外のユーザー起因操作も対象を指定可能
-await bot.forUsers({ users: "all" }, async (user, actor) => {
-  await actor.sendMessage(`${user.username} の投稿`);
+// 全ダミーユーザー（Bot除外）について同じ検証を順次実行
+test("全員の投稿", { users: "all" }, async ({ user, actor }) => {
+  await actor.sendMessage(`${user.username} から投稿`);
+});
+
+// ユーザー ID を明示
+test("指定ユーザー", { users: { id: "123456789000000099" } }, async ({ actor }) => {
+  await actor.sendMessage("ID指定の投稿");
 });
 ```
 
-`bot.command` は `{ user, reply }[]` を返します。`bot.forUsers` は `{ user, result }[]` を返し、どちらも **全ユーザーの場合は順番に実行**します。従来の `bot.as(bot.alice).command(...)` も利用できます。存在しないIDやBotアカウントはエラーにします。
+`user` は対象ユーザー、`actor` はそのユーザーとして投稿・コマンド実行できる操作クライアントです。`bot.levels.set(user, ...)` などの状態準備も同じユーザーを参照します。`"all"` では同じテスト本文を各ユーザーについて順に実行します。従来の `bot.as(user)` も残していますが、テスト実行対象は各操作ではなく `test()` の第2引数で指定します。
 
-`"logged-in"` は **Webからテストボタンを実行した時点**で、左下の「ログイン中のテストユーザー」で選択しているダミーユーザーを指します。選択IDはブラウザセッションから取得し、テスト専用の Mock 環境へ渡します。直接 `pnpm bot` で実行するときはブラウザのセッションを参照できないため、`DISCORD_MOCK_SELECTED_USER_ID` を設定して明示的に指定してください。未指定・テスト環境に存在しないIDは別ユーザーへ切り替えずテストを失敗させます。テストケースごとの Mock / DB 分離や、既存の認証・CSRFを維持します。
+`"login"` は `/test` 右側の「ユーザー」タブからログイン先を変更したユーザーです。左クリックでロール等のプロフィール、右クリックでIDコピーとログイン切替を操作できます。初期ダミーユーザーは10人で、ログは「実行ログ」タブにあります。CLIで `pnpm bot` を実行するときは既定の Alice を使い、`DISCORD_MOCK_SELECTED_USER_ID` で上書きできます。未知のIDやBotアカウントにはフォールバックしません。
 
 ### 起動とテスト
 
@@ -144,7 +151,7 @@ pnpm app
 
 `pnpm app` はローカル REST / Gateway / Web とインメモリ PGlite を起動し、`.discord-mock-data/credentials.json` のトークンを使用します。初回起動は `mock_` トークンを発行して保存します。**起動前から有効なトークン JSON があった場合、app は Bot クライアントも自動起動します。** 環境変数 `TOKEN`（または `DISCORD_MOCK_TOKEN`）が設定され、JSON と一致しない場合は、Bot の自動起動だけを止めてエラーを表示し、app 自体は稼働します。設定を確認し、`pnpm bot:test` でテストしてください。実際の Discord トークンは使用しません。
 
-ブラウザで [http://127.0.0.1:3000/test](http://127.0.0.1:3000/test) を開き、左下のダミーユーザーを選択して、画面下部の **テストケース名のボタン**を押すと、そのテストだけを実行できます。全ケースは別のターミナルから次のコマンドで実行します。
+ブラウザで [http://127.0.0.1:3000/test](http://127.0.0.1:3000/test) を開き、右側のユーザータブでログインユーザーを選択して、画面下部の **テストケース名のボタン**を押すと、そのテストだけを実行できます。全ケースは別のターミナルから次のコマンドで実行します。
 
 ```sh
 pnpm bot

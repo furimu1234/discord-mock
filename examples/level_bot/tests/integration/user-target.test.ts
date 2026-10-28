@@ -14,8 +14,8 @@ test("all は Bot を除外した全ダミーユーザーを順番に返す", ()
 });
 
 test("logged-in は Web で選択したユーザーIDだけを返す", () => {
-  assert.deepEqual(resolveTestUsers(users, "logged-in", users[1].id), [users[1]]);
-  assert.throws(() => resolveTestUsers(users, "logged-in"), /ログイン中/);
+  assert.deepEqual(resolveTestUsers(users, "login", users[1].id), [users[1]]);
+  assert.throws(() => resolveTestUsers(users, "login"), /ログイン中/);
 });
 
 test("ID指定は対象だけを返し、未登録またはBot IDではエラーにする", () => {

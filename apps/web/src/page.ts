@@ -56,10 +56,16 @@ export function renderPage(): string {
       <div id="messages" class="messages" role="log" aria-live="polite"></div>
       <aside id="test-log-panel" class="test-log-panel hidden" aria-label="自動テスト実行ログ">
         <div class="test-log-header">
-          <strong>実行ログ</strong>
-          <a href="/tests">履歴を見る</a>
+          <div class="test-sidebar-tabs" role="tablist" aria-label="右サイドバー切替">
+            <button type="button" id="test-log-tab" class="active" role="tab" aria-selected="true">実行ログ</button>
+            <button type="button" id="test-users-tab" role="tab" aria-selected="false">ユーザー</button>
+          </div>
+          <a href="/tests">履歴</a>
         </div>
         <div id="test-log-entries" class="test-log-entries" role="log" aria-live="polite"></div>
+        <div id="test-user-list" class="test-user-list hidden" aria-label="テストユーザー一覧"></div>
+        <div id="test-user-profile" class="test-user-profile hidden" role="dialog" aria-label="ユーザープロフィール"></div>
+        <div id="test-user-menu" class="test-user-menu hidden" role="menu" aria-label="ユーザーメニュー"></div>
       </aside>
     </div>
     <div class="composer" id="manual-composer">
@@ -76,7 +82,7 @@ export function renderPage(): string {
     <div id="test-case-composer" class="composer test-case-composer hidden">
       <div class="test-case-caption"><strong>テストケース</strong><span id="test-case-status" role="status">読み込み中…</span></div>
       <div id="test-case-buttons" class="test-case-buttons" aria-label="テストケースを実行"></div>
-      <p class="hint">UTで users: "logged-in" を指定すると、左下で選択中のユーザーとして実行します。ユーザー操作と Bot の応答はチャット、検証結果は右のログに表示します。</p>
+      <p class="hint">UTで users: "login" を指定すると、右側で切り替えたユーザーとして実行します。ユーザー操作と Bot の応答はチャット、検証結果は右のログに表示します。</p>
     </div>
   </main>
   <main class="main database-page hidden" id="database-panel">

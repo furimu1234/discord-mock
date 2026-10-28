@@ -39,6 +39,8 @@ export interface IdentityResponse {
 export interface SessionResponse extends IdentityResponse {
   csrf: string;
   users: BrowserUser[];
+  members?: Array<{ user: BrowserUser; roles: string[] }>;
+  roles?: Array<{ id: string; name: string; color: number }>;
 }
 
 export interface BrowserState extends IdentityResponse {

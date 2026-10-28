@@ -99,7 +99,7 @@ export async function botTestConfig(
       hookTimeout: 30_000,
       env: {
         DISCORD_MOCK_REPORT_URL: reportUrl ?? "",
-        DISCORD_MOCK_SELECTED_USER_ID: process.env.DISCORD_MOCK_SELECTED_USER_ID ?? "",
+        DISCORD_MOCK_SELECTED_USER_ID: process.env.DISCORD_MOCK_SELECTED_USER_ID ?? "123456789000000099",
       },
     },
   };

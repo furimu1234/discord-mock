@@ -244,3 +244,23 @@ test("UT起動時のログインユーザーはブラウザセッションから
     await mock.close();
   }
 });
+
+
+test("既定のMockにはBotを除く10人のダミーユーザーとプロフィール用ロールがある", async () => {
+  const mock = await startMock({ port: 0 });
+  try {
+    const response = await fetch(`${mock.url}/_ui/session`);
+    const session = await response.json() as {
+      users: Array<{ id: string; username: string; bot: boolean }>;
+      roles: Array<{ id: string; name: string }>;
+      members: Array<{ user: { id: string }; roles: string[] }>;
+    };
+    assert.equal(session.users.filter((user) => !user.bot).length, 10);
+    assert.ok(session.roles.some((role) => role.name === "Moderator"));
+    const alice = session.users.find((user) => user.username === "Alice");
+    assert.ok(alice);
+    assert.ok(session.members.find((member) => member.user.id === alice.id)?.roles.length);
+  } finally {
+    await mock.close();
+  }
+});

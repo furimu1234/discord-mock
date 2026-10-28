@@ -39,6 +39,10 @@ test("compiled browser script renders state, switches users, posts and refreshes
         return { ok: true, json: async () => ({ id: "created" }) };
       case "/_ui/state":
         return { ok: true, json: async () => state };
+      case "/_admin/session":
+        return { ok: true, json: async () => ({ authenticated: true }) };
+      case "/_admin/test-runs":
+        return { ok: true, json: async () => ({ runs: [] }) };
       default:
         throw new Error(`Unexpected request: ${url}`);
     }
@@ -196,6 +200,8 @@ test("pending submissions and repeated Enter keys never send a message or comman
   script.runInNewContext({ ...fixture.globals, fetch: async (url) => {
     if (url === "/_ui/session") return { ok: true, json: async () => ({ csrf: "csrf", selectedUserId: "alice" }) };
     if (url === "/_ui/state") return { ok: true, json: async () => state };
+    if (url === "/_admin/session") return { ok: true, json: async () => ({ authenticated: true }) };
+    if (url === "/_admin/test-runs") return { ok: true, json: async () => ({ runs: [] }) };
     sends.push(url);
     return new Promise((resolve) => { complete = () => resolve({ ok: true, json: async () => ({ id: "created" }) }); });
   } });

@@ -171,3 +171,94 @@ export class TestRunsView {
       );
   }
 }
+
+
+/** /test に最新の UT の経過と返信を読み取り専用で表示する。 */
+export class TestRunPreview {
+  private readonly elements = {
+    panel: getElement("test-preview", "section"),
+    title: getElement("test-preview-title", "strong"),
+    status: getElement("test-preview-status", "span"),
+    steps: getElement("test-preview-steps", "ol"),
+    messages: getElement("test-preview-messages", "div"),
+    error: getElement("test-preview-error", "p"),
+  };
+  private generation = 0;
+
+  async initialize(): Promise<void> {
+    try {
+      const response = await fetch("/_admin/session", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json", "x-discord-mock-local": "1" },
+        body: "{}",
+      });
+      if (!response.ok) throw new Error("テスト参照セッションを開けませんでした");
+      await this.refresh();
+      const stream = new EventSource("/_admin/test-runs/events");
+      stream.addEventListener("open", () => { void this.refresh(); });
+      stream.addEventListener("changed", () => { void this.refresh(); });
+      stream.onerror = () => {
+        if (!this.elements.panel.classList.contains("hidden"))
+          this.showError("自動テストの更新に再接続中です。");
+      };
+    } catch {
+      // 参照が失敗しても、通常チャットの操作と表示は継続する。
+    }
+  }
+
+  private async request<T>(path: string): Promise<T> {
+    const response = await fetch(path, { credentials: "same-origin" });
+    if (!response.ok) throw new Error("テストの表示データを取得できませんでした");
+    return response.json() as Promise<T>;
+  }
+
+  private showError(message: string): void {
+    this.elements.error.textContent = message;
+    this.elements.error.classList.toggle("hidden", !message);
+  }
+
+  private async refresh(): Promise<void> {
+    const generation = ++this.generation;
+    try {
+      const { runs } = await this.request<{ runs: TestRunSummary[] }>("/_admin/test-runs");
+      if (generation !== this.generation) return;
+      if (!runs.length) {
+        this.elements.panel.classList.toggle("hidden", true);
+        return;
+      }
+      const run = await this.request<TestRunView>(`/_admin/test-runs/${runs[0].id}`);
+      if (generation !== this.generation) return;
+      this.render(run);
+      this.showError("");
+    } catch {
+      if (generation === this.generation && !this.elements.panel.classList.contains("hidden"))
+        this.showError("テスト結果の取得に失敗しました。再接続を試みます。");
+    }
+  }
+
+  private render(run: TestRunView): void {
+    const e = this.elements;
+    e.panel.classList.toggle("hidden", false);
+    e.title.textContent = run.name;
+    e.status.textContent = STATUS[run.status];
+    e.status.className = `test-status ${run.status}`;
+    e.steps.replaceChildren(
+      ...run.steps.slice(-12).map((step) => createElement("li", "", step.text)),
+    );
+    e.messages.replaceChildren();
+    for (const channel of run.guild.channels) {
+      if (channel.type !== 0) continue;
+      const messages = run.messages[channel.id] ?? [];
+      if (!messages.length) continue;
+      e.messages.append(
+        createElement("h3", "test-channel-title", `# ${channel.name}`),
+        ...messages.map(renderMessage),
+      );
+    }
+    if (!e.messages.children.length)
+      e.messages.append(
+        createElement("p", "empty", "テスト中のメッセージ・Bot の返信はここに表示されます。"),
+      );
+  }
+}

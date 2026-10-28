@@ -52,6 +52,24 @@ export function renderPage(): string {
       </div>
     </header>
     <div id="error" role="alert" class="error"></div>
+    <section id="test-preview" class="test-preview hidden" aria-label="自動テストの実行状況">
+      <div class="test-preview-header">
+        <div class="test-preview-heading">
+          <span class="test-preview-eyebrow">AUTOMATED TEST · 別環境（読み取り専用）</span>
+          <strong id="test-preview-title">自動テスト</strong>
+        </div>
+        <span id="test-preview-status" class="test-status running" role="status">実行中</span>
+        <a href="/tests">すべての実行を見る</a>
+      </div>
+      <div class="test-preview-body">
+        <section class="test-preview-activity" aria-label="実行内容">
+          <strong>実行内容・検証結果</strong>
+          <ol id="test-preview-steps" aria-live="polite"></ol>
+        </section>
+        <div id="test-preview-messages" class="test-preview-messages" role="log" aria-live="polite"></div>
+      </div>
+      <p id="test-preview-error" class="test-preview-error hidden" role="alert"></p>
+    </section>
     <div id="messages" class="messages" role="log" aria-live="polite"></div>
     <div class="composer">
       <div id="command-picker" class="command-picker hidden">

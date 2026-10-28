@@ -16,7 +16,8 @@ export class Element {
   declare onsubmit: (event: { preventDefault(): void }) => void;
   declare onkeydown: (event: { key: string; preventDefault(): void; repeat?: boolean; isComposing?: boolean }) => void;
   classList = {
-    toggle: (name, enabled) => enabled ? this.classes.add(name) : this.classes.delete(name),
+    toggle: (name: string, enabled: boolean) => enabled ? this.classes.add(name) : this.classes.delete(name),
+    contains: (name: string) => this.classes.has(name),
   };
 
   constructor(tag: string) {
@@ -47,6 +48,12 @@ export function createBrowserFixture(pathname = "/test") {
     "test-run-messages": "div",
     "test-run-error": "div",
     "test-runs-refresh": "button",
+    "test-preview": "section",
+    "test-preview-title": "strong",
+    "test-preview-status": "span",
+    "test-preview-steps": "ol",
+    "test-preview-messages": "div",
+    "test-preview-error": "p",
     "channel-sidebar": "div",
     "database-sidebar": "div",
     "user-panel": "div",

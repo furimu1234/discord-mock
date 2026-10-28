@@ -2,7 +2,7 @@ import type { BrowserCommand, BrowserState, IdentityResponse, SessionResponse } 
 import { createElement, getElement } from "./dom.js";
 import { DatabaseView } from "./database.js";
 import { renderMessage } from "./message.js";
-import { TestRunsView } from "./test-runs.js";
+import { TestRunPreview, TestRunsView } from "./test-runs.js";
 
 const elements = {
   testPanel: getElement("test-panel", "main"),
@@ -293,6 +293,8 @@ async function initialize(): Promise<void> {
     const stream = new EventSource("/_ui/events");
     stream.addEventListener("changed", () => { void refresh(); });
     stream.onerror = () => { elements.onlineLabel.textContent = "再接続中…"; };
+    // UT の独立した状態は通常のチャットへ混ぜず、専用プレビューへ表示する。
+    void new TestRunPreview().initialize();
   } catch (error) {
     showError(errorMessage(error));
   }

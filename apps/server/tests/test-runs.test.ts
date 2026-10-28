@@ -70,6 +70,9 @@ test("UT の表示用コピーを共有し、普段の状態を変更せず終�
       409,
     );
     assert.equal((await fetch(`${app.url}/tests`)).status, 200);
+    const testPage = await (await fetch(`${app.url}/test`)).text();
+    assert.match(testPage, /id="test-preview"/);
+    assert.match(testPage, /id="test-preview-messages"/);
   } finally {
     await sut.close();
     await app.close();

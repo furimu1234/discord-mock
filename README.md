@@ -364,7 +364,7 @@ pnpm sample:test
 uv run --project packages/client-py pytest packages/client-py/tests
 ```
 
-`pnpm test` は Web・Server・JavaScript クライアントのテストを実行し、Python のテストは uv で別途実行します。テストを実行してもビルドは自動実行されません。
+ `pnpm test` は Web・Server・JavaScript クライアントのテストを実行し、Python のテストは uv で別途実行します。テストを実行してもビルドは自動実行されません。Bot の UT（`pnpm bot:test` / `pnpm bot:test:web`）は、起動中 app の **`/test` に最新の実行状況・操作・メッセージ・Bot 返信・成功／失敗をリアルタイム表示**し、`/tests` に実行履歴を表示します。両画面の表示は読み取り専用で、別の Mock テスト環境の状態を通常チャットやDBへ書き込みません。
 
 ## 一般ユーザー向け：ビルド済み Mock の起動
 

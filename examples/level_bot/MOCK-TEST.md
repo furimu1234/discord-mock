@@ -100,6 +100,6 @@ test('レベル確認で7を返す', async ({ bot }) => {
 
 今後の機能も `tests/bot/` に `*.test.ts` を追加すれば `pnpm bot:test` で実行します。Bot のソースは直接実行し、テスト時に暗黙のビルドを行いません。
 
-起動中の app に表示したい場合は `pnpm bot:test:web` を使い、app の「自動テスト」タブ（/tests）を開きます。通常の `pnpm bot:test` も app があれば自動で反映します。表示先は runtime.json の URL、または DISCORD_MOCK_REPORT_URL を使用します。結果は app が起動している間、最大20件保持します。
+起動中の app に表示したい場合は `pnpm bot:test:web` を実行します。**`http://127.0.0.1:3000/test` を開いたままでも**、自動テストの最新の実行内容・ステップ・メッセージ・Bot の返信・成功／失敗が読み取り専用のパネルにリアルタイムで反映されます。`/tests` では過去の実行一覧・詳細も確認できます。通常の `pnpm bot:test` も app があれば自動で反映します。表示先は runtime.json の URL、または DISCORD_MOCK_REPORT_URL を使用します。テストは独立した Mock/DB を使用し、普段のチャットや DB は変更しません。結果は app が起動している間、最大20件保持します。Web の変更を反映するには `pnpm build` と `pnpm app` の再起動、および開いている `/test` の再読み込みが必要です。
 
 `pnpm sample:test` は Bot に加えて `tests/integration/` の app・DB・起動処理も検証します。`pnpm automation:test` は SDK の自動テスト例と Bot テストの両方を実行します。既存の `pnpm level:test` / `pnpm level:test:web` は新コマンドの別名として利用できます。

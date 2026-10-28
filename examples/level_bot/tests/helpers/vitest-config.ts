@@ -48,7 +48,7 @@ async function reportingUrl(required: boolean): Promise<string | undefined> {
       result.status !== "ok"
     )
       throw new Error();
-    console.info(`自動テストの表示先: ${url.origin}/tests`);
+    console.info(`自動テストの表示先: ${url.origin}/test（最新）・${url.origin}/tests（履歴）`);
     return url.origin;
   } catch {
     if (required || configured)

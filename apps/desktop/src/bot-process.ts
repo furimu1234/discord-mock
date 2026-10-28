@@ -73,7 +73,7 @@ export class BotProcess {
     child.on("error", (error) => {
       this.log("stderr", "起動エラー: " + error.message);
     });
-    child.on("exit", (code, signal) => {
+    child.on("close", (code, signal) => {
       if (this.process === child) this.process = null;
       this.log("system", "Bot 終了: code=" + code + " signal=" + signal);
     });

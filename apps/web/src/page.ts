@@ -99,6 +99,7 @@ export function renderPage(): string {
     </div>
     <section id="database-content" class="database-content hidden" aria-label="DB レコード">
       <div class="database-toolbar">
+        <label class="database-source-label">表示するDB <select id="database-source" aria-label="DB表示対象"><option value="">AppのDB</option></select></label>
         <label class="database-search">検索 <input id="database-search" type="search" maxlength="200" placeholder="レコードを検索…" aria-label="レコードを検索"></label>
         <button id="database-refresh" class="quiet-button" type="button">更新</button>
       </div>

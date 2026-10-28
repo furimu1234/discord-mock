@@ -3,6 +3,9 @@ export class Element {
   children: Element[] = [];
   textContent = "";
   value = "";
+  scrollTop = 0;
+  scrollHeight = 800;
+  clientHeight = 300;
   style: Record<string, string> = {};
   disabled = false;
   attributes = new Map<string, string>();
@@ -74,6 +77,7 @@ export function createBrowserFixture(pathname = "/") {
     "database-retry": "button",
     "database-content": "section",
     "database-tables": "nav",
+    "database-source": "select",
     "database-search": "input",
     "database-refresh": "button",
     "database-grid": "div",

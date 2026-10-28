@@ -645,3 +645,39 @@ a:hover {
 .test-user-menu { padding: 5px; }
 .test-user-menu button { width: 100%; padding: 10px; border: 0; border-radius: 6px; color: #e7eafb; background: transparent; font: inherit; text-align: left; font-size: 12px; }
 .test-user-menu button:hover { background: #40485f; }
+
+/* アプリ全体を画面高で固定し、各ペインのみスクロールさせる。 */
+html, body { width: 100%; height: 100%; overflow: hidden; }
+.app { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+.rail, .sidebar, .main { min-height: 0; min-width: 0; }
+.rail { overflow-y: auto; }
+.sidebar { overflow: hidden; }
+.sidebar > #channel-sidebar,
+.sidebar > #database-sidebar,
+.sidebar > #tests-sidebar { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.sidebar > .userpanel { flex: 0 0 auto; }
+.main { height: 100%; overflow: hidden; }
+.test-workspace { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.test-workspace > .messages {
+  flex: 1 1 auto; min-height: 0;
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+.test-case-composer { flex: 0 0 auto; max-height: 36vh; overflow-y: auto; }
+.test-log-panel { overflow: hidden; }
+.test-log-entries, .test-user-list { min-height: 0; overflow-y: auto; }
+@media (max-width: 780px) {
+  .app { grid-template-rows: 54px minmax(115px, 24vh) minmax(0, 1fr); }
+  .rail { grid-row: 1; }
+  .sidebar { grid-row: 2; min-height: 0; }
+  .main { grid-row: 3; min-height: 0; }
+  .messages { min-height: 0; }
+  .test-case-composer { max-height: 30vh; }
+}
+@media (max-width: 850px) {
+  .test-workspace > .messages { min-height: 0; }
+  .test-log-panel { flex-shrink: 0; }
+}
+
+.database-source-label { display: flex; gap: 8px; align-items: center; flex-shrink: 0; font-size: 12px; color: #bec6d5; }
+.database-source-label select { max-width: 265px; border-radius: 6px; padding: 7px; background: #303240; color: #ecf0ff; border: 1px solid #54586b; }

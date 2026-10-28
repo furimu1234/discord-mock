@@ -487,7 +487,6 @@ export class TestRunChatView {
   }
 
   private renderMessages(): void {
-    const wasAtBottom = this.messages.scrollTop + this.messages.clientHeight >= this.messages.scrollHeight - 60;
     this.messages.replaceChildren();
 
     const name = (this.channelTitle.textContent ?? "").replace(/^#\s*/, "");
@@ -509,7 +508,8 @@ export class TestRunChatView {
       items.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
       this.messages.append(...items.map(renderMessage));
     }
-    if (wasAtBottom) this.messages.scrollTop = this.messages.scrollHeight;
+    // 自動テストのチャットは常に最新の投稿へ追従する。
+    this.messages.scrollTop = this.messages.scrollHeight;
   }
 
   private renderLog(): void {

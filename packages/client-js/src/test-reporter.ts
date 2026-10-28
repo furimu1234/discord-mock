@@ -35,6 +35,7 @@ export class TestReporter {
   private failure: Error | undefined;
   private status: TestRunStatus = "running";
   private step = "開始";
+  private database: TestRunProgress["database"];
   private readonly origin: string;
 
   constructor(private readonly target: TestRunTarget) {
@@ -113,6 +114,7 @@ export class TestReporter {
       status: this.status,
       step: this.step,
       snapshot,
+      ...(this.database ? { database: this.database } : {}),
     };
   }
 
@@ -154,6 +156,7 @@ export class TestReporter {
       throw new Error("実行の経過は1〜200文字で指定してください");
     this.status = progress.status ?? this.status;
     this.step = progress.step ?? this.step;
+    if (progress.database) this.database = progress.database;
     this.enqueue(snapshot);
     await this.flush();
   }

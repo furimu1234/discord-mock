@@ -8,6 +8,7 @@ import { createLeveling, getLevel, updateLeveling } from "@ex/db";
 import { container } from "../../packages/bot/src/container.js";
 import { startLevelBot } from "../../packages/bot/src/local.js";
 import { startEphemeralDatabase } from "../../src/database.js";
+import { captureTestDatabase } from "../../src/database-inspector.js";
 import { resolveTestUsers, type TestUserTarget } from "./user-target.js";
 
 type BotActor = ReturnType<typeof createBotActor>;
@@ -39,9 +40,13 @@ async function setupBot({ task }: TestContext, { onCleanup }: { onCleanup(callba
       const failures = running?.failures ?? [];
       const failed =
         (task.result?.errors?.length ?? 0) > 0 || failures.length > 0;
+      // BotのDrizzle/pgが実際に更新したテスト専用PGliteを読み出す。
+      // アプリ本体のDBは汚染せず、テスト終了後も参照できる表示用コピーを送信する。
+      const databaseSnapshot = database ? await captureTestDatabase(database.db) : undefined;
       await mock.report({
         status: failed ? "failed" : "passed",
         step: failed ? "検証失敗（詳細はターミナル）" : "検証完了",
+        ...(databaseSnapshot ? { database: databaseSnapshot } : {}),
       });
       expect(failures).toEqual([]);
     } finally {

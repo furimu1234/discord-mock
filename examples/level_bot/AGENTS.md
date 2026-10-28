@@ -10,3 +10,5 @@
 
 - UTの対象ユーザーは `test(name, { users: "all" | "login" | { id: "..." } | { ids: ["...", "..."] } }, async ({ bot, user, actor }) => {...})` の第2引数で指定する。`all` と `ids` はテスト本文を対象ユーザーごとに順次実行する。`actor` は1回につき1ユーザーで配列にはしない。`ids` は入力順を維持し、空配列・重複・未登録・BotのIDを拒否する。`bot.as(user)` は互換のため残すが、users指定を操作APIへ戻さない。
 - `login` はブラウザの `/_ui/session` で選んだユーザーをCSRF検証済みの `/_ui/test-cases/run` からテスト実行へ渡す。任意IDの偽装リクエストを受け付けない。CLIからの実行時は `DISCORD_MOCK_SELECTED_USER_ID` を利用できる。
+
+- Botテストでは `actor.sendMessage` による実際のイベント・Drizzle/pg更新を利用し、テスト終了時に実PGlite DBの全ユーザーテーブルを読み取り専用で収集してAppへ報告する。`bot.levels.set` による直接のセットアップも維持する。DBプロセスはテスト終了時に閉じ、App DBと分離する。

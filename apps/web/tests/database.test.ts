@@ -23,6 +23,7 @@ test("database tab opens without a key, renders safe cells, sorts, searches and 
       }
       result = { authenticated: true, databaseAvailable: true };
     } else if (expired) return { ok: false, status: 403 };
+    else if (url === "/_admin/test-runs") result = { runs: [] };
     else if (url.endsWith("/tables")) result = { tables: [{ schema: "example", name: "lvl", columnCount: 2 }] };
     else if (url.startsWith("/_admin/database/rows?")) {
       const query = new URL(url, "http://localhost").searchParams;
@@ -86,4 +87,40 @@ test("database tab explains unavailable DB", async () => {
   await setImmediate();
   assert.equal(fixture.elements["database-notice"].classes.has("hidden"), false);
   assert.match(fixture.elements["database-notice-text"].textContent, /pnpm app/);
+});
+
+test("DB画面で最新のテスト用DBを選択し、AppのDBとの混在を防ぐ", async () => {
+  const fixture = createBrowserFixture("/database");
+  const calls: string[] = [];
+  const runId = "11111111-1111-4111-8111-111111111111";
+  const responses = async (url: string) => {
+    calls.push(url);
+    if (url === "/_admin/session") return { authenticated: true, databaseAvailable: true };
+    if (url === "/_admin/test-runs") return {
+      runs: [{ id: runId, name: "レベルアップのテスト", hasDatabase: true }],
+    };
+    if (url.startsWith("/_admin/database/tables")) return {
+      tables: [{ schema: "example", name: "lvl", columnCount: 4 }],
+    };
+    if (url.startsWith("/_admin/database/rows")) return {
+      schema: "example", table: "lvl",
+      columns: [{ name: "lvl", type: "integer", nullable: false, primaryKey: false }],
+      rows: [[2]], totalRows: 1, offset: 0, limit: 50, truncated: false,
+    };
+    throw new Error("Unexpected request: " + url);
+  };
+  script.runInNewContext({
+    ...fixture.globals,
+    fetch: async (url: string) => ({ ok: true, json: async () => responses(url) }),
+  });
+  for (let i = 0; i < 6; i++) await setImmediate();
+  const e = fixture.elements;
+  assert.equal(e["database-source"].value, runId);
+  assert.match(textOf(e["database-source"]), /レベルアップのテスト/);
+  assert.ok(calls.some((url) => url.includes("runId=" + runId)));
+  assert.match(textOf(e["database-grid"]), /2/);
+  e["database-source"].value = "";
+  e["database-source"].onchange();
+  await setImmediate();
+  assert.ok(calls.some((url) => url === "/_admin/database/tables"));
 });

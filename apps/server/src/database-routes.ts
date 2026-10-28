@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DatabaseInspector, DatabaseQuery } from "./database.js";
 import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
 import { TestRunRoutes } from "./test-runs.js";
+import { queryTestDatabase } from "./test-database.js";
 import type { TestCaseService } from "./test-cases.js";
 
 interface AdminSession {
@@ -167,12 +168,29 @@ export class DatabaseRoutes {
       sendError(response, 405, "Database inspection is read-only");
       return;
     }
-    if (!this.database) {
+    // A test DB is always an isolated, bounded read-only snapshot. It never changes the app's DB.
+    const runId = url.searchParams.get("runId");
+    if (runId !== null && !/^[a-f0-9-]{36}$/.test(runId)) {
+      sendError(response, 400, "Invalid test run ID");
+      return;
+    }
+    const testDb = runId ? this.testRuns.databaseFor(runId) : undefined;
+    if (runId && !testDb) {
+      sendError(response, 404, "テストDBの記録がありません。テスト完了後に更新してください");
+      return;
+    }
+    if (!runId && !this.database) {
       sendError(response, 503, "Database inspection is unavailable; start pnpm app");
       return;
     }
     if (path === "/_admin/database/tables") {
-      sendJson(response, 200, { tables: await this.database.tables() });
+      sendJson(response, 200, {
+        tables: testDb
+          ? testDb.tables.map((table) => ({
+              schema: table.schema, name: table.name, columnCount: table.columns.length,
+            }))
+          : await this.database!.tables(),
+      });
       return;
     }
     if (path === "/_admin/database/rows") {
@@ -181,12 +199,16 @@ export class DatabaseRoutes {
         sendError(response, 400, "Invalid database query");
         return;
       }
-      const tables = await this.database.tables();
+      const tables = testDb
+        ? testDb.tables.map((table) => ({ schema: table.schema, name: table.name }))
+        : await this.database!.tables();
       if (!tables.some((table) => table.schema === query.schema && table.name === query.table)) {
         sendError(response, 404, "Unknown database table");
         return;
       }
-      const page = await this.database.rows(query);
+      const page = testDb
+        ? queryTestDatabase(testDb, query)
+        : await this.database!.rows(query);
       if (!page) sendError(response, 404, "Unknown database table or column");
       else sendJson(response, 200, page);
       return;

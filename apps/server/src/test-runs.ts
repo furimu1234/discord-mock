@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ServerResponse } from "node:http";
 import type {
+  TestDatabaseSnapshot,
   TestRunStatus,
   TestRunSummary,
   TestRunView,
@@ -13,6 +14,7 @@ import {
 } from "./http.js";
 import type { LoadedMockState, MockState, MockUser } from "./models.js";
 import { restoreState } from "./persistence.js";
+import { sanitizeTestDatabase } from "./test-database.js";
 import {
   ResourceError,
   validateId,
@@ -40,7 +42,11 @@ export class TestRunRoutes {
 
   private summary(run: TestRunView): TestRunSummary {
     const { id, name, status, step, startedAt, updatedAt } = run;
-    return { id, name, status, step, startedAt, updatedAt };
+    return { id, name, status, step, startedAt, updatedAt, hasDatabase: !!run.database };
+  }
+
+  databaseFor(id: string): TestDatabaseSnapshot | undefined {
+    return this.runs.get(id)?.database;
   }
 
   async handle({
@@ -178,6 +184,9 @@ export class TestRunRoutes {
         })),
       },
       messages,
+      ...(body.database !== undefined
+        ? { database: sanitizeTestDatabase(body.database) }
+        : previous?.database ? { database: previous.database } : {}),
     };
     this.runs.set(run.id, run);
     for (const subscriber of this.subscribers)

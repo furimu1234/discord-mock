@@ -167,6 +167,7 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   const chat = textOf(fixture.elements.messages);
   const log = textOf(fixture.elements["test-log-entries"]);
   assert.match(chat, /こんにちは/);
+  assert.equal(fixture.elements.messages.scrollTop, fixture.elements.messages.scrollHeight, "new messages should scroll to latest");
   assert.match(chat, /今のレベルはこれだ7/);
   assert.match(chat, /Aliceさんが\/レベル確認を使用しました/);
   assert.doesNotMatch(chat, /検証完了|結果: 成功|別チャンネルの投稿/);

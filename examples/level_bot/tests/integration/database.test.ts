@@ -227,3 +227,27 @@ test(
     }
   },
 );
+
+
+test("任意のテーブルに書いたPGliteレコードをテスト終了後用に取得できる", async () => {
+  const { startEphemeralDatabase } = await import("../../src/database.js");
+  const { captureTestDatabase } = await import("../../src/database-inspector.js");
+  const database = await startEphemeralDatabase();
+  try {
+    await database.db.query(
+      "INSERT INTO example.lvl (server_id, user_id, lvl) VALUES ($1,$2,$3)",
+      ["123456789000000003", "123456789000000099", 2],
+    );
+    await database.db.exec("CREATE SCHEMA extra; CREATE TABLE extra.custom_feature(id integer, value text);");
+    await database.db.query("INSERT INTO extra.custom_feature VALUES ($1, $2)", [1, "hello from bot"]);
+    const captured = await captureTestDatabase(database.db);
+    const levels = captured.tables.find(t => t.schema === "example" && t.name === "lvl");
+    assert.ok(levels);
+    assert.ok(levels.rows.some(row => row[2] === "123456789000000099" && row[3] === 2));
+    const custom = captured.tables.find(t => t.schema === "extra" && t.name === "custom_feature");
+    assert.ok(custom);
+    assert.deepEqual(custom.rows, [[1, "hello from bot"]]);
+  } finally {
+    await database.close();
+  }
+});

@@ -264,3 +264,83 @@ test("既定のMockにはBotを除く10人のダミーユーザーとプロフ�
     await mock.close();
   }
 });
+
+test("UTの実DBスナップショットを管理者だけが読み取れ、元のApp DBへ混入しない", async () => {
+  const app = await startMock({ port: 0 });
+  const headers = await adminHeaders(app);
+  try {
+    const snapshot = app.testing.snapshot();
+    const database = {
+      truncated: false,
+      tables: [{
+        schema: "example", name: "lvl", totalRows: 2, truncated: false,
+        columns: [
+          { name: "user_id", type: "varchar(19)", nullable: false, primaryKey: false },
+          { name: "lvl", type: "integer", nullable: false, primaryKey: false },
+        ],
+        rows: [["Alice", 2], ["Bob", 7]],
+      }],
+    };
+    const posted = await fetch(`${app.url}/_admin/test-runs`, {
+      method: "POST", headers,
+      body: JSON.stringify({ name: "Level UT", status: "running", snapshot }),
+    });
+    assert.equal(posted.status, 201);
+    const runId = (await posted.json()).id;
+    assert.equal((await fetch(`${app.url}/_admin/database/tables?runId=${runId}`)).status, 403);
+    const done = await fetch(`${app.url}/_admin/test-runs/${runId}`, {
+      method: "PUT", headers,
+      body: JSON.stringify({ name: "Level UT", status: "passed", snapshot, database }),
+    });
+    assert.equal(done.status, 200);
+    const listed = await (await fetch(`${app.url}/_admin/test-runs`, { headers })).json();
+    assert.equal(listed.runs[0].hasDatabase, true);
+    const tables = await (await fetch(`${app.url}/_admin/database/tables?runId=${runId}`, { headers })).json();
+    assert.deepEqual(tables.tables, [{ schema: "example", name: "lvl", columnCount: 2 }]);
+    const rowsUrl = `${app.url}/_admin/database/rows?runId=${runId}&schema=example&table=lvl`;
+    const page = await (await fetch(rowsUrl, { headers })).json();
+    assert.deepEqual(page.rows, [["Alice", 2], ["Bob", 7]]);
+    const sorted = await (await fetch(rowsUrl + "&sort=lvl&direction=desc", { headers })).json();
+    assert.deepEqual(sorted.rows, [["Bob", 7], ["Alice", 2]]);
+    const filtered = await (await fetch(rowsUrl + "&search=Bob", { headers })).json();
+    assert.deepEqual(filtered.rows, [["Bob", 7]]);
+    assert.equal((await fetch(rowsUrl + "&sort=invalid", { headers })).status, 404);
+    assert.equal((await fetch(`${app.url}/_admin/database/tables?runId=invalid`, { headers })).status, 400);
+    assert.equal((await fetch(`${app.url}/_admin/database/tables?runId=99999999-9999-4999-8999-999999999999`, { headers })).status, 404);
+    assert.equal((await fetch(`${app.url}/_admin/database/tables`, { headers })).status, 503);
+    const view = await (await fetch(`${app.url}/_admin/test-runs/${runId}`, { headers })).json();
+    assert.deepEqual(view.database, database);
+  } finally {
+    await app.close();
+  }
+});
+
+test("UTのDBスナップショットは不正値や破損構造を拒否する", async () => {
+  const app = await startMock({ port: 0 });
+  const headers = await adminHeaders(app);
+  try {
+    const snapshot = app.testing.snapshot();
+    const valid = {
+      truncated: false,
+      tables: [{
+        schema: "example", name: "lvl", totalRows: 1, truncated: false,
+        columns: [{ name: "lvl", type: "int", nullable: false, primaryKey: false }],
+        rows: [[7]],
+      }],
+    };
+    for (const database of [
+      { ...valid, tables: [{ ...valid.tables[0], rows: [[7, "extra"]] }] },
+      { ...valid, tables: [{ ...valid.tables[0], rows: [[{ secret: "unsafe" }]] }] },
+      { ...valid, tables: [{ ...valid.tables[0], rows: [[7]], totalRows: -1 }] },
+      { ...valid, tables: [{ ...valid.tables[0], rows: [[7]], schema: "" }] },
+      { ...valid, tables: [{ ...valid.tables[0], rows: [[7]], columns: [] }] },
+    ]) {
+      const result = await fetch(`${app.url}/_admin/test-runs`, {
+        method: "POST", headers, body: JSON.stringify({ name: "Invalid", snapshot, database }),
+      });
+      assert.equal(result.status, 400);
+    }
+  } finally {
+    await app.close();
+  }
+});

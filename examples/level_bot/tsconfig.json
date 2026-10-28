@@ -15,7 +15,8 @@
       "@ex/db": [
         "./packages/db/src/index.ts"
       ]
-    }
+    },
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src/**/*.ts",

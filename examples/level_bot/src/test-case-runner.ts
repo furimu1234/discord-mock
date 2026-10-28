@@ -68,15 +68,30 @@ export class LocalTestCaseRunner implements TestCaseService {
           // テスト実行時に選択されていたユーザーをプロセスへ固定して渡す。
           DISCORD_MOCK_SELECTED_USER_ID: selectedUserId ?? "",
         },
-        stdio: "inherit",
+        stdio: ["inherit", "pipe", "pipe"],
       });
       this.child = child;
-      child.on("exit", (code) => {
+      // Vitestは全件skipでも終了コード0になり得る。stdoutを表示しつつ結果を検証する。
+      let summary = "";
+      const append = (chunk: Buffer | string, output: NodeJS.WriteStream) => {
+        output.write(chunk);
+        summary = (summary + String(chunk)).slice(-12_000);
+      };
+      child.stdout?.on("data", (chunk: Buffer) => append(chunk, process.stdout));
+      child.stderr?.on("data", (chunk: Buffer) => append(chunk, process.stderr));
+      child.on("close", (code) => {
         if (this.child !== child) return;
         this.child = undefined;
         this.runningId = null;
-        if (code !== 0)
+        // 先頭にpass/failがなく「n skipped」のみなら、パターンが一致していない。
+        const report = summary.replace(/\x1b\[[0-9;]*m/g, "");
+        const allSkipped = /Tests\s+\d+\s+skipped\b/.test(report) &&
+          !/Tests\s+.*(?:passed|failed)\b/.test(report);
+        if (allSkipped) {
+          this.error = "テスト名に一致するケースがなく全件skipされました。describe階層とテスト名を確認してください";
+        } else if (code !== 0) {
           this.error = "テストが失敗または異常終了しました。結果とターミナル、または pnpm bot:test を確認してください";
+        }
       });
       child.on("error", () => {
         this.child = undefined;

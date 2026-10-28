@@ -37,9 +37,9 @@ test("静的なdescribeネストを完全名で識別し、同名testを別階�
     test("トップレベル", async () => {});
   `;
   assert.deepEqual(discoverTestCases(source, "sample.test.ts"), [
-    { name: "親グループ › 子グループ › 同じテスト名", fullName: "親グループ 子グループ 同じテスト名" },
-    { name: "親グループ › 子グループ › 別のテスト", fullName: "親グループ 子グループ 別のテスト" },
-    { name: "親グループ › もう一つ › 同じテスト名", fullName: "親グループ もう一つ 同じテスト名" },
+    { name: "親グループ › 子グループ › 同じテスト名", fullName: "親グループ > 子グループ > 同じテスト名" },
+    { name: "親グループ › 子グループ › 別のテスト", fullName: "親グループ > 子グループ > 別のテスト" },
+    { name: "親グループ › もう一つ › 同じテスト名", fullName: "親グループ > もう一つ > 同じテスト名" },
     { name: "トップレベル", fullName: "トップレベル" },
   ]);
 });

@@ -39,7 +39,7 @@ export function discoverTestCases(source: string, fileName: string): DiscoveredT
       return;
     }
     if (kind !== "test" && kind !== "it") return;
-    const fullName = [...groups, title].join(" ");
+    const fullName = [...groups, title].join(" > ");
     if (known.has(fullName))
       throw new Error(`同じテスト階層に重複した名前があります: ${fileName} / ${fullName}`);
     known.add(fullName);

@@ -5,7 +5,7 @@
 ## 保持したもの
 
 - `packages/bot/src/**` と `packages/db/src/**` の構成、実際の `events/leveling.ts`、`Container()`、`getLevel`・`createLeveling`・`updateLeveling`、Drizzle / `pg`。
-- `src/main.ts` を共通の Client 作成・イベント登録・Ready 初期化として利用し、`src/local.ts` がローカル接続を担当します。**デモ Bot に Fake DB は差し込まない**。
+- `packages/bot/src/main.ts` は変更せず、`packages/bot/src/testClient.ts` が `disMock.Client(client, main)` を使ってローカル接続・Ready 初期化の待機を担当します。**デモ Bot に Fake DB は差し込まない**。
 - Node 24 / pnpm 11 用 Dev Container を `.devcontainer/` に維持。元の manifest は `upstream.package.json` と `upstream.pnpm-workspace.yaml` に保存。
 
 ## 修正したバグ
@@ -27,6 +27,14 @@ pnpm app
 
 `pnpm app` は Mock REST / Gateway、Web、PGlite を起動します。初回は `.discord-mock-data/credentials.json` にテスト用トークンを発行し、**保存済みのトークンがある次回起動から** Bot クライアントを自動起動します。既存の `.env` に設定された `TOKEN` が保存済みトークンと違う場合は、app は起動したまま Bot のみ起動を見送り、`pnpm bot:test` を使った設定確認を案内します。Bot 単体を手動起動する場合は `pnpm bot:client` を使用してください。
 
+初回からすべてを起動する場合は、リポジトリ直下で次を実行します。起動ファイルは別名に変更しても使えます。
+
+```sh
+pnpm --dir examples/level_bot exec tsx --tsconfig packages/bot/tsconfig.json packages/bot/src/testClient.ts
+```
+
+`testClient.ts` の `runTestClient(import.meta.url, ...)` が実行元を判定し、Mock・画面・PGlite・Bot を起動します。同じファイルへ `--test` を付けると CLI テスト、`--test-web` を付けると起動済み App へのテスト実行になります。import 時には設定の登録だけを行います。従来の `src` にあった起動・DB・プロセス監視と、Vitest 設定は `dismock` の配布物が担当し、利用側には不要です。Bot 固有のスキーマ・接続・検証 API だけをこの起動ファイルへ残しています。
+
 `http://127.0.0.1:3000/test` は Discord 風の自動テスト画面です。右側「ユーザー」タブで Alice / Bob などを切り替えると、UT ソースの `users: "login"` で指定されたユーザーとして操作を実行します。左のチャンネル一覧でチャットを選択でき、中央にはダミーユーザーの投稿・Bot の返信・Embed のみ表示します。テスト開始・検証ステップ・合否は右の独立した実行ログに表示します。下部の独自リストでテストケースを矢印キーやマウスで選び、Enterまたはダブルクリックすると個別の Vitest ケースを起動します。実行ボタンはなく、実行した行の四角い枠に「●」を3秒間表示します。スクロールバーは非表示ですが、ホイールやタッチで一覧をスクロールできます。すべてのテストを実行するときは `pnpm bot` を別ターミナルから実行します。`/tests` にも実行履歴が表示されます。
 
 ```sh
@@ -43,7 +51,7 @@ pnpm bot
 
 `pnpm bot:client` は `bot.lock` で同じ app 保存先への重複起動を拒否します。初期返信を複数の Bot が同時に送った場合も、Mock は1件だけを受理し、2件目からは `40060` を返します。別のコマンド実行として送信された返信までまとめる処理は行いません。
 
-app を先に Ctrl+C で停止しても、接続済み Bot は DB の切断イベントまたは `/health` の停止を検知して終了します。DB 接続エラーのオブジェクト全体は出力しません。SDK と DB の終了処理を開始し、SDK の再接続待ちが長引いた場合も最大3秒の待機後にロックを解放して CLI を終了します。通常は app が Bot を自動起動します。手動で分ける場合のみ app → `pnpm bot:client` の順です。実際の SIGINT、DB 使用後の切断、DB 未使用時の停止検知、同じ保存先での再起動をテストします。
+app を先に Ctrl+C で停止しても、接続済み Bot は `/health` の停止を検知して終了します。DB 接続エラーのオブジェクト全体は出力しません。SDK と DB の終了処理を開始し、SDK の再接続待ちが長引いた場合も最大3秒の待機後にロックを解放して CLI を終了します。通常は app が Bot を自動起動します。手動で分ける場合のみ app → `pnpm bot:client` の順です。実際の SIGINT、DB 使用後の切断、DB 未使用時の停止検知、同じ保存先での再起動をテストします。
 
 静的チェックはルートの `pnpm check`、サンプルだけなら `pnpm --filter @ex/bot typecheck`・`pnpm --filter @ex/db typecheck`・`pnpm --filter @discord-mock/level-bot typecheck`・`pnpm --filter @discord-mock/level-bot lint` で実行できます。ビルド済みファイルに依存せず、Bot 本体と Drizzle 設定も検査します。
 
@@ -51,7 +59,7 @@ app を先に Ctrl+C で停止しても、接続済み Bot は DB の切断イ�
 pnpm sample:test
 ```
 
-別の Mock/DB/Bot を起動し、ブラウザ API から2通投稿して、本物の PostgreSQL クエリでレベル 2 → 3 を確認します。Bot を別プロセスで起動・再起動するケースと、app の再起動でトークンを再利用するケースも実行します。保存先・接続先は手動起動中の app と分離しています。
+`pnpm sample:test` は利用側の Bot テストを実行します。別プロセスの起動・再起動やトークン再利用、ブラウザ API からの投稿と実際の PostgreSQL クエリを通した検証は、ライブラリ側の `pnpm --filter dismock test:integration` で実行します。保存先・接続先は手動起動中の app と分離しています。
 
 `/admin` はまだ簡易画面です。DM / VC の模擬および Discord 全 API の互換は未実装です。
 
@@ -65,12 +73,12 @@ Bot の機能だけをまとめて検証します。app を別に起動する必
 
 - `tests/bot/showLvl.test.ts`: 投稿してから `/レベル確認` を実行する流れ、Guild と実行者の絞り込み、未登録ユーザーの現在の動作。
 - `tests/bot/leveling.test.ts`: 投稿ごとのレベル更新と、投稿していない人のレベルが変わらないこと。
-- `tests/helpers/bot-test.ts`: 本物の Bot・PGlite・pg / Drizzle・Mock の準備、後片付け、Web への実行結果の反映。
+- `dismock/e2e`: Mock の準備、対象ユーザーの解決、後片付け、Web への実行結果の反映。Bot 固有の DB 検証は `packages/bot/src/testClient.ts` の `runTestClient()` へ登録。
 
 テスト本文では HTTP ヘッダー・接続先・DB 起動処理を書く必要はありません。レベルの直接指定は必要なケースでだけ行い、通常は投稿による増分を検証してください。
 
 ```ts
-import { test, expect } from '../helpers/bot-test.js';
+import { test, expect } from 'dismock/e2e';
 
 test("レベル確認で7を返す", { users: "login" }, async ({ bot, actor }) => {
   await bot.levels.set(actor, 7); // 任意で直接設定
@@ -79,11 +87,11 @@ test("レベル確認で7を返す", { users: "login" }, async ({ bot, actor }) 
 });
 ```
 
-今後の機能も `tests/bot/` に `*.test.ts` を追加すれば `pnpm bot:test` で実行します。Bot のソースは直接実行し、テスト時に暗黙のビルドを行いません。
+今後の機能も `tests/**/*.test.ts` に追加すれば `pnpm bot:test` で実行します。`tests/bot` の名前は固定ではなく、`tests` 直下にも任意のサブフォルダーにも配置できます。利用側の `tests` にはテストケースだけを置きます。Bot のソースは直接実行し、テスト時に暗黙のビルドを行いません。
 
 起動中の app に表示したい場合は `pnpm bot` を実行します。**`http://127.0.0.1:3000/test` を開いたままでも**、ユーザー投稿と Bot の返信がチャットに、テストの実行ステップと成功／失敗が右側の実行ログにリアルタイムで反映されます。`/tests` では過去の実行一覧・詳細も確認できます。通常の `pnpm bot:test` も app があれば自動で反映します。表示先は runtime.json の URL、または DISCORD_MOCK_REPORT_URL を使用します。テストは独立したMockを使用しますが、DBはApp本体と共有し、実際のBot更新が反映されます。結果は app が起動している間、最大20件保持します。Web の変更を反映するには `pnpm build` と `pnpm app` の再起動、および開いている `/test` の再読み込みが必要です。
 
-`pnpm sample:test` は Bot に加えて `tests/integration/` の app・DB・起動処理も検証します。`pnpm automation:test` は SDK の自動テスト例と Bot テストの両方を実行します。既存の `pnpm level:test` / `pnpm level:test:web` は新コマンドの別名として利用できます。
+`pnpm sample:test` は利用側の Bot テストを実行します。app・DB・起動処理の統合テストは `packages/client-js/tests/level-bot/` に移し、`pnpm --filter dismock test:integration` で検証します。`pnpm automation:test` は SDK の自動テスト例と Bot テストの両方を実行します。既存の `pnpm level:test` / `pnpm level:test:web` は新コマンドの別名として利用できます。
 
 ### UT の実行ユーザーを test() で指定
 

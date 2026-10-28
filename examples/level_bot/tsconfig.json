@@ -2,27 +2,20 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "paths": {
-      "@discord-mock/client-js/testing": [
-        "../../packages/client-js/src/testing.ts"
-      ],
-      "@discord-mock/client-js": [
-        "../../packages/client-js/src/index.ts"
-      ],
-      "@ex/db": [
-        "./packages/db/src/index.ts"
-      ]
+      "dismock/runtime": ["../../packages/client-js/src/project-runtime.ts"],
+      "dismock/e2e/runner": ["../../packages/client-js/src/case-runner.ts"],
+      "dismock/e2e": ["../../packages/client-js/src/testing.ts"],
+      "dismock/client": ["../../packages/client-js/src/index.ts"],
+      "@ex/db": ["./packages/db/src/index.ts"]
     },
     "allowImportingTsExtensions": true
   },
   "include": [
-    "src/**/*.ts",
+    "packages/bot/src/**/*.ts",
     "scripts/**/*.ts",
     "../../apps/web/src/assets.d.ts",
-    "tests/**/*.ts",
-    "vitest*.config.ts"
+    "tests/**/*.ts"
   ]
 }

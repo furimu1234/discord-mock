@@ -1,6 +1,6 @@
 import { test, expect } from "vitest";
-import { createBotClient } from "../../packages/bot/src/main.js";
-import { createTestEnvironment } from "@discord-mock/client-js/testing";
+import { Client } from "discord.js";
+import { createTestEnvironment } from "dismock/e2e";
 import { registerSlashCommand } from "../../packages/bot/src/utils/register.js";
 
 test("Ready 前のコマンド登録は通信せずにエラーにする", async () => {
@@ -9,7 +9,7 @@ test("Ready 前のコマンド登録は通信せずにエラーにする", async
   const mock = await createTestEnvironment({
     reportTo: reportUrl ? { baseUrl: reportUrl, name: "Ready 前のコマンド登録は通信せずにエラーにする" } : undefined,
   });
-  const client = createBotClient();
+  const client = new Client({ intents: [] });
   let succeeded = false;
   try {
     await mock.report({ step: "Ready 前のコマンド登録が拒否されることを確認" });

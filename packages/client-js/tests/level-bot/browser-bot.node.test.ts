@@ -1,16 +1,17 @@
+import { required } from "./required.js";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { test } from "node:test";
 import { once } from "node:events";
-import { startEphemeralDatabase } from "../helpers/built-app.js";
-import { startLevelBot } from "../../packages/bot/src/local.js";
+import { startEphemeralDatabase } from "./built-app.js";
+import { startLevelBot } from "../../../../examples/level_bot/packages/bot/src/testClient.js";
 import type {
   BrowserState,
   SessionResponse,
 } from "../../../../apps/web/src/types.js";
 import pg from "pg";
 import type { Message, Interaction } from "discord.js";
-import type { MockMessage } from "@discord-mock/client-js/testing";
+import type { MockMessage } from "dismock/e2e";
 import type * as MockServer from "../../../../apps/server/src/server.js";
 type BrowserTimeline = Omit<BrowserState, "messages"> & {
   messages: Record<string, MockMessage[]>;
@@ -51,7 +52,9 @@ test(
       const sessionResponse = await fetch(`${mock.url}/_ui/session`);
       assert.equal(sessionResponse.status, 200);
       const session = (await sessionResponse.json()) as SessionResponse;
-      const cookie = sessionResponse.headers.get("set-cookie")!.split(";")[0];
+      const cookie = required(sessionResponse.headers.get("set-cookie")).split(
+        ";",
+      )[0];
       assert.ok(session.users.some((u) => u.id === session.selectedUserId));
       const headers = {
         cookie,
@@ -71,7 +74,7 @@ test(
         const message = await sent.json();
         assert.equal(message.author.id, session.selectedUserId);
         await until(async () => {
-          const result = await pool!.query(
+          const result = await required(pool).query(
             "SELECT lvl FROM example.lvl WHERE server_id = $1 AND user_id = $2",
             [guildId, session.selectedUserId],
           );

@@ -1,3 +1,4 @@
+import { required } from "./required.js";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
@@ -17,17 +18,23 @@ import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import pg from "pg";
-import { startApp } from "../helpers/built-app.js";
+import { startApp } from "./built-app.js";
 import type {
   BrowserState,
   SessionResponse,
 } from "../../../../apps/web/src/types.js";
 
 const botEntrypoint = fileURLToPath(
-  new URL("../../src/bot.ts", import.meta.url),
+  new URL(
+    "../../../../examples/level_bot/packages/bot/src/testClient.ts",
+    import.meta.url,
+  ),
 );
 const botTsconfig = fileURLToPath(
-  new URL("../../packages/bot/tsconfig.json", import.meta.url),
+  new URL(
+    "../../../../examples/level_bot/packages/bot/tsconfig.json",
+    import.meta.url,
+  ),
 );
 const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
 const repositoryRoot = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -68,6 +75,7 @@ function spawnBot(
       "--tsconfig",
       runtime.tsconfig ?? botTsconfig,
       runtime.entrypoint ?? botEntrypoint,
+      "--bot",
     ],
     {
       cwd: directory,
@@ -150,7 +158,9 @@ test(
 
       const sessionResponse = await fetch(`${app.mock.url}/_ui/session`);
       const session = (await sessionResponse.json()) as SessionResponse;
-      const cookie = sessionResponse.headers.get("set-cookie")!.split(";")[0];
+      const cookie = required(sessionResponse.headers.get("set-cookie")).split(
+        ";",
+      )[0];
       const baseUrl = app.mock.url;
       const uiState = async () =>
         (
@@ -217,7 +227,7 @@ test(
         });
         assert.equal(sent.status, 201);
         await until(async () => {
-          const result = await pool!.query(
+          const result = await required(pool).query(
             "SELECT lvl FROM example.lvl WHERE server_id=$1 AND user_id=$2",
             [guildId, session.selectedUserId],
           );
@@ -357,7 +367,7 @@ test(
       await writeFile(envFile, "");
       const app = command("app");
       await until(
-        () => app.output().includes("テスト実行: pnpm bot"),
+        () => app.output().includes("テスト実行:"),
         "pnpm app startup",
       );
       const { token } = JSON.parse(
@@ -371,13 +381,19 @@ test(
       await until(
         () => bot.output().includes("level_bot connected"),
         "pnpm bot startup",
-      );
+      ).catch((error) => {
+        throw new Error(
+          `${error.message}\n${(bot.output() + bot.errors()).replace(/mock_[A-Za-z0-9_-]+/g, "[REDACTED]")}`,
+        );
+      });
       const sessionResponse = await fetch(`${url}/_ui/session`);
       const session = (await sessionResponse.json()) as SessionResponse;
       const sent: Response = await fetch(`${url}/_ui/messages`, {
         method: "POST",
         headers: {
-          cookie: sessionResponse.headers.get("set-cookie")!.split(";")[0],
+          cookie: required(sessionResponse.headers.get("set-cookie")).split(
+            ";",
+          )[0],
           "content-type": "application/json",
           "x-discord-mock-csrf": session.csrf,
         },
@@ -395,7 +411,9 @@ test(
         },
         body: "{}",
       });
-      const adminCookie = dbSession.headers.get("set-cookie")!.split(";")[0];
+      const adminCookie = required(dbSession.headers.get("set-cookie")).split(
+        ";",
+      )[0];
       await until(async () => {
         const response = await fetch(
           `${url}/_admin/database/rows?schema=example&table=lvl`,
@@ -405,11 +423,11 @@ test(
       }, "Bot の DB クエリ完了後に idle 接続を切断する");
       await app.close("SIGINT");
       await until(
-        () => bot!.child.exitCode !== null,
+        () => required(bot).child.exitCode !== null,
         "app 停止後の Bot 自動終了",
       ).catch((error) => {
         throw new Error(
-          `${error.message}\n${(bot!.output() + bot!.errors()).replace(/mock_[A-Za-z0-9_-]+/g, "[REDACTED]")}`,
+          `${error.message}\n${(required(bot).output() + required(bot).errors()).replace(/mock_[A-Za-z0-9_-]+/g, "[REDACTED]")}`,
         );
       });
       assert.equal((await bot.exited)[0], 0, bot.errors());
@@ -429,7 +447,7 @@ test(
       }, "app shutdown cleanup");
       const restartedApp = command("app");
       await until(
-        () => restartedApp.output().includes("テスト実行: pnpm bot"),
+        () => restartedApp.output().includes("テスト実行:"),
         "app の再起動",
       );
       const restartedBot = command("bot:client");
@@ -461,17 +479,17 @@ test(
       await writeFile(envFile, `TOKEN=${app.mock.token}\n`);
       bot = spawnBot(directory, envFile);
       await until(
-        () => bot!.output().includes("level_bot connected"),
+        () => required(bot).output().includes("level_bot connected"),
         "DB 未使用の Bot 起動",
       );
       await app.close();
       app = undefined;
       await until(
-        () => bot!.child.exitCode !== null,
+        () => required(bot).child.exitCode !== null,
         "HTTP による app 停止検知",
       ).catch((error) => {
         throw new Error(
-          `${error.message}\n${(bot!.output() + bot!.errors()).replace(/mock_[A-Za-z0-9_-]+/g, "[REDACTED]")}`,
+          `${error.message}\n${(required(bot).output() + required(bot).errors()).replace(/mock_[A-Za-z0-9_-]+/g, "[REDACTED]")}`,
         );
       });
       assert.equal((await bot.exited)[0], 0, bot.errors());
@@ -503,9 +521,13 @@ async function copySourceWorkspace(workspace: string) {
   ]) {
     const destination = join(workspace, relative);
     await mkdir(destination, { recursive: true });
-    await cp(join(repositoryRoot, relative, "src"), join(destination, "src"), {
-      recursive: true,
-    });
+    if (relative !== "examples/level_bot") {
+      await cp(
+        join(repositoryRoot, relative, "src"),
+        join(destination, "src"),
+        { recursive: true },
+      );
+    }
     await cp(
       join(repositoryRoot, relative, "package.json"),
       join(destination, "package.json"),
@@ -572,7 +594,10 @@ test(
     `,
       );
       const runtime = {
-        entrypoint: join(workspace, "examples/level_bot/src/bot.ts"),
+        entrypoint: join(
+          workspace,
+          "examples/level_bot/packages/bot/src/testClient.ts",
+        ),
         tsconfig: join(
           workspace,
           "examples/level_bot/packages/bot/tsconfig.json",
@@ -581,7 +606,9 @@ test(
       const sessionResponse = await fetch(`${app.mock.url}/_ui/session`);
       const session = (await sessionResponse.json()) as SessionResponse;
       const headers = {
-        cookie: sessionResponse.headers.get("set-cookie")!.split(";")[0],
+        cookie: required(sessionResponse.headers.get("set-cookie")).split(
+          ";",
+        )[0],
         "x-discord-mock-csrf": session.csrf,
         "content-type": "application/json",
       };
@@ -590,7 +617,7 @@ test(
         (
           await fetch(`${baseUrl}/_ui/state`, { headers })
         ).json() as Promise<BrowserState>;
-      let commandId;
+      let commandId: string | undefined;
       for (const version of [1, 2, null]) {
         const freshFile = join(commandDirectory, "fresh.ts");
         if (version === null) await rm(freshFile);
@@ -599,7 +626,7 @@ test(
             freshFile,
             `
         import { dbSourceMarker } from '@ex/db';
-        import { clientSourceMarker } from '@discord-mock/client-js';
+        import { clientSourceMarker } from 'dismock/client';
         const message: string = 'source-v${version}:' + dbSourceMarker + ':' + clientSourceMarker;
         export const data = { toJSON: () => ({ name: 'fresh', description: 'test' }) };
         export async function execute(interaction: { reply(text: string): Promise<void> }) { await interaction.reply(message); }

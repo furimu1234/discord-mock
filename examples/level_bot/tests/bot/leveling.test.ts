@@ -1,4 +1,4 @@
-import { test, expect } from "../helpers/bot-test.js";
+import { test, expect } from "dismock/e2e";
 
 test("レベル+1", { users: "login" }, async ({ bot, actor }) => {
   const before = await bot.levels.get(actor);

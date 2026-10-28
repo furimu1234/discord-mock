@@ -3,7 +3,7 @@ import { Client, Events, GatewayIntentBits } from "discord.js";
 import {
   createTestEnvironment,
   type TestEnvironment,
-} from "@discord-mock/client-js/testing";
+} from "dismock/e2e";
 
 function required<T>(value: T | null | undefined): T {
   expect(value).toBeDefined();

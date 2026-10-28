@@ -6,13 +6,18 @@
       "node"
     ],
     "paths": {
-      "@discord-mock/client-js/testing": [
+      "dismock/client": ["./src/index.ts"],
+      "dismock/runtime": ["./src/project-runtime.ts"],
+      "dismock/e2e/runner": ["./src/case-runner.ts"],
+      "@ex/db": ["../../examples/level_bot/packages/db/src/index.ts"],
+      "dismock/e2e": [
         "./src/testing.ts"
       ]
     },
     "strict": false
   },
   "include": [
+    "../../apps/web/src/assets.d.ts",
     "tests/**/*.ts",
     "vitest.config.ts"
   ]

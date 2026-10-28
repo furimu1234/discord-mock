@@ -11,7 +11,7 @@ const { startMock } = require("../dist/server.cjs");
 test("コードで作成したリソースを UI と JSON で共有し、並行作成と再読込で失わない", async () => {
   const directory = await mkdtemp(join(tmpdir(), "discord-mock-resources-"));
   const statePath = join(directory, "state.json");
-  let runtime;
+  let runtime: Awaited<ReturnType<typeof import("../src/server.js").startMock>> | undefined;
   try {
     runtime = await startMock({ port: 0, statePath });
     const mock = runtime.testing;

@@ -11,7 +11,7 @@ test("Synthetic user command reaches Gateway and callback is stored locally", {t
   const socket = new WebSocket(`${mock.url.replace("http:","ws:")}/gateway`);
   const botHeaders = {authorization: `Bot ${mock.token}`, "content-type": "application/json"};
   const adminHeaders = {"x-discord-mock-secret": mock.adminSecret, "content-type": "application/json"};
-  let interactionId;
+  let interactionId: string | undefined;
   try {
     const completed = new Promise<void>((resolve,reject) => {
       const timer = setTimeout(()=>reject(new Error("No mock interaction received")),5000);

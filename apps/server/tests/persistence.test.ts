@@ -12,7 +12,7 @@ const channelId = "123456789000000002";
 test("browser and Bot messages share JSON state and survive restart", async () => {
   const directory = await mkdtemp(join(tmpdir(), "discord-mock-state-"));
   const statePath = join(directory, "state.json");
-  let mock;
+  let mock: Awaited<ReturnType<typeof import("../src/server.js").startMock>> | undefined;
   try {
     mock = await startMock({ port: 0, statePath });
     const sessionResponse = await fetch(`${mock.url}/_ui/session`);

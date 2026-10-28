@@ -191,7 +191,7 @@ test("admin screen opens a session without subscribing to the test timeline", as
 test("pending submissions and repeated Enter keys never send a message or command twice", async () => {
   const fixture = createBrowserFixture();
   const sends = [];
-  let complete;
+  let complete: () => void = () => {};
   const state = {
     guild: { name: "Test", channels: [{ id: "general", name: "general", type: 0 }] },
     users: [{ id: "alice", username: "Alice" }], selectedUserId: "alice", botConnections: 1,

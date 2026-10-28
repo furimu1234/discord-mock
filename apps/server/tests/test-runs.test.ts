@@ -223,7 +223,8 @@ test("UT起動時のログインユーザーはブラウザセッションから
     const base = mock.url;
     const sessionResponse = await fetch(`${base}/_ui/session`);
     const session = await sessionResponse.json() as { csrf: string; selectedUserId: string; users: Array<{id: string; username: string}> };
-    const cookie = sessionResponse.headers.get("set-cookie")!.split(";")[0];
+    const cookie = sessionResponse.headers.get("set-cookie")?.split(";")[0];
+    assert.ok(cookie);
     const url = `${base}/_ui/test-cases/run`;
     const body = JSON.stringify({ id: "showLvl.test.ts:0", user_id: "spoofed" });
     assert.equal((await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body })).status, 401);

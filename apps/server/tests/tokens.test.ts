@@ -11,7 +11,7 @@ const { startMock } = require("../dist/server.cjs");
 test("token JSON generates once, survives restart and authenticates REST", async () => {
   const directory = await mkdtemp(join(tmpdir(), "discord-mock-token-"));
   const tokenPath = join(directory, "credentials.json");
-  let mock;
+  let mock: Awaited<ReturnType<typeof import("../src/server.js").startMock>> | undefined;
   try {
     mock = await startMock({ port: 0, tokenPath });
     const firstToken = mock.token;

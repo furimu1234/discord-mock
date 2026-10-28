@@ -11,11 +11,11 @@ test("database tab opens without a key, renders safe cells, sorts, searches and 
   const fixture = createBrowserFixture("/database");
   const requests = [];
   let expired = false;
-  let resolveStale;
+  let resolveStale: () => void = () => {};
   let delayNext = false;
   const fetch = async (url: string, options: {method?: string; headers?: Record<string, string>; body?: string} = {}) => {
     requests.push({ url, ...options });
-    let result;
+    let result: unknown;
     if (url === "/_admin/session") {
       if (options.method === "POST") {
         assert.deepEqual(JSON.parse(options.body), {});

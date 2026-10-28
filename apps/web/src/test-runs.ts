@@ -366,7 +366,7 @@ export class TestRunChatView {
       const button = createElement(
         "button",
         id === this.selectedChannelId ? "channel selected" : "channel",
-        "#  " + name,
+        `#  ${name}`,
       );
       button.type = "button";
       button.onclick = () => {
@@ -376,7 +376,7 @@ export class TestRunChatView {
       };
       this.channels.append(button);
     }
-    this.channelTitle.textContent = "# " + (channels.get(this.selectedChannelId) ?? "general");
+    this.channelTitle.textContent = `# ${channels.get(this.selectedChannelId) ?? "general"}`;
   }
 
   private renderMessages(): void {
@@ -387,11 +387,11 @@ export class TestRunChatView {
     const welcome = createElement("section", "test-chat-welcome");
     welcome.append(
       createElement("div", "test-chat-symbol", "#"),
-      createElement("h2", "", "# " + name + "へようこそ！"),
+      createElement("h2", "", `# ${name}へようこそ！`),
       createElement(
         "p",
         "",
-        "ここはテスト用チャンネル「#" + name + "」の始まりです。テストケースを実行するとユーザーの投稿と Bot の返信が表示されます。",
+        `ここはテスト用チャンネル「#${name}」の始まりです。テストケースを実行するとユーザーの投稿と Bot の返信が表示されます。`,
       ),
     );
     this.messages.append(welcome);
@@ -420,14 +420,14 @@ export class TestRunChatView {
       const heading = createElement("div", "test-log-run-heading");
       heading.append(
         createElement("strong", "", run.name),
-        createElement("span", "test-status " + run.status, STATUS[run.status]),
+        createElement("span", `test-status ${run.status}`, STATUS[run.status]),
       );
       const started = createElement("div", "test-log-run-time", new Date(run.startedAt).toLocaleTimeString("ja-JP"));
       const steps = createElement("ol", "test-log-steps");
       steps.append(...run.steps.map((step) => createElement("li", "", step.text)));
       card.append(heading, started, steps);
       if (run.status !== "running") {
-        card.append(createElement("p", "test-log-result test-status " + run.status, "結果: " + STATUS[run.status]));
+        card.append(createElement("p", `test-log-result test-status ${run.status}`, `結果: ${STATUS[run.status]}`));
       }
       this.logEntries.append(card);
     }

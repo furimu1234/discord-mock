@@ -13,7 +13,7 @@ const guildId = "123456789000000000";
 test("command registration validates atomically, isolates scopes, persists and updates the browser list", async () => {
   const directory = await mkdtemp(join(tmpdir(), "discord-mock-commands-"));
   const statePath = join(directory, "state.json");
-  let mock;
+  let mock: Awaited<ReturnType<typeof import("../src/server.js").startMock>> | undefined;
   try {
     mock = await startMock({ port: 0, statePath });
     const path = `/api/v10/applications/${appId}/commands`;

@@ -19,6 +19,7 @@ export class Element {
   declare onsubmit: (event: { preventDefault(): void }) => void;
   declare onkeydown: (event: { key: string; preventDefault(): void; repeat?: boolean; isComposing?: boolean }) => void;
   declare oncontextmenu: (event: { preventDefault(): void; clientX?: number; clientY?: number }) => void;
+  contains(target: unknown): boolean { return target === this || this.children.some((child) => child.contains(target)); }
   classList = {
     toggle: (name: string, enabled: boolean) => enabled ? this.classes.add(name) : this.classes.delete(name),
     contains: (name: string) => this.classes.has(name),
@@ -65,6 +66,11 @@ export function createBrowserFixture(pathname = "/") {
     "test-user-profile": "div",
     "test-user-menu": "div",
     "channel-sidebar": "div",
+    "channel-create": "button",
+    "channel-create-form": "form",
+    "channel-create-name": "input",
+    "channel-create-cancel": "button",
+    "channel-create-submit": "button",
     "database-sidebar": "div",
     "user-panel": "div",
     "test-link": "a",
@@ -105,6 +111,10 @@ export function createBrowserFixture(pathname = "/") {
   elements["database-limit"].value = "50";
   const streams: EventSource[] = [];
   const copied: string[] = [];
+  const documentEvents = new Map<string, (event: { target?: unknown; key?: string }) => void>();
+  const fireDocument = (name: string, event: { target?: unknown; key?: string }) => {
+    documentEvents.get(name)?.(event);
+  };
   class EventSource {
     handlers = new Map<string, () => void>();
     url: string;
@@ -116,11 +126,13 @@ export function createBrowserFixture(pathname = "/") {
     elements,
     streams,
     copied,
+    fireDocument,
     globals: {
       location: { pathname },
       document: {
         getElementById: (id) => elements[id],
         createElement: (tag) => new Element(tag),
+        addEventListener: (name: string, callback: (event: { target?: unknown; key?: string }) => void) => { documentEvents.set(name, callback); },
       },
       EventSource,
       URLSearchParams,

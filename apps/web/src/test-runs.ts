@@ -179,6 +179,10 @@ export class TestRunChatView {
   private readonly messages = getElement("messages", "div");
   private readonly identity = getElement("identity", "select");
   private readonly channels = getElement("channels", "nav");
+  private readonly createChannelButton = getElement("channel-create", "button");
+  private readonly createChannelForm = getElement("channel-create-form", "form");
+  private readonly createChannelName = getElement("channel-create-name", "input");
+  private readonly createChannelCancel = getElement("channel-create-cancel", "button");
   private readonly channelTitle = getElement("channel-title", "strong");
   private readonly logPanel = getElement("test-log-panel", "aside");
   private readonly logEntries = getElement("test-log-entries", "div");
@@ -200,16 +204,37 @@ export class TestRunChatView {
   private generation = 0;
   private selectedChannelId = "general";
   private runs: TestRunView[] = [];
+  private appChannels: Array<{ id: string; name: string; type: number }> = [];
 
   async initialize(): Promise<void> {
     this.logPanel.classList.toggle("hidden", false);
     this.logTab.onclick = () => this.selectSidebarTab("log");
     this.usersTab.onclick = () => this.selectSidebarTab("users");
     this.selectSidebarTab("log");
+    this.createChannelButton.onclick = () => {
+      this.createChannelForm.classList.toggle("hidden", false);
+      this.createChannelName.focus();
+    };
+    this.createChannelCancel.onclick = () => this.createChannelForm.classList.toggle("hidden", true);
+    this.createChannelForm.onsubmit = (event) => { event.preventDefault(); void this.createChannel(); };
+    // pointerdown はclickより先に発火。別ユーザーのプロフィールを開く操作も妨げない。
+    document.addEventListener("pointerdown", (event) => {
+      const target = event.target;
+      if (!this.userMenu.contains(target)) this.userMenu.classList.toggle("hidden", true);
+      if (!this.userProfile.contains(target)) this.userProfile.classList.toggle("hidden", true);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        this.userMenu.classList.toggle("hidden", true);
+        this.userProfile.classList.toggle("hidden", true);
+      }
+    });
     this.render([]);
     try {
       await Promise.all([this.connectSession(), this.connectUserSession()]);
-      await Promise.all([this.refreshCases(), this.refreshRuns()]);
+      await Promise.all([this.refreshCases(), this.refreshRuns(), this.refreshAppChannels()]);
+      const appStream = new EventSource("/_ui/events");
+      appStream.addEventListener("changed", () => { void this.refreshAppChannels(); });
       const stream = new EventSource("/_admin/test-runs/events");
       stream.addEventListener("open", () => { void this.refreshRuns(); });
       stream.addEventListener("changed", () => {
@@ -286,6 +311,38 @@ export class TestRunChatView {
     }
   }
 
+
+
+  private async refreshAppChannels(): Promise<void> {
+    try {
+      const state = await this.request<{ guild: { channels: Array<{ id: string; name: string; type: number }> } }>("/_ui/state");
+      this.appChannels = state.guild.channels.filter((channel) => channel.type === 0);
+      this.renderChannels();
+    } catch (error) {
+      this.showError(error instanceof Error ? error.message : "チャンネル一覧を更新できませんでした");
+    }
+  }
+
+  private async createChannel(): Promise<void> {
+    const name = this.createChannelName.value.trim();
+    if (!name) { this.showError("チャンネル名を入力してください"); return; }
+    try {
+      const channel = await this.request<{ id: string; name: string; type: number }>("/_ui/channels", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-discord-mock-csrf": this.userCsrf },
+        body: JSON.stringify({ name }),
+      });
+      this.createChannelName.value = "";
+      this.createChannelForm.classList.toggle("hidden", true);
+      await this.refreshAppChannels();
+      this.selectedChannelId = channel.id;
+      this.renderChannels();
+      this.renderMessages();
+      this.showError("");
+    } catch (error) {
+      this.showError(error instanceof Error ? error.message : "チャンネルの作成に失敗しました");
+    }
+  }
 
   private selectSidebarTab(tab: "log" | "users"): void {
     const usersVisible = tab === "users";
@@ -458,6 +515,7 @@ export class TestRunChatView {
 
   private renderChannels(): void {
     const channels = new Map<string, string>();
+    for (const channel of this.appChannels) channels.set(channel.id, channel.name);
     for (const run of this.runs) {
       for (const channel of run.guild.channels) {
         if (channel.type === 0 && !channels.has(channel.id)) channels.set(channel.id, channel.name);

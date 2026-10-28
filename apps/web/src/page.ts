@@ -27,7 +27,18 @@ export function renderPage(): string {
       <a href="/test">チャット</a><a href="/database">データベース</a><a href="/tests">自動テスト</a>
     </nav>
     <div id="channel-sidebar">
-    <div class="minor">テキストチャンネル</div>
+    <div class="channel-header">
+      <div class="minor">テキストチャンネル</div>
+      <button id="channel-create" type="button" aria-label="チャンネルを作成" title="チャンネルを作成">＋</button>
+    </div>
+    <form id="channel-create-form" class="channel-create-form hidden">
+      <label for="channel-create-name">新しいテキストチャンネル</label>
+      <input id="channel-create-name" maxlength="100" placeholder="チャンネル名" required aria-label="新しいチャンネル名">
+      <div class="channel-create-actions">
+        <button id="channel-create-cancel" type="button">キャンセル</button>
+        <button id="channel-create-submit" type="submit">作成</button>
+      </div>
+    </form>
     <nav id="channels" class="channels" aria-label="チャンネル一覧"></nav>
     </div>
     <div id="database-sidebar" class="hidden">

@@ -36,6 +36,7 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   };
   let runs: Array<{ id: string }> = [];
   let selectedUserId = "123456789000000099";
+  const appChannels = [{ id: "general", name: "general", type: 0 }];
   const calls: Array<{ url: string; options: Record<string, unknown> }> = [];
 
   script.runInNewContext({
@@ -58,6 +59,15 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
           { user: { id: "123456789000000098" }, roles: [] },
         ],
       }) };
+      if (url === "/_ui/state") return {
+        ok: true, json: async () => ({ guild: { channels: [...appChannels] } }),
+      };
+      if (url === "/_ui/channels") {
+        const { name } = JSON.parse(options.body as string) as { name: string };
+        const channel = { id: "123456789000003444", name, type: 0 };
+        appChannels.push(channel);
+        return { ok: true, json: async () => channel };
+      }
       if (url === "/_ui/identity") {
         selectedUserId = (JSON.parse(options.body as string) as { user_id: string }).user_id;
         return { ok: true, json: async () => ({ selectedUserId }) };
@@ -87,8 +97,20 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.match(textOf(fixture.elements["test-user-profile"]), /Alice/);
   assert.match(textOf(fixture.elements["test-user-profile"]), /Moderator/);
   assert.match(textOf(fixture.elements["test-user-profile"]), /@everyone/);
+  fixture.fireDocument("pointerdown", { target: fixture.elements.channels });
+  assert.equal(fixture.elements["test-user-profile"].classes.has("hidden"), true);
+  aliceButton.onclick();
+  fixture.fireDocument("pointerdown", { target: fixture.elements["test-user-profile"].children[0] });
+  assert.equal(fixture.elements["test-user-profile"].classes.has("hidden"), false);
+  fixture.fireDocument("keydown", { key: "Escape" });
+  assert.equal(fixture.elements["test-user-profile"].classes.has("hidden"), true);
   aliceButton.oncontextmenu({ preventDefault() {} });
   assert.equal(fixture.elements["test-user-menu"].children.length, 2);
+  fixture.fireDocument("pointerdown", { target: fixture.elements.messages });
+  assert.equal(fixture.elements["test-user-menu"].classes.has("hidden"), true);
+  aliceButton.oncontextmenu({ preventDefault() {} });
+  fixture.fireDocument("pointerdown", { target: fixture.elements["test-user-menu"].children[0] });
+  assert.equal(fixture.elements["test-user-menu"].classes.has("hidden"), false);
   fixture.elements["test-user-menu"].children[1].onclick();
   await settle();
   assert.deepEqual(fixture.copied, ["123456789000000099"]);
@@ -111,9 +133,22 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.equal(fixture.elements["test-case-buttons"].children.length, 1);
   assert.equal(fixture.elements.channels.children.length, 1);
   assert.equal(fixture.elements["channel-title"].textContent, "# general");
+  // サイドバーからチャンネル作成し、チャット切替とライブ一覧更新を検証する。
+  fixture.elements["channel-create"].onclick();
+  assert.equal(fixture.elements["channel-create-form"].classes.has("hidden"), false);
+  fixture.elements["channel-create-name"].value = "test-room";
+  fixture.elements["channel-create-form"].onsubmit({ preventDefault() {} });
+  await settle();
+  assert.equal(fixture.elements["channel-create-form"].classes.has("hidden"), true);
+  assert.match(textOf(fixture.elements.channels), /test-room/);
+  assert.equal(fixture.elements["channel-title"].textContent, "# test-room");
+  const created = calls.find((call) => call.url === "/_ui/channels");
+  assert.ok(created);
+  assert.equal((created.options.headers as Record<string, string>)["x-discord-mock-csrf"], "test-csrf");
+  fixture.elements.channels.children[0].onclick();
   assert.match(textOf(fixture.elements.messages), /generalへようこそ/);
   assert.match(textOf(fixture.elements["test-log-entries"]), /まだ実行ログはありません/);
-  assert.equal(calls.some((call) => call.url === "/_ui/state"), false);
+  assert.equal(calls.some((call) => call.url === "/_ui/state"), true);
 
   // ケースのボタンは CSRF 付き API に送信する。
   fixture.elements["test-case-buttons"].children[0].onclick();
@@ -128,7 +163,7 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.ok(stream);
   stream.handlers.get("changed")?.();
   await settle();
-  assert.equal(fixture.elements.channels.children.length, 2);
+  assert.equal(fixture.elements.channels.children.length, 3);
   assert.match(textOf(fixture.elements["test-log-entries"]), /テスト用 Bot を起動/);
   assert.match(textOf(fixture.elements["test-log-entries"]), /実行中/);
   assert.doesNotMatch(textOf(fixture.elements.messages), /テスト用 Bot を起動/);
@@ -176,7 +211,9 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.doesNotMatch(log, /今のレベルはこれだ7|こんにちは/);
 
   // サイドバーのチャンネル切替ではログは保持し、チャットだけ絞り込む。
-  fixture.elements.channels.children[1].onclick();
+  const audit = fixture.elements.channels.children.find((button) => button.textContent.includes("audit"));
+  assert.ok(audit);
+  audit.onclick();
   assert.equal(fixture.elements["channel-title"].textContent, "# audit");
   const auditChat = textOf(fixture.elements.messages);
   assert.match(auditChat, /別チャンネルの投稿/);
@@ -197,6 +234,9 @@ test("/test は起動直後に # general と空のチャンネル開始画面を
     ...fixture.globals,
     fetch: async (url: string) => {
       if (url === "/_admin/session") return { ok: true, json: async () => ({ csrf: "csrf" }) };
+      if (url === "/_ui/state") return { ok: true, json: async () => ({
+        guild: { channels: [{ id: "general", name: "general", type: 0 }] },
+      }) };
       if (url === "/_ui/session") return { ok: true, json: async () => ({
         csrf: "ui-csrf",
         selectedUserId: "123456789000000099",

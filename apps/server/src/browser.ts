@@ -5,6 +5,7 @@ import type { MockEnvironment } from "./environment.js";
 import type { TestCaseService } from "./test-cases.js";
 import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
 import { channelPermissions, requireChannelPermission, USE_APPLICATION_COMMANDS, VIEW_CHANNEL } from "./permissions.js";
+import { MockResources } from "./resources.js";
 
 interface BrowserSession {
   selectedUserId: string;
@@ -136,6 +137,21 @@ export class BrowserRoutes {
       } catch (error) {
         sendError(response, 409, error instanceof Error ? error.message : "テストを開始できませんでした");
       }
+      return;
+    }
+
+    if (path === "/_ui/channels") {
+      if (typeof body.name !== "string" || !body.name.trim() || body.name.length > 100) {
+        sendError(response, 400, "チャンネル名は1～100文字で指定してください");
+        return;
+      }
+      const resources = new MockResources(this.environment);
+      if (state.guild.channels.some((channel) => channel.name === body.name && channel.type === 0)) {
+        sendError(response, 409, "同名のテキストチャンネルが存在します");
+        return;
+      }
+      const channel = await resources.channels.create({ name: body.name, type: 0 });
+      sendJson(response, 201, channel);
       return;
     }
 

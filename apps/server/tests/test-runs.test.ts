@@ -344,3 +344,27 @@ test("UTのDBスナップショットは不正値や破損構造を拒否する"
     await app.close();
   }
 });
+
+test("ブラウザセッションのCSRFでチャンネルを作成でき、同名の重複は拒否する", async () => {
+  const app = await startMock({ port: 0 });
+  try {
+    const sessionResponse = await fetch(`${app.url}/_ui/session`);
+    const session = await sessionResponse.json() as { csrf: string };
+    const cookie = sessionResponse.headers.get("set-cookie")?.split(";")[0];
+    assert.ok(cookie);
+    const url = `${app.url}/_ui/channels`;
+    const body = JSON.stringify({ name: "test-room" });
+    assert.equal((await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body })).status, 401);
+    assert.equal((await fetch(url, { method: "POST", headers: { cookie, "content-type": "application/json" }, body })).status, 403);
+    const headers = { cookie, "content-type": "application/json", "x-discord-mock-csrf": session.csrf };
+    const created = await fetch(url, { method: "POST", headers, body });
+    assert.equal(created.status, 201);
+    const channel = await created.json() as { id: string; name: string; type: number };
+    assert.equal(channel.name, "test-room");
+    assert.equal(channel.type, 0);
+    const state = await (await fetch(`${app.url}/_ui/state`, { headers: { cookie } })).json() as { guild: { channels: Array<{ id: string; name: string }> } };
+    assert.ok(state.guild.channels.some((item) => item.id === channel.id));
+    assert.equal((await fetch(url, { method: "POST", headers, body })).status, 409);
+    assert.equal((await fetch(url, { method: "POST", headers, body: JSON.stringify({ name: "" }) })).status, 400);
+  } finally { await app.close(); }
+});

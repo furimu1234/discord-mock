@@ -2,27 +2,37 @@ import { describe, test, expect } from "../helpers/bot-test.js";
 
 describe("/レベル確認", () => {
   test("投稿したあとにコマンドでレベルを確認できる", { users: "login" }, async ({ bot, user, actor }) => {
+    const before = await bot.levels.get(user);
     await actor.sendMessage("こんにちは");
-    await expect.poll(() => bot.levels.get(user)).toBe(2);
+    const expected = (before ?? 1) + 1;
+    await expect.poll(() => bot.levels.get(user)).toBe(expected);
+
     const reply = await actor.command("レベル確認");
     expect(reply.embeds[0].title).toBe(`${user.username} | lvl`);
-    expect(reply.embeds[0].fields?.[0].value).toBe("2");
+    expect(reply.embeds[0].fields?.[0].value).toBe(String(expected));
     expect(reply.embeds[0].footer?.text).toBe(`by ${user.id}`);
     expect(reply.interaction_metadata?.user.id).toBe(user.id);
   });
 
   test("実行した Guild のレベルを返し、レベルを変更しない", { users: "login" }, async ({ bot, user, actor }) => {
-    await bot.levels.set(user, 7);
-    await bot.levels.set(user, 99, "223456789000000000");
+    // 別Guildのレコードは生成せず、実際の投稿で現在Guildのみレベルアップさせる。
+    const before = await bot.levels.get(user);
+    await actor.sendMessage("Guild固有レベルの検証");
+    const expected = (before ?? 1) + 1;
+    await expect.poll(() => bot.levels.get(user)).toBe(expected);
+    expect(await bot.levels.get(user, "223456789000000000")).toBeUndefined();
     const reply = await actor.command("レベル確認");
-    expect(reply.embeds[0].fields?.[0].value).toBe("7");
-    expect(await bot.levels.get(user)).toBe(7);
+    expect(reply.embeds[0].fields?.[0].value).toBe(String(expected));
+    expect(await bot.levels.get(user)).toBe(expected);
   });
 
   test("実行者ごとに対応するレベルを返す", { users: "login" }, async ({ bot, user, actor }) => {
-    await bot.levels.set(user, 23);
+    const before = await bot.levels.get(user);
+    await actor.sendMessage("実行者のレベルを上げる");
+    const expected = (before ?? 1) + 1;
+    await expect.poll(() => bot.levels.get(user)).toBe(expected);
     const reply = await actor.command("レベル確認");
-    expect(reply.embeds[0].fields?.[0].value).toBe("23");
+    expect(reply.embeds[0].fields?.[0].value).toBe(String(expected));
     expect(reply.embeds[0].title).toBe(`${user.username} | lvl`);
     expect(reply.interaction_metadata?.user.id).toBe(user.id);
   });
@@ -30,10 +40,13 @@ describe("/レベル確認", () => {
   test("複数IDで指定した各ユーザーからレベル確認できる", {
     users: { ids: ["123456789000000098", "123456789000000099"] },
   }, async ({ bot, user, actor }) => {
-    await bot.levels.set(user, 7);
+    const before = await bot.levels.get(user);
+    await actor.sendMessage("複数ユーザーのレベル確認");
+    const expected = (before ?? 1) + 1;
+    await expect.poll(() => bot.levels.get(user)).toBe(expected);
     const reply = await actor.command("レベル確認");
     expect(reply.embeds[0].title).toBe(`${user.username} | lvl`);
-    expect(reply.embeds[0].fields?.[0].value).toBe("7");
+    expect(reply.embeds[0].fields?.[0].value).toBe(String(expected));
     expect(reply.interaction_metadata?.user.id).toBe(user.id);
   });
 

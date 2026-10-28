@@ -95,6 +95,7 @@ export async function botTestConfig(
       include: ["tests/bot/**/*.test.ts"],
       environment: "node",
       fileParallelism: false,
+      globalSetup: ["./tests/helpers/db-global-setup.ts"],
       testTimeout: 15_000,
       hookTimeout: 30_000,
       env: {

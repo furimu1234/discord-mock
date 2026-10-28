@@ -3,6 +3,7 @@ import { createServer, type Server } from "node:http";
 import { resolve } from "node:path";
 import { renderBrowserScript, renderPage } from "../../web/src/page.js";
 import { handleAdminRoute } from "./admin.js";
+import { AdminUiRoutes } from "./admin-ui.js";
 import { BrowserRoutes } from "./browser.js";
 import { MockEnvironment } from "./environment.js";
 import { MockGateway } from "./gateway.js";
@@ -39,6 +40,7 @@ export interface MockRuntime {
   url: string;
   token: string;
   adminSecret: string;
+  issueDesktopAdminSession(): string;
   testing: MockTesting;
   close(): Promise<void>;
 }
@@ -116,6 +118,8 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
         await browser.handle(context);
       } else if (path.startsWith("/_mock/")) {
         await handleAdminRoute(context, environment, adminSecret);
+      } else if (path.startsWith("/_admin/ui/")) {
+        await adminUi.handle(context);
       } else if (path.startsWith("/_admin/")) {
         await database.handle(context);
       } else if (isApi) {
@@ -139,6 +143,7 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
 
   const gatewayUrl = () => `${listeningUrl(server, host).replace("http:", "ws:")}/gateway`;
   const gateway = new MockGateway(server, environment, token, gatewayUrl);
+  const adminUi = new AdminUiRoutes(environment, adminSecret);
   const database = new DatabaseRoutes(adminSecret, options.database, options.testCases, new TestRunRoutes(() => environment.state));
   const browser = new BrowserRoutes(environment, () => gateway.connectionCount, options.testCases, database.testRuns);
   const testing = new MockTesting(environment, () => gateway.connectionCount, options.timeoutMs);
@@ -154,10 +159,12 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
     url: listeningUrl(server, host),
     token,
     adminSecret,
+    issueDesktopAdminSession: () => adminUi.issueDesktopSession(),
     testing,
     close() {
       closing ??= (async () => {
         testing.close();
+        adminUi.close();
         browser.close();
         database.close();
         await gateway.close();

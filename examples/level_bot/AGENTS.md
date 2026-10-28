@@ -8,5 +8,5 @@
 - ルート `pnpm bot` は UT の Web 実行、`pnpm bot:client` は Bot プロセス単体起動。`pnpm app` は有効な保存済みトークンがある場合 Bot を自動起動する。テストは別 Mock / DB で実行し、`/test` のチャットへ実行内容を送る。
 - Web のテストケース実行 API は登録済みテストだけを起動し、ローカル管理認証と CSRF 検証を必須とする。任意コマンド実行 API に変更しない。
 
-- Bot UT の操作ユーザーは `bot.command(name, { users })` または `bot.forUsers({ users }, fn)` で指定する。`users` は `"all"`（Botを除く全員）、`"logged-in"`（Webで選択中のユーザー）、`{ id: "..." }`（厳密ID）。`bot.as(user)` も維持する。ユーザーIDが見つからない場合はフォールバックしない。
-- `"logged-in"` はブラウザの `/_ui/session` で選んだユーザーを、CSRF 検証済みの `/_ui/test-cases/run` からテスト実行へ渡す。ブラウザが任意IDを送って偽装できる経路を作らない。CLIからの実行時は `DISCORD_MOCK_SELECTED_USER_ID` を明示する。
+- UTの対象ユーザーは `test(name, { users: "all" | "login" | { id: "..." } | { ids: ["...", "..."] } }, async ({ bot, user, actor }) => {...})` の第2引数で指定する。`all` と `ids` はテスト本文を対象ユーザーごとに順次実行する。`actor` は1回につき1ユーザーで配列にはしない。`ids` は入力順を維持し、空配列・重複・未登録・BotのIDを拒否する。`bot.as(user)` は互換のため残すが、users指定を操作APIへ戻さない。
+- `login` はブラウザの `/_ui/session` で選んだユーザーをCSRF検証済みの `/_ui/test-cases/run` からテスト実行へ渡す。任意IDの偽装リクエストを受け付けない。CLIからの実行時は `DISCORD_MOCK_SELECTED_USER_ID` を利用できる。

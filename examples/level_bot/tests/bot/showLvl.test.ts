@@ -27,6 +27,16 @@ describe("/レベル確認", () => {
     expect(reply.interaction_metadata?.user.id).toBe(user.id);
   });
 
+  test("複数IDで指定した各ユーザーからレベル確認できる", {
+    users: { ids: ["123456789000000098", "123456789000000099"] },
+  }, async ({ bot, user, actor }) => {
+    await bot.levels.set(user, 7);
+    const reply = await actor.command("レベル確認");
+    expect(reply.embeds[0].title).toBe(`${user.username} | lvl`);
+    expect(reply.embeds[0].fields?.[0].value).toBe("7");
+    expect(reply.interaction_metadata?.user.id).toBe(user.id);
+  });
+
   test("レベル未登録なら返信もレコード作成もしない", { users: "login" }, async ({ bot }) => {
     const user = await bot.users.create({ username: "未登録ユーザー" });
     await expect(bot.as(user).command("レベル確認", { timeoutMs: 250 })).rejects.toThrow("250ms");

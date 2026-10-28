@@ -106,6 +106,11 @@ test("全員の投稿", { users: "all" }, async ({ user, actor }) => {
 test("指定ユーザー", { users: { id: "123456789000000099" } }, async ({ actor }) => {
   await actor.sendMessage("ID指定の投稿");
 });
+
+// 複数IDでテスト本文を順次実行
+test("複数ID", { users: { ids: ["123456789000000098", "123456789000000099"] } }, async ({ user, actor }) => {
+  await actor.sendMessage(`${user.username} の投稿`);
+});
 ```
 
 `user` は対象ユーザー、`actor` はそのユーザーとして投稿・コマンド実行できる操作クライアントです。`bot.levels.set(user, ...)` などの状態準備も同じユーザーを参照します。`"all"` では同じテスト本文を各ユーザーについて順に実行します。従来の `bot.as(user)` も残していますが、テスト実行対象は各操作ではなく `test()` の第2引数で指定します。

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, session, type IpcMainInvokeEvent } from "electron";
 import { mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import type { MockRuntime, ServerOptions } from "../../server/src/server.js";
 import { BotProcess } from "./bot-process.js";
 

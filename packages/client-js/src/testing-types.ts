@@ -40,23 +40,71 @@ export interface MockMember {
   mute: boolean;
   flags: number;
 }
+/** Discord API v10 Embed structure. Read-only/server-produced media fields are optional. */
 export interface MockEmbedField {
   name: string;
   value: string;
   inline?: boolean;
 }
-/** 公開 rich Embed のうち文字・色・フィールドに対応する。 */
 export interface MockEmbed {
   type: "rich";
   title?: string;
   description?: string;
+  url?: string;
+  timestamp?: string;
   color?: number;
+  footer?: { text: string; icon_url?: string; proxy_icon_url?: string };
+  image?: { url: string; proxy_url?: string; height?: number; width?: number };
+  thumbnail?: { url: string; proxy_url?: string; height?: number; width?: number };
+  video?: { url?: string; proxy_url?: string; height?: number; width?: number };
+  provider?: { name?: string; url?: string };
+  author?: { name: string; url?: string; icon_url?: string; proxy_icon_url?: string };
   fields?: MockEmbedField[];
-  footer?: { text: string };
 }
+export interface MockMessageReference {
+  type?: number;
+  message_id?: string;
+  channel_id?: string;
+  guild_id?: string;
+  fail_if_not_exists?: boolean;
+}
+export interface MockAllowedMentions {
+  parse?: Array<"roles" | "users" | "everyone">;
+  roles?: string[];
+  users?: string[];
+  replied_user?: boolean;
+}
+export interface MockAttachment {
+  id: string;
+  filename: string;
+  description?: string;
+  title?: string;
+  content_type?: string;
+  size?: number;
+  url?: string;
+  proxy_url?: string;
+  height?: number | null;
+  width?: number | null;
+  ephemeral?: boolean;
+  duration_secs?: number;
+  waveform?: string;
+  flags?: number;
+}
+/** JSON Create Message fields. Files themselves require multipart/form-data. */
 export interface MockMessageContent {
   content: string;
   embeds: MockEmbed[];
+  nonce?: string | number;
+  enforce_nonce?: boolean;
+  tts?: boolean;
+  allowed_mentions?: MockAllowedMentions;
+  message_reference?: MockMessageReference;
+  components?: Array<Record<string, unknown>>;
+  sticker_ids?: string[];
+  attachments?: MockAttachment[];
+  flags?: number;
+  poll?: Record<string, unknown>;
+  shared_client_theme?: Record<string, unknown>;
 }
 export interface MockMessageInteraction {
   id: string;
@@ -67,18 +115,38 @@ export interface MockMessageInteraction {
 export interface MockMessage extends MockMessageContent {
   id: string;
   channel_id: string;
+  guild_id?: string;
   author: MockUser;
+  member?: MockMember;
   timestamp: string;
-  edited_timestamp: null;
+  edited_timestamp: string | null;
   tts: boolean;
   mention_everyone: boolean;
-  mentions: unknown[];
+  mentions: MockUser[];
   mention_roles: string[];
-  attachments: unknown[];
+  mention_channels?: Array<Record<string, unknown>>;
+  attachments: MockAttachment[];
   pinned: boolean;
   type: number;
   flags: number;
+  components?: Array<Record<string, unknown>>;
+  sticker_items?: Array<{ id: string; name: string; format_type: number }>;
+  stickers?: Array<Record<string, unknown>>;
+  reactions?: Array<Record<string, unknown>>;
+  webhook_id?: string;
+  activity?: Record<string, unknown>;
+  application?: Record<string, unknown>;
   application_id?: string;
+  message_reference?: MockMessageReference;
+  message_snapshots?: Array<{ message: Record<string, unknown> }>;
+  referenced_message?: MockMessage | null;
+  thread?: MockChannel;
+  position?: number;
+  role_subscription_data?: Record<string, unknown>;
+  resolved?: Record<string, unknown>;
+  poll?: Record<string, unknown>;
+  call?: Record<string, unknown>;
+  shared_client_theme?: Record<string, unknown>;
   interaction?: MockMessageInteraction;
   interaction_metadata?: {
     id: string;

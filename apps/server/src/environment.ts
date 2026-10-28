@@ -108,25 +108,80 @@ export class MockEnvironment extends EventEmitter<{
   }
 
   async postMessage(channelId: string, body: string | MockMessageContent, author: MockUser, interaction?: MockMessageInteraction): Promise<MockMessage> {
-    if (!this.state.guild.channels.some((channel) => channel.id === channelId && channel.type === 0)) throw new ResourceError("テキストチャンネルが存在しません", 404);
+    if (!this.state.guild.channels.some((channel) => channel.id === channelId && channel.type === 0))
+      throw new ResourceError("テキストチャンネルが存在しません", 404);
     requireChannelPermission(this.state, author.id, channelId, SEND_MESSAGES);
-    const { content, embeds } = typeof body === "string" ? { content: body, embeds: [] } : body;
+    const payload: MockMessageContent = typeof body === "string" ? { content: body, embeds: [] } : body;
+    const messages = this.state.messages[channelId] ?? [];
+    if (payload.enforce_nonce && payload.nonce !== undefined) {
+      const duplicated = messages.find((message) =>
+        message.author.id === author.id && message.nonce === payload.nonce &&
+        Date.parse(this.timestamp()) - Date.parse(message.timestamp) < 300_000);
+      if (duplicated) return duplicated;
+    }
+    const reference = payload.message_reference;
+    const referenced = reference?.message_id
+      ? (this.state.messages[reference.channel_id ?? channelId] ?? []).find((message) => message.id === reference.message_id)
+      : undefined;
+    if (reference && !referenced && reference.fail_if_not_exists !== false)
+      throw new ResourceError("Unknown referenced message", 404);
+    const allowed = payload.allowed_mentions;
+    const parsed = allowed?.parse ?? ["users", "roles", "everyone"];
+    const userIds = [...payload.content.matchAll(/<@!?(\d{17,20})>/g)].map((match) => match[1]);
+    const roleIds = [...payload.content.matchAll(/<@&(\d{17,20})>/g)].map((match) => match[1]);
+    const mentions = [...new Set(userIds)]
+      .filter((id) => parsed.includes("users") || allowed?.users?.includes(id))
+      .map((id) => this.state.users.find((user) => user.id === id))
+      .filter((user): user is MockUser => user !== undefined);
+    const mentionRoles = [...new Set(roleIds)].filter((id) =>
+      (parsed.includes("roles") || allowed?.roles?.includes(id)) &&
+      this.state.guild.roles.some((role) => role.id === id));
+    const isForward = reference?.type === 1;
     const message: MockMessage = {
       id: this.nextSnowflake(),
       channel_id: channelId,
-      content,
+      guild_id: this.state.guild.id,
+      content: payload.content,
       author,
       timestamp: this.timestamp(),
       edited_timestamp: null,
-      tts: false,
-      mention_everyone: false,
-      mentions: [],
-      mention_roles: [],
-      attachments: [],
-      embeds,
+      tts: payload.tts ?? false,
+      mention_everyone: parsed.includes("everyone") &&
+        /@(everyone|here)\b/.test(payload.content),
+      mentions,
+      mention_roles: mentionRoles,
+      attachments: payload.attachments ?? [],
+      embeds: payload.embeds,
       pinned: false,
-      type: 0,
-      flags: 0,
+      type: reference && !isForward ? 19 : 0,
+      flags: payload.flags ?? 0,
+      ...(payload.nonce !== undefined ? { nonce: payload.nonce } : {}),
+      ...(payload.components !== undefined ? { components: payload.components } : {}),
+      ...(payload.sticker_ids?.length ? {
+        sticker_items: payload.sticker_ids.map((id) => ({ id, name: "Mock Sticker", format_type: 1 })),
+      } : {}),
+      ...(payload.poll !== undefined ? { poll: payload.poll } : {}),
+      ...(payload.shared_client_theme !== undefined ? { shared_client_theme: payload.shared_client_theme } : {}),
+      ...(reference ? {
+        message_reference: {
+          type: reference.type ?? 0,
+          message_id: reference.message_id,
+          channel_id: reference.channel_id ?? channelId,
+          guild_id: reference.guild_id ?? this.state.guild.id,
+        },
+        ...(!isForward ? { referenced_message: referenced ?? null } : {}),
+        ...(isForward && referenced ? {
+          message_snapshots: [{
+            message: {
+              type: referenced.type, content: referenced.content, embeds: referenced.embeds,
+              attachments: referenced.attachments, timestamp: referenced.timestamp,
+              edited_timestamp: referenced.edited_timestamp, flags: referenced.flags,
+              mentions: referenced.mentions, mention_roles: referenced.mention_roles,
+              components: referenced.components ?? [],
+            },
+          }],
+        } : {}),
+      } : {}),
       ...(interaction ? {
         application_id: APPLICATION_ID,
         interaction,
@@ -139,7 +194,6 @@ export class MockEnvironment extends EventEmitter<{
       } : {}),
     };
 
-    const messages = this.state.messages[channelId] ?? [];
     this.state.messages[channelId] = messages;
     messages.push(message);
     this.dispatch("MESSAGE_CREATE", {

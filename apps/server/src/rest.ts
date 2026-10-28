@@ -132,6 +132,16 @@ export async function handleRestRoute(
     }
   }
 
+  const singleMessagePath = path.match(/^\/channels\/(\d+)\/messages\/(\d+)$/);
+  if (method === "GET" && singleMessagePath) {
+    const channelId = singleMessagePath[1];
+    const messageId = singleMessagePath[2];
+    const message = state.messages[channelId]?.find((item) => item.id === messageId);
+    if (message) sendJson(response, 200, message);
+    else sendError(response, 404, "Unknown Message");
+    return;
+  }
+
   const messagesPath = path.match(/^\/channels\/(\d+)\/messages$/);
   const channelId = messagesPath?.[1];
   if (channelId && state.guild.channels.some((channel) => channel.id === channelId)) {

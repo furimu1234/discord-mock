@@ -562,3 +562,30 @@ a:hover {
   .database-toolbar { flex-wrap: wrap; padding: 12px; }
   .database-search { flex-basis: 100%; }
 }
+
+
+/* /test はチャット型の自動テスト実行画面。 */
+.test-case-composer { flex-shrink: 0; }
+.test-case-caption { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.test-case-caption strong { font-size: 14px; }
+.test-case-caption span { color: #aab2c6; font-size: 12px; }
+.test-case-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; max-height: 156px; overflow-y: auto; }
+.test-case-button {
+  border: 1px solid #596385; border-radius: 7px;
+  background: #30364b; color: #ecf0ff; padding: 8px 12px;
+  font-size: 12px; line-height: 1.4; text-align: left;
+}
+.test-case-button:hover:not(:disabled) { background: #45547d; }
+.test-case-button:disabled { opacity: .5; cursor: not-allowed; }
+.test-case-button.running { border-color: #e1bc72; color: #ffe2aa; }
+.test-run-heading {
+  background: #262b3a; border-left: 3px solid #6e81bd;
+  border-radius: 6px; padding: 10px 13px; margin: 10px 0 7px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+}
+.test-run-heading strong { font-size: 13px; }
+.test-run-heading time { margin-left: auto; font-size: 11px; color: #939cb4; }
+.test-run-step { padding: 6px 13px; color: #c4cada; font-size: 12px; white-space: pre-wrap; }
+.test-run-step::before { content: "›"; margin-right: 10px; color: #8f9dd0; }
+.test-run-final { margin: 9px 0 18px; font-weight: 700; }
+.test-run-channel { font-size: 12px; color: #a7b0c7; margin: 8px 13px 0; }

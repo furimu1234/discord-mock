@@ -52,26 +52,8 @@ export function renderPage(): string {
       </div>
     </header>
     <div id="error" role="alert" class="error"></div>
-    <section id="test-preview" class="test-preview hidden" aria-label="自動テストの実行状況">
-      <div class="test-preview-header">
-        <div class="test-preview-heading">
-          <span class="test-preview-eyebrow">AUTOMATED TEST · 別環境（読み取り専用）</span>
-          <strong id="test-preview-title">自動テスト</strong>
-        </div>
-        <span id="test-preview-status" class="test-status running" role="status">実行中</span>
-        <a href="/tests">すべての実行を見る</a>
-      </div>
-      <div class="test-preview-body">
-        <section class="test-preview-activity" aria-label="実行内容">
-          <strong>実行内容・検証結果</strong>
-          <ol id="test-preview-steps" aria-live="polite"></ol>
-        </section>
-        <div id="test-preview-messages" class="test-preview-messages" role="log" aria-live="polite"></div>
-      </div>
-      <p id="test-preview-error" class="test-preview-error hidden" role="alert"></p>
-    </section>
     <div id="messages" class="messages" role="log" aria-live="polite"></div>
-    <div class="composer">
+    <div class="composer" id="manual-composer">
       <div id="command-picker" class="command-picker hidden">
         <div id="command-suggestions" role="listbox" aria-label="スラッシュコマンド"></div>
         <p id="command-empty" class="hint hidden" role="status">登録されたコマンドが見つかりません。</p>
@@ -81,6 +63,11 @@ export function renderPage(): string {
         <button id="send" type="submit">送信</button>
       </form>
       <p class="hint">/ でコマンド一覧。↑↓ で選択、Enter・Tab で補完、Esc で閉じます。Shift+Enter で改行できます。</p>
+    </div>
+    <div id="test-case-composer" class="composer test-case-composer hidden">
+      <div class="test-case-caption"><strong>テストケース</strong><span id="test-case-status" role="status">読み込み中…</span></div>
+      <div id="test-case-buttons" class="test-case-buttons" aria-label="テストケースを実行"></div>
+      <p class="hint">ボタンを押すと対応するテストが実行され、実行ログ・Bot の返信・検証結果が上のチャットに表示されます。</p>
     </div>
   </main>
   <main class="main database-page hidden" id="database-panel">

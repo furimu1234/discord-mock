@@ -71,8 +71,8 @@ test("UT の表示用コピーを共有し、普段の状態を変更せず終�
     );
     assert.equal((await fetch(`${app.url}/tests`)).status, 200);
     const testPage = await (await fetch(`${app.url}/test`)).text();
-    assert.match(testPage, /id="test-preview"/);
-    assert.match(testPage, /id="test-preview-messages"/);
+    assert.match(testPage, /id="test-case-buttons"/);
+    assert.match(testPage, /id="messages"/);
   } finally {
     await sut.close();
     await app.close();
@@ -163,5 +163,44 @@ test("表示用 API も管理認証・CSRF・origin・スナップショット�
     );
   } finally {
     await app.close();
+  }
+});
+
+test("テストケース実行はローカル管理セッションと CSRF を必須にする", async () => {
+  const started: string[] = [];
+  const mock = await startMock({
+    port: 0,
+    testCases: {
+      list: async () => [{ id: "leveling.test.ts:0", name: "レベルが増える" }],
+      status: () => ({ runningId: null, error: null }),
+      async start(id: string) {
+        if (id !== "leveling.test.ts:0") throw new Error("指定されたテストケースは存在しません");
+        started.push(id);
+      },
+      async close() {},
+    },
+  });
+  try {
+    const url = `${mock.url}/_admin/test-cases`;
+    assert.equal((await fetch(url)).status, 403);
+    const admin = await adminHeaders(mock);
+    const response = await fetch(url, { headers: { cookie: admin.cookie } });
+    assert.equal(response.status, 200);
+    const { cases } = await response.json();
+    assert.deepEqual(cases, [{ id: "leveling.test.ts:0", name: "レベルが増える" }]);
+    const post = (body: unknown, headers: Record<string, string>) => fetch(`${url}/run`, {
+      method: "POST", headers, body: JSON.stringify(body),
+    });
+    const noCsrf = await post({ id: "leveling.test.ts:0" }, { cookie: admin.cookie, "content-type": "application/json" });
+    assert.equal(noCsrf.status, 403);
+    assert.deepEqual(started, []);
+    const bad = await post({ id: "arbitrary command" }, admin);
+    assert.equal(bad.status, 409);
+    assert.deepEqual(started, []);
+    const startedResponse = await post({ id: "leveling.test.ts:0" }, admin);
+    assert.equal(startedResponse.status, 202);
+    assert.deepEqual(started, ["leveling.test.ts:0"]);
+  } finally {
+    await mock.close();
   }
 });

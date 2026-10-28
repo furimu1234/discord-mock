@@ -5,85 +5,96 @@ import { Script } from "node:vm";
 import { setImmediate } from "node:timers/promises";
 import { createBrowserFixture, textOf } from "./browser-fixture.ts";
 
-const compiled = new Script(await readFile(new URL("../dist/browser.js.txt", import.meta.url), "utf8"));
+const script = new Script(await readFile(new URL("../dist/browser.js.txt", import.meta.url), "utf8"));
 
-test("/test を開いたまま UT の実行内容・返信・成功と失敗を SSE で反映する", async () => {
+test("/test のチャットへテストケース・操作・Bot 返信・成功失敗を反映する", async () => {
   const fixture = createBrowserFixture("/test");
-  const live = {
-    guild: { name: "通常の Guild", channels: [{ id: "general", name: "general", type: 0 }] },
-    users: [{ id: "alice", username: "Alice", bot: false }],
-    selectedUserId: "alice",
-    botConnections: 0,
-    messages: { general: [] },
-    commands: [],
-  };
-  const run = {
-    id: "run-1",
-    name: "レベル確認の UT",
+  const caseItem = { id: "showLvl.test.ts:0", name: "投稿したあとにコマンドでレベルを確認できる" };
+  const report = {
+    id: "test-1",
+    name: caseItem.name,
     status: "running",
-    step: "/レベル確認 を実行",
-    steps: [{ text: "/レベル確認 を実行", timestamp: "2026-01-01T00:00:00Z" }],
+    step: "メッセージ送信",
+    startedAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    steps: [{ text: "Alice がメッセージを送信", timestamp: "2026-01-01T00:00:00Z" }],
     guild: { name: "UT", channels: [{ id: "general", name: "general", type: 0 }] },
     messages: { general: [] as Record<string, unknown>[] },
   };
-  let summaries: Array<{ id: string; name: string; status: string }> = [];
-  const requested: string[] = [];
-  compiled.runInNewContext({
+  let runs: Array<{ id: string }> = [];
+  const calls: Array<{ url: string; options: Record<string, unknown> }> = [];
+  script.runInNewContext({
     ...fixture.globals,
-    fetch: async (url: string, options: { headers?: Record<string, string> } = {}) => {
-      requested.push(url);
-      if (url === "/_ui/session") return { ok: true, json: async () => ({ csrf: "csrf", selectedUserId: "alice" }) };
-      if (url === "/_ui/state") return { ok: true, json: async () => live };
-      if (url === "/_admin/session") {
-        assert.equal(options.headers?.["x-discord-mock-local"], "1");
-        return { ok: true, json: async () => ({ authenticated: true }) };
-      }
-      if (url === "/_admin/test-runs") return { ok: true, json: async () => ({ runs: summaries }) };
-      if (url === "/_admin/test-runs/run-1") return { ok: true, json: async () => structuredClone(run) };
-      throw new Error(`予期しないリクエスト: ${url}`);
+    fetch: async (url: string, options: Record<string, unknown> = {}) => {
+      calls.push({ url, options });
+      if (url === "/_admin/session") return { ok: true, json: async () => ({ csrf: "test-csrf" }) };
+      if (url === "/_admin/test-cases") return {
+        ok: true,
+        json: async () => ({ cases: [caseItem], runningId: null, error: null }),
+      };
+      if (url === "/_admin/test-cases/run") return { ok: true, json: async () => ({ started: true }) };
+      if (url === "/_admin/test-runs") return { ok: true, json: async () => ({ runs }) };
+      if (url === "/_admin/test-runs/test-1") return { ok: true, json: async () => structuredClone(report) };
+      throw new Error(`Unexpected request: ${url}`);
     },
   });
+  for (let i = 0; i < 4; i++) await setImmediate();
+  assert.equal(fixture.elements["test-case-buttons"].children.length, 1);
+  assert.equal(fixture.elements["manual-composer"].classes.has("hidden"), true);
+  assert.equal(fixture.elements["test-case-composer"].classes.has("hidden"), false);
+  assert.equal(calls.some((call) => call.url === "/_ui/state"), false);
+
+  fixture.elements["test-case-buttons"].children[0].onclick();
   await setImmediate();
   await setImmediate();
-  assert.equal(fixture.elements["test-preview"].classes.has("hidden"), true);
+  const start = calls.find((call) => call.url === "/_admin/test-cases/run");
+  assert.ok(start);
+  assert.equal((start.options.headers as Record<string, string>)["x-discord-mock-admin-csrf"], "test-csrf");
+  assert.deepEqual(JSON.parse(start.options.body as string), { id: caseItem.id });
+
+  runs = [{ id: report.id }];
   const sse = fixture.streams.find((stream) => stream.url === "/_admin/test-runs/events");
-  assert.ok(sse, "開いている /test が UT の更新を購読する");
-
-  summaries = [{ id: run.id, name: run.name, status: run.status }];
+  assert.ok(sse);
   sse.handlers.get("changed")?.();
-  await setImmediate();
-  await setImmediate();
-  assert.equal(fixture.elements["test-preview"].classes.has("hidden"), false);
-  assert.equal(fixture.elements["test-preview-status"].textContent, "実行中");
-  assert.equal(fixture.elements["test-preview-title"].textContent, run.name);
-  assert.match(textOf(fixture.elements["test-preview-steps"]), /レベル確認/);
+  for (let i = 0; i < 3; i++) await setImmediate();
+  assert.match(textOf(fixture.elements.messages), /Alice がメッセージを送信/);
+  assert.match(textOf(fixture.elements.messages), /実行中/);
 
-  run.status = "passed";
-  run.steps.push({ text: "検証完了", timestamp: "2026-01-01T00:00:01Z" });
-  run.messages.general.push({
-    id: "msg1",
-    content: "",
+  report.status = "passed";
+  report.steps.push({ text: "<script>検証完了</script>", timestamp: "2026-01-01T00:00:01Z" });
+  report.messages.general.push({
+    id: "msg-1",
+    channel_id: "general",
     author: { id: "bot", username: "MockBot", bot: true },
+    content: "",
     timestamp: "2026-01-01T00:00:00Z",
     embeds: [{ type: "rich", title: "Alice | lvl", fields: [{ name: "今のレベルはこれだ", value: "7" }] }],
     interaction: { id: "1", type: 2, name: "レベル確認", user: { id: "alice", username: "Alice", bot: false } },
   });
   sse.handlers.get("changed")?.();
-  await setImmediate();
-  await setImmediate();
-  assert.equal(fixture.elements["test-preview-status"].textContent, "成功");
-  assert.match(textOf(fixture.elements["test-preview-steps"]), /検証完了/);
-  assert.match(textOf(fixture.elements["test-preview-messages"]), /レベル確認/);
-  assert.match(textOf(fixture.elements["test-preview-messages"]), /今のレベルはこれだ7/);
-  assert.equal(fixture.elements.messages.children.length, 2, "通常のチャットに UT のメッセージを混ぜない");
-  assert.equal(live.messages.general.length, 0);
-  assert.equal(requested.filter((url) => url === "/_ui/state").length, 1);
+  for (let i = 0; i < 3; i++) await setImmediate();
+  assert.match(textOf(fixture.elements.messages), /今のレベルはこれだ7/);
+  assert.match(textOf(fixture.elements.messages), /成功/);
+  assert.match(textOf(fixture.elements.messages), /<script>検証完了<\/script>/);
 
-  run.status = "failed";
-  run.steps.push({ text: "<script>検証失敗</script>", timestamp: "2026-01-01T00:00:02Z" });
+  report.status = "failed";
+  report.steps.push({ text: "検証失敗", timestamp: "2026-01-01T00:00:02Z" });
   sse.handlers.get("changed")?.();
-  await setImmediate();
-  await setImmediate();
-  assert.equal(fixture.elements["test-preview-status"].textContent, "失敗");
-  assert.equal(fixture.elements["test-preview-steps"].children.at(-1)?.textContent, "<script>検証失敗</script>");
+  for (let i = 0; i < 3; i++) await setImmediate();
+  assert.match(textOf(fixture.elements.messages), /結果: 失敗/);
+});
+
+test("/test は前回の結果がなければ空の実行ログを表示する", async () => {
+  const fixture = createBrowserFixture("/test");
+  script.runInNewContext({
+    ...fixture.globals,
+    fetch: async (url: string) => {
+      if (url === "/_admin/session") return { ok: true, json: async () => ({ csrf: "csrf" }) };
+      if (url === "/_admin/test-cases") return { ok: true, json: async () => ({ cases: [], runningId: null, error: null }) };
+      if (url === "/_admin/test-runs") return { ok: true, json: async () => ({ runs: [] }) };
+      throw new Error(url);
+    },
+  });
+  for (let i = 0; i < 4; i++) await setImmediate();
+  assert.match(textOf(fixture.elements.messages), /実行待機中/);
 });

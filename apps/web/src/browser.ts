@@ -2,7 +2,7 @@ import type { BrowserCommand, BrowserState, IdentityResponse, SessionResponse } 
 import { createElement, getElement } from "./dom.js";
 import { DatabaseView } from "./database.js";
 import { renderMessage } from "./message.js";
-import { TestRunPreview, TestRunsView } from "./test-runs.js";
+import { TestRunChatView, TestRunsView } from "./test-runs.js";
 
 const elements = {
   testPanel: getElement("test-panel", "main"),
@@ -23,6 +23,7 @@ const elements = {
   commandEmpty: getElement("command-empty", "p"),
 };
 
+const isTestChat = location.pathname === "/test";
 const isAdmin = location.pathname === "/admin";
 const isDatabase = location.pathname === "/database";
 const isTestRuns = location.pathname === "/tests";
@@ -237,15 +238,24 @@ async function initialize(): Promise<void> {
   elements.testPanel.classList.toggle("hidden", isAdmin || isDatabase || isTestRuns);
   elements.adminPanel.classList.toggle("hidden", !isAdmin);
   getElement("database-panel", "main").classList.toggle("hidden", !isDatabase);
-  getElement("channel-sidebar", "div").classList.toggle("hidden", isDatabase || isTestRuns);
+  getElement("channel-sidebar", "div").classList.toggle("hidden", isDatabase || isTestRuns || isTestChat);
   getElement("database-sidebar", "div").classList.toggle("hidden", !isDatabase);
-  getElement("user-panel", "div").classList.toggle("hidden", isDatabase || isTestRuns);
+  getElement("user-panel", "div").classList.toggle("hidden", isDatabase || isTestRuns || isTestChat);
+  getElement("manual-composer", "div").classList.toggle("hidden", isTestChat);
+  getElement("test-case-composer", "div").classList.toggle("hidden", !isTestChat);
   getElement("test-link", "a").classList.toggle("active", !isAdmin && !isDatabase && !isTestRuns);
   getElement("database-link", "a").classList.toggle("active", isDatabase);
   getElement("admin-link", "a").classList.toggle("active", isAdmin);
   getElement("tests-panel", "main").classList.toggle("hidden", !isTestRuns);
   getElement("tests-sidebar", "div").classList.toggle("hidden", !isTestRuns);
   getElement("tests-link", "a").classList.toggle("active", isTestRuns);
+  if (isTestChat) {
+    elements.serverTitle.textContent = "自動テスト";
+    elements.channelTitle.textContent = "# 実行ログ";
+    elements.onlineLabel.textContent = "テスト結果を受信中";
+    await new TestRunChatView().initialize();
+    return;
+  }
   if (isTestRuns) {
     elements.serverTitle.textContent = "自動テスト";
     await new TestRunsView().initialize();
@@ -293,8 +303,6 @@ async function initialize(): Promise<void> {
     const stream = new EventSource("/_ui/events");
     stream.addEventListener("changed", () => { void refresh(); });
     stream.onerror = () => { elements.onlineLabel.textContent = "再接続中…"; };
-    // UT の独立した状態は通常のチャットへ混ぜず、専用プレビューへ表示する。
-    void new TestRunPreview().initialize();
   } catch (error) {
     showError(errorMessage(error));
   }

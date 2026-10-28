@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { DatabaseInspector, DatabaseQuery } from "./database.js";
 import { readJsonBody, sendError, sendJson, type RouteContext } from "./http.js";
 import { TestRunRoutes } from "./test-runs.js";
+import type { TestCaseService } from "./test-cases.js";
 
 interface AdminSession {
   csrf: string;
@@ -54,7 +55,7 @@ export class DatabaseRoutes {
   private readonly sessions = new Map<string, AdminSession>();
   private readonly testRuns = new TestRunRoutes();
 
-  constructor(private readonly secret: string, private readonly database?: DatabaseInspector) {}
+  constructor(private readonly secret: string, private readonly database?: DatabaseInspector, private readonly testCases?: TestCaseService) {}
 
   private session(request: IncomingMessage): AdminSession | undefined {
     const id = /(?:^|;\s*)discord_mock_admin=([a-f0-9]{48})(?:;|$)/.exec(request.headers.cookie ?? "")?.[1];
@@ -126,6 +127,40 @@ export class DatabaseRoutes {
         return;
       }
       await this.testRuns.handle({ request, response, method, path, url });
+      return;
+    }
+    if (path === "/_admin/test-cases" || path === "/_admin/test-cases/run") {
+      if (!this.testCases) {
+        sendError(response, 503, "テストランナーを使うには pnpm app で起動してください");
+        return;
+      }
+      if (path === "/_admin/test-cases" && method === "GET") {
+        sendJson(response, 200, { cases: await this.testCases.list(), ...this.testCases.status() });
+        return;
+      }
+      if (path === "/_admin/test-cases/run" && method === "POST") {
+        if (!session || request.headers["x-discord-mock-admin-csrf"] !== session.csrf) {
+          sendError(response, 403, "Invalid admin session or CSRF token");
+          return;
+        }
+        if (request.headers["content-type"]?.split(";", 1)[0].trim() !== "application/json") {
+          sendError(response, 415, "JSON content type required");
+          return;
+        }
+        const body = await readJsonBody(request);
+        if (typeof body.id !== "string" || body.id.length > 300) {
+          sendError(response, 400, "Invalid test case");
+          return;
+        }
+        try {
+          await this.testCases.start(body.id);
+          sendJson(response, 202, { started: true });
+        } catch (error) {
+          sendError(response, 409, error instanceof Error ? error.message : "テストを開始できませんでした");
+        }
+        return;
+      }
+      sendError(response, 405, "Unsupported test case operation");
       return;
     }
     if (method !== "GET") {

@@ -304,6 +304,7 @@ test(
       DISCORD_MOCK_DATA_DIR: directory,
       DISCORD_MOCK_ENV_FILE: envFile,
       DISCORD_MOCK_PORT: "0",
+      DISCORD_MOCK_AUTOSTART_BOT: "off",
     };
     for (const key of [
       "TOKEN",
@@ -356,7 +357,7 @@ test(
       await writeFile(envFile, "");
       const app = command("app");
       await until(
-        () => app.output().includes("Run pnpm bot"),
+        () => app.output().includes("テスト実行: pnpm bot"),
         "pnpm app startup",
       );
       const { token } = JSON.parse(
@@ -366,7 +367,7 @@ test(
         await readFile(join(directory, "runtime.json"), "utf8"),
       );
       await writeFile(envFile, `TOKEN=${token}\n`);
-      const bot = command("bot");
+      const bot = command("bot:client");
       await until(
         () => bot.output().includes("level_bot connected"),
         "pnpm bot startup",
@@ -428,10 +429,10 @@ test(
       }, "app shutdown cleanup");
       const restartedApp = command("app");
       await until(
-        () => restartedApp.output().includes("Run pnpm bot"),
+        () => restartedApp.output().includes("テスト実行: pnpm bot"),
         "app の再起動",
       );
-      const restartedBot = command("bot");
+      const restartedBot = command("bot:client");
       await until(
         () => restartedBot.output().includes("level_bot connected"),
         "ロックを手で消さずに Bot を再起動",

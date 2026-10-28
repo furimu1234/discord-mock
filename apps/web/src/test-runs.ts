@@ -173,92 +173,166 @@ export class TestRunsView {
 }
 
 
-/** /test に最新の UT の経過と返信を読み取り専用で表示する。 */
-export class TestRunPreview {
-  private readonly elements = {
-    panel: getElement("test-preview", "section"),
-    title: getElement("test-preview-title", "strong"),
-    status: getElement("test-preview-status", "span"),
-    steps: getElement("test-preview-steps", "ol"),
-    messages: getElement("test-preview-messages", "div"),
-    error: getElement("test-preview-error", "p"),
-  };
+
+/** /test のチャット欄に、独立した UT 全件の操作と返信を時系列表示する。 */
+export class TestRunChatView {
+  private readonly messages = getElement("messages", "div");
+  private readonly buttons = getElement("test-case-buttons", "div");
+  private readonly status = getElement("test-case-status", "span");
+  private readonly error = getElement("error", "div");
+  private csrf = "";
   private generation = 0;
 
   async initialize(): Promise<void> {
+    this.messages.replaceChildren(createElement("p", "empty", "テストケースのボタンまたは pnpm bot で実行してください。"));
     try {
-      const response = await fetch("/_admin/session", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json", "x-discord-mock-local": "1" },
-        body: "{}",
-      });
-      if (!response.ok) throw new Error("テスト参照セッションを開けませんでした");
-      await this.refresh();
+      await this.connectSession();
+      await Promise.all([this.refreshCases(), this.refreshRuns()]);
       const stream = new EventSource("/_admin/test-runs/events");
-      stream.addEventListener("open", () => { void this.refresh(); });
-      stream.addEventListener("changed", () => { void this.refresh(); });
+      stream.addEventListener("open", () => { void this.refreshRuns(); });
+      stream.addEventListener("changed", () => {
+        void this.refreshRuns();
+        void this.refreshCases();
+      });
       stream.onerror = () => {
-        if (!this.elements.panel.classList.contains("hidden"))
-          this.showError("自動テストの更新に再接続中です。");
+        this.status.textContent = "テスト結果の再接続中…";
+        // app 再起動で管理セッションが消えた場合は、開いているタブから再認証する。
+        void this.connectSession().then(() => Promise.all([
+          this.refreshCases(), this.refreshRuns(),
+        ])).catch(() => {});
       };
-    } catch {
-      // 参照が失敗しても、通常チャットの操作と表示は継続する。
+      // プロセス起動失敗など SSE を発行できない場合もボタン状態を戻す。
+      setInterval(() => { void this.refreshCases(); }, 1500);
+    } catch (error) {
+      this.showError(error instanceof Error ? error.message : "初期化に失敗しました");
     }
   }
 
-  private async request<T>(path: string): Promise<T> {
-    const response = await fetch(path, { credentials: "same-origin" });
-    if (!response.ok) throw new Error("テストの表示データを取得できませんでした");
-    return response.json() as Promise<T>;
+  private async connectSession(): Promise<void> {
+    const response = await fetch("/_admin/session", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json", "x-discord-mock-local": "1" },
+      body: "{}",
+    });
+    if (!response.ok) throw new Error("テスト参照セッションを開始できませんでした");
+    const session = await response.json() as { csrf: string };
+    this.csrf = session.csrf;
   }
 
   private showError(message: string): void {
-    this.elements.error.textContent = message;
-    this.elements.error.classList.toggle("hidden", !message);
+    this.error.textContent = message;
+    this.error.style.display = message ? "block" : "none";
   }
 
-  private async refresh(): Promise<void> {
+  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const response = await fetch(path, { credentials: "same-origin", ...options });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const error = body && typeof body === "object" && "message" in body ? body.message : undefined;
+      throw new Error(typeof error === "string" ? error : `HTTP ${response.status}`);
+    }
+    return response.json() as Promise<T>;
+  }
+
+  private async refreshCases(): Promise<void> {
+    try {
+      const result = await this.request<{
+        cases: { id: string; name: string }[];
+        runningId: string | null;
+        error: string | null;
+      }>("/_admin/test-cases");
+      this.buttons.replaceChildren();
+      for (const item of result.cases) {
+        const button = createElement("button", "test-case-button", item.name);
+        button.type = "button";
+        button.disabled = result.runningId !== null;
+        if (result.runningId === item.id) button.classList.add("running");
+        button.onclick = () => { void this.execute(item.id); };
+        this.buttons.append(button);
+      }
+      this.status.textContent = result.runningId
+        ? "テスト実行中…"
+        : result.error ?? `${result.cases.length} 件のテストケース`;
+    } catch {
+      this.status.textContent = "テストボタンの取得に失敗（pnpm app を確認）";
+    }
+  }
+
+  private async execute(id: string): Promise<void> {
+    this.showError("");
+    this.status.textContent = "テストを開始しています…";
+    try {
+      await this.request("/_admin/test-cases/run", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-discord-mock-admin-csrf": this.csrf,
+        },
+        body: JSON.stringify({ id }),
+      });
+      await this.refreshCases();
+    } catch (error) {
+      this.showError(error instanceof Error ? error.message : "テストを開始できませんでした");
+      await this.refreshCases();
+    }
+  }
+
+  private async refreshRuns(): Promise<void> {
     const generation = ++this.generation;
     try {
       const { runs } = await this.request<{ runs: TestRunSummary[] }>("/_admin/test-runs");
+      const details = await Promise.all(runs.map((run) =>
+        this.request<TestRunView>(`/_admin/test-runs/${run.id}`),
+      ));
       if (generation !== this.generation) return;
-      if (!runs.length) {
-        this.elements.panel.classList.toggle("hidden", true);
-        return;
-      }
-      const run = await this.request<TestRunView>(`/_admin/test-runs/${runs[0].id}`);
-      if (generation !== this.generation) return;
-      this.render(run);
-      this.showError("");
-    } catch {
-      if (generation === this.generation && !this.elements.panel.classList.contains("hidden"))
-        this.showError("テスト結果の取得に失敗しました。再接続を試みます。");
+      this.render(details.reverse());
+    } catch (error) {
+      if (generation === this.generation)
+        this.showError(error instanceof Error ? error.message : "テストの更新に失敗しました");
     }
   }
 
-  private render(run: TestRunView): void {
-    const e = this.elements;
-    e.panel.classList.toggle("hidden", false);
-    e.title.textContent = run.name;
-    e.status.textContent = STATUS[run.status];
-    e.status.className = `test-status ${run.status}`;
-    e.steps.replaceChildren(
-      ...run.steps.slice(-12).map((step) => createElement("li", "", step.text)),
-    );
-    e.messages.replaceChildren();
-    for (const channel of run.guild.channels) {
-      if (channel.type !== 0) continue;
-      const messages = run.messages[channel.id] ?? [];
-      if (!messages.length) continue;
-      e.messages.append(
-        createElement("h3", "test-channel-title", `# ${channel.name}`),
-        ...messages.map(renderMessage),
-      );
+  private render(runs: TestRunView[]): void {
+    const wasAtBottom = this.messages.scrollTop + this.messages.clientHeight >= this.messages.scrollHeight - 60;
+    this.messages.replaceChildren();
+    if (!runs.length) {
+      this.messages.append(createElement("p", "empty", "実行待機中。下のテストケースを選ぶか pnpm bot で全テストを実行してください。"));
+      return;
     }
-    if (!e.messages.children.length)
-      e.messages.append(
-        createElement("p", "empty", "テスト中のメッセージ・Bot の返信はここに表示されます。"),
+    for (const run of runs) {
+      const heading = createElement("div", "test-run-heading");
+      heading.append(
+        createElement("strong", "", run.name),
+        createElement("span", `test-status ${run.status}`, STATUS[run.status]),
+        createElement("time", "", new Date(run.startedAt).toLocaleTimeString("ja-JP")),
       );
+      this.messages.append(heading);
+      type RunEntry =
+        | { kind: "step"; timestamp: string; text: string }
+        | { kind: "message"; timestamp: string; channel: string; message: TestRunView["messages"][string][number] };
+      const entries: RunEntry[] = run.steps.map(({ text, timestamp }) => ({ kind: "step", text, timestamp }));
+      for (const channel of run.guild.channels) {
+        for (const message of run.messages[channel.id] ?? [])
+          entries.push({ kind: "message", channel: channel.name, timestamp: message.timestamp, message });
+      }
+      entries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      let currentChannel = "";
+      for (const entry of entries) {
+        if (entry.kind === "step") {
+          this.messages.append(createElement("div", "test-run-step", entry.text));
+        } else {
+          if (currentChannel !== entry.channel) {
+            currentChannel = entry.channel;
+            this.messages.append(createElement("div", "test-run-channel", `# ${currentChannel}`));
+          }
+          this.messages.append(renderMessage(entry.message));
+        }
+      }
+      if (run.status !== "running")
+        this.messages.append(createElement("div", `test-run-step test-run-final test-status ${run.status}`, `結果: ${STATUS[run.status]}`));
+    }
+    if (wasAtBottom) this.messages.scrollTop = this.messages.scrollHeight;
+    this.showError("");
   }
 }

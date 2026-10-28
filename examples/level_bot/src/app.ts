@@ -6,13 +6,16 @@ async function main(): Promise<void> {
   const app = await startApp({
     port: Number(process.env.DISCORD_MOCK_PORT ?? 3000),
     statePath: process.env.DISCORD_MOCK_STATE_PATH,
+    autoStartBot: process.env.DISCORD_MOCK_AUTOSTART_BOT !== "off",
   });
   console.log(`Browser: ${app.mock.url}/test | Admin: ${app.mock.url}/admin`);
   console.log(`Database: ${app.mock.url}/database`);
   console.log(`Token JSON: ${app.paths.credentials}`);
   console.log("Set this synthetic token in the repository .env:");
   console.log(`TOKEN=${app.mock.token}`);
-  console.log("Run pnpm bot in another terminal.");
+  console.log(app.botStartup);
+  console.log("テスト実行: pnpm bot（個別テストは /test 下部のボタン）");
+  console.log("Bot 単体起動（必要な場合のみ）: pnpm bot:client");
   console.log("PGlite is in memory; its data lasts until pnpm app stops.");
   let shuttingDown = false;
   for (const signal of ["SIGINT", "SIGTERM"]) {

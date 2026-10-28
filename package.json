@@ -11,7 +11,7 @@
     "build": "pnpm --filter @discord-mock/web build && pnpm --filter @discord-mock/server build && pnpm --filter @discord-mock/client-js build && pnpm --filter @discord-mock/level-bot build",
     "dev": "pnpm --filter @discord-mock/server dev",
     "app": "pnpm --filter @discord-mock/level-bot app",
-    "bot": "pnpm --filter @discord-mock/level-bot start",
+    "bot": "pnpm --filter @discord-mock/level-bot test:bot:web",
     "typecheck": "tsc --noEmit -p tsconfig.tools.json && pnpm -r --if-present typecheck",
     "lint": "biome lint --error-on-warnings apps packages/client-js scripts biome.json tsconfig.base.json package.json .vscode/settings.json && pnpm --filter @discord-mock/level-bot lint",
     "check": "pnpm check:ts && pnpm typecheck && pnpm lint",
@@ -20,14 +20,15 @@
     "test:py": "uv run --project packages/client-py pytest",
     "lint:py": "uv run --project packages/client-py ruff check packages/client-py",
     "sample:test": "pnpm --filter @discord-mock/level-bot test",
-    "sample:bot": "pnpm --filter @discord-mock/level-bot start",
+    "sample:bot": "pnpm bot:client",
     "demo": "pnpm --filter @discord-mock/level-bot demo",
     "automation:test": "pnpm --filter @discord-mock/client-js test:automation && pnpm bot:test",
     "level:test": "pnpm bot:test",
     "level:test:web": "pnpm bot:test:web",
     "bot:test": "pnpm --filter @discord-mock/level-bot test:bot",
     "bot:test:web": "pnpm --filter @discord-mock/level-bot test:bot:web",
-    "check:ts": "node --experimental-strip-types scripts/check-typescript.ts"
+    "check:ts": "node --experimental-strip-types scripts/check-typescript.ts",
+    "bot:client": "pnpm --filter @discord-mock/level-bot start"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

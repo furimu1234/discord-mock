@@ -18,6 +18,7 @@ export class Element {
   classList = {
     toggle: (name: string, enabled: boolean) => enabled ? this.classes.add(name) : this.classes.delete(name),
     contains: (name: string) => this.classes.has(name),
+    add: (name: string) => { this.classes.add(name); },
   };
 
   constructor(tag: string) {
@@ -33,7 +34,7 @@ export class Element {
   focus() { this.focused = true; }
 }
 
-export function createBrowserFixture(pathname = "/test") {
+export function createBrowserFixture(pathname = "/") {
   const tags = {
     "test-panel": "main",
     "admin-panel": "section",
@@ -48,6 +49,10 @@ export function createBrowserFixture(pathname = "/test") {
     "test-run-messages": "div",
     "test-run-error": "div",
     "test-runs-refresh": "button",
+    "manual-composer": "div",
+    "test-case-composer": "div",
+    "test-case-buttons": "div",
+    "test-case-status": "span",
     "test-preview": "section",
     "test-preview-title": "strong",
     "test-preview-status": "span",
@@ -114,6 +119,7 @@ export function createBrowserFixture(pathname = "/test") {
       AbortController,
       setTimeout,
       clearTimeout,
+      setInterval: () => 1,
     },
   };
 }

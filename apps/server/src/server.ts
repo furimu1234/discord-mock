@@ -12,6 +12,7 @@ import { handleRestRoute } from "./rest.js";
 import { isMockToken, loadOrCreateToken } from "./tokens.js";
 import { DatabaseRoutes } from "./database-routes.js";
 import type { DatabaseInspector } from "./database.js";
+import type { TestCaseService } from "./test-cases.js";
 import { MessageContentError } from "./message-content.js";
 import type { MockState } from "./models.js";
 import { MockTesting, validateTimeout } from "./testing.js";
@@ -26,6 +27,7 @@ export interface ServerOptions {
   token?: string;
   tokenPath?: string;
   database?: DatabaseInspector;
+  testCases?: TestCaseService;
   initialState?: MockState;
   now?: () => Date;
   timeoutMs?: number;
@@ -137,7 +139,7 @@ export async function startMock(options: ServerOptions = {}): Promise<MockRuntim
   const gatewayUrl = () => `${listeningUrl(server, host).replace("http:", "ws:")}/gateway`;
   const gateway = new MockGateway(server, environment, token, gatewayUrl);
   const browser = new BrowserRoutes(environment, () => gateway.connectionCount);
-  const database = new DatabaseRoutes(adminSecret, options.database);
+  const database = new DatabaseRoutes(adminSecret, options.database, options.testCases);
   const testing = new MockTesting(environment, () => gateway.connectionCount, options.timeoutMs);
 
   await new Promise<void>((resolve, reject) => {

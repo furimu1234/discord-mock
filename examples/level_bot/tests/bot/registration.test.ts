@@ -1,4 +1,4 @@
-import { test, expect } from "../helpers/bot-test.js";
+import { test, expect } from "vitest";
 import { createBotClient } from "../../packages/bot/src/main.js";
 import { createTestEnvironment } from "@discord-mock/client-js/testing";
 import { registerSlashCommand } from "../../packages/bot/src/utils/register.js";

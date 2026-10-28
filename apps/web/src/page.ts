@@ -138,11 +138,46 @@ export function renderPage(): string {
     <div id="test-run-messages" class="messages" role="log" aria-live="polite"></div>
   </main>
   <section id="admin-panel" class="admin-page hidden">
-    <h2>管理画面</h2>
-    <p>現在のテスト用ユーザーとチャンネルはローカルで初期化されます。管理 API の認証は、テスト用ユーザーの切り替えとは分離されています。</p>
-    <p>音声プロトコル・VC 再生、DM、権限ベースの管理 UI はまだ未実装です。</p>
-    <p><a href="/database">データベースのレコードを見る</a></p>
-    <p><a href="/test">テスト画面に戻る</a></p>
+    <header class="admin-heading"><h1>管理画面</h1><strong id="admin-guild-title">Mock Guild</strong></header>
+    <p id="admin-status" role="status" aria-live="polite"></p>
+    <form id="admin-login" class="admin-box">
+      <h2>管理者ログイン</h2>
+      <p>CLI に表示された管理者シークレットを入力してください。テストユーザーのログインとは別です。</p>
+      <input id="admin-secret" type="password" autocomplete="off" placeholder="管理者シークレット" required>
+      <button type="submit">ログイン</button>
+    </form>
+    <div id="admin-content" class="admin-grid hidden">
+      <section class="admin-box"><h2>サーバー設定</h2><label>サーバー名 <input id="admin-guild-name" maxlength="100"></label><button type="button" id="admin-guild-save">保存</button></section>
+      <section class="admin-box"><h2>ダミーユーザー</h2>
+        <form id="admin-user-create"><input id="admin-new-user" placeholder="ユーザー名" maxlength="100" required><input id="admin-new-user-id" placeholder="ID（任意・17〜20桁）"><button type="submit">追加</button></form>
+        <div id="admin-users" class="admin-list"></div><div id="admin-user-editor" class="admin-editor"></div>
+      </section>
+      <section class="admin-box"><h2>ロールと基本権限</h2>
+        <form id="admin-role-create"><input id="admin-new-role" placeholder="ロール名" maxlength="100" required><input id="admin-new-role-id" placeholder="ID（任意）"><button type="submit">追加</button></form>
+        <div id="admin-roles" class="admin-list"></div><div id="admin-role-editor" class="admin-editor"></div>
+      </section>
+      <section class="admin-box"><h2>チャンネルと権限の上書き</h2>
+        <form id="admin-channel-create"><input id="admin-new-channel" placeholder="チャンネル名" maxlength="100" required><select id="admin-new-channel-type"><option value="0">テキスト</option><option value="2">VC</option></select><input id="admin-new-channel-id" placeholder="ID（任意）"><button type="submit">追加</button></form>
+        <div id="admin-channels" class="admin-list"></div><div id="admin-channel-editor" class="admin-editor"></div>
+      </section>
+      <section class="admin-box"><h2>メンバーの所属ロール</h2>
+        <label>ユーザー <select id="admin-member-select"></select></label><div id="admin-member-roles" class="admin-editor"></div>
+      </section>
+    </div>
+    <section id="desktop-controls" class="admin-box hidden">
+      <h2>テストクライアント起動設定（Electron）</h2>
+      <p>任意の実行ファイルを起動します。信頼できるコマンドのみ設定してください。引数は JSON の文字列配列で指定します。</p>
+      <label>実行ファイル <input id="desktop-command" placeholder="node / python / pnpm など"></label>
+      <label>引数 <textarea id="desktop-args" rows="3" placeholder='["src/main.js"]'></textarea></label>
+      <label>作業ディレクトリ <input id="desktop-cwd" placeholder="絶対パス"></label>
+      <div class="admin-buttons">
+        <button type="button" id="desktop-save">設定保存</button>
+        <button type="button" id="desktop-start">起動</button>
+        <button type="button" id="desktop-stop">停止</button>
+        <button type="button" id="desktop-restart">再起動</button>
+      </div>
+      <p id="desktop-status" role="status"></p>
+    </section>
   </section>
 </div>
 <div id="message-menu" class="message-menu hidden" role="menu" aria-label="メッセージの操作"></div>

@@ -60,8 +60,8 @@ export async function readCreateMessage(
 
   const uploaded: Array<{ index: string; file: File }> = [];
   const seen = new Set<string>();
-  for (const [name, value] of data.entries()) {
-    if (name === "payload_json" || name === "content") continue;
+  data.forEach((value, name) => {
+    if (name === "payload_json" || name === "content") return;
     const match = /^files\[(\d+)\]$/.exec(name);
     if (!match || typeof value === "string") throw new MessageContentError("Unknown or invalid multipart field");
     const index = match[1];
@@ -69,7 +69,7 @@ export async function readCreateMessage(
       throw new MessageContentError("Duplicate or invalid files[n] index");
     seen.add(index);
     uploaded.push({ index, file: value });
-  }
+  });
   if (uploaded.length > MAX_FILES) throw new MessageContentError("At most 10 uploaded files are supported");
   if (uploaded.length === 0) return parseMessageContent(payload);
 

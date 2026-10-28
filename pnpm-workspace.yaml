@@ -1,5 +1,6 @@
 packages:
   - "apps/*"
+  - "!apps/desktop"
   - "packages/client-js"
   - "examples/*"
   - "examples/level_bot/packages/*"

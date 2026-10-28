@@ -52,7 +52,7 @@ function registerWindowNavigation(window: BrowserWindow, kind: "test" | "admin",
 }
 
 function adminHandler(name: string, action: (...args: unknown[]) => unknown): void {
-  ipcMain.handle("desktop:" + name, (event: IpcMainInvokeEvent, ...args: unknown[]) => {
+  ipcMain.handle(`desktop:${name}`, (event: IpcMainInvokeEvent, ...args: unknown[]) => {
     if (!mock || !adminWindow || event.sender.id !== adminWindow.webContents.id ||
       new URL(event.sender.getURL()).origin !== mock.url ||
       new URL(event.sender.getURL()).pathname !== "/admin") {
@@ -95,7 +95,7 @@ async function start(): Promise<void> {
   // 管理画面とテスト画面の partition を隔離し、管理セッションを HttpOnly に保持する。
   const adminSession = session.fromPartition("discord-mock-admin");
   await adminSession.cookies.set({
-    url: current.url + "/_admin/ui/session",
+    url: `${current.url}/_admin/ui/session`,
     name: "discord_mock_admin",
     value: current.issueDesktopAdminSession(),
     httpOnly: true,
@@ -103,20 +103,21 @@ async function start(): Promise<void> {
     path: "/_admin/ui",
   });
 
-  adminHandler("config", () => bot!.configuration());
-  adminHandler("save-config", (value) => bot!.save(value));
-  adminHandler("status", () => bot!.status());
-  adminHandler("start", () => bot!.start());
-  adminHandler("stop", () => bot!.stop());
-  adminHandler("restart", () => bot!.restart());
+  const currentBot = bot;
+  adminHandler("config", () => currentBot.configuration());
+  adminHandler("save-config", (value) => currentBot.save(value));
+  adminHandler("status", () => currentBot.status());
+  adminHandler("start", () => currentBot.start());
+  adminHandler("stop", () => currentBot.stop());
+  adminHandler("restart", () => currentBot.restart());
   ipcMain.handle("terminal:history", (event) => {
     if (!terminalWindow || event.sender.id !== terminalWindow.webContents.id ||
       !event.sender.getURL().startsWith("file:")) throw new Error("ターミナルからのみ参照できます");
     return bot?.logs() ?? [];
   });
   await Promise.all([
-    testWindow.loadURL(current.url + "/test"),
-    adminWindow.loadURL(current.url + "/admin"),
+    testWindow.loadURL(`${current.url}/test`),
+    adminWindow.loadURL(`${current.url}/admin`),
     terminalWindow.loadFile(join(__dirname, "terminal.html")),
   ]);
 }

@@ -4,7 +4,7 @@ import {
   type MockUser,
   type WaitOptions,
 } from "@discord-mock/client-js/testing";
-import { getLevel } from "@ex/db";
+import { createLeveling, getLevel, updateLeveling } from "@ex/db";
 import { container } from "../../packages/bot/src/container.js";
 import { startLevelBot } from "../../packages/bot/src/local.js";
 import { appPaths, readAppConnection } from "../../src/config.js";
@@ -23,7 +23,7 @@ export type { TestUserTarget } from "./user-target.js";
 
 export { describe, expect } from "vitest";
 
-/** Bot・DB・Mock はテストごとに新しく作り、本文は操作と検証だけを書く。 */
+/** Bot・Mockはケースごとに起動し、DBは同じApp／Vitest実行全体で共有する。 */
 async function setupBot({ task }: TestContext, { onCleanup }: { onCleanup(callback: () => Promise<void>): void }) {
   const previousDsn = process.env.POST_URL;
   const baseUrl = process.env.DISCORD_MOCK_REPORT_URL;
@@ -98,6 +98,17 @@ async function setupBot({ task }: TestContext, { onCleanup }: { onCleanup(callba
       return createBotActor(mock, channel.id, user);
     },
     levels: {
+      /** 必要なケースだけ、実際の共有PGliteへ初期値を挿入または更新する。 */
+      async set(user: MockUser, level: number, guildId = mock.guild.id) {
+        if (!Number.isInteger(level) || level < 0 || level > 2_147_483_647)
+          throw new Error("level は0以上2147483647以下の整数を指定してください");
+        await mock.report({ step: `${user.username} のレベルを ${level} に直接設定` });
+        await store.do(async (db) => {
+          const saved = await getLevel(db, { serverId: guildId, userId: user.id });
+          if (saved) await updateLeveling(db, level, guildId, user.id);
+          else await createLeveling(db, { serverId: guildId, userId: user.id, lvl: level });
+        });
+      },
       get: (user: MockUser, guildId = mock.guild.id) =>
         store.do(async (db) =>
           (await getLevel(db, { serverId: guildId, userId: user.id }))?.lvl,

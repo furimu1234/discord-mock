@@ -67,15 +67,15 @@ Bot の機能だけをまとめて検証します。app を別に起動する必
 - `tests/bot/leveling.test.ts`: 投稿ごとのレベル更新と、投稿していない人のレベルが変わらないこと。
 - `tests/helpers/bot-test.ts`: 本物の Bot・PGlite・pg / Drizzle・Mock の準備、後片付け、Web への実行結果の反映。
 
-テスト本文では HTTP ヘッダー・接続先・DB 起動処理を書く必要はありません。
+テスト本文では HTTP ヘッダー・接続先・DB 起動処理を書く必要はありません。レベルの直接指定は必要なケースでだけ行い、通常は投稿による増分を検証してください。
 
 ```ts
 import { test, expect } from '../helpers/bot-test.js';
 
-test('レベル確認で7を返す', async ({ bot }) => {
-  await bot.levels.set(bot.alice, 7);
-  const reply = await bot.as(bot.alice).command('レベル確認');
-  expect(reply.embeds[0].fields?.[0].value).toBe('7');
+test("レベル確認で7を返す", { users: "login" }, async ({ bot, user, actor }) => {
+  await bot.levels.set(user, 7); // 任意で直接設定
+  const reply = await actor.command("レベル確認");
+  expect(reply.embeds[0].fields?.[0].value).toBe("7");
 });
 ```
 
@@ -121,7 +121,7 @@ test("複数ID", { users: { ids: ["123456789000000098", "123456789000000099"] } 
 
 ### 共有DBとチャンネル作成
 
-`pnpm app` 起動中のBotテストは、各テストでMock・Botを独立して立ち上げつつ、**DBはAppのPGliteを全テストで共有**します。レベル値を直接上書きするUTヘルパーは廃止し、`actor.sendMessage()` を通じたBot本体の処理でレコードを更新します。期待値はテスト前のレベルからの増加数で判定します。結果のレコードは `/database` の「AppのDB」に即時反映し、テストをまたいで保持します。App停止時にはPGliteを破棄します。
+`pnpm app` 起動中のBotテストは、各テストでMock・Botを独立して立ち上げつつ、**DBはAppのPGliteを全テストで共有**します。通常は `actor.sendMessage()` を通じたBot本体の処理でレコードを更新しますが、**任意で `bot.levels.set(user, level, guildId?)` による直接設定もできます**。直接設定は実際の共有PGliteのレコードを挿入・更新し、後続のケースにも残ります。期待値はテスト前のレベルからの増加数で判定します。結果のレコードは `/database` の「AppのDB」に即時反映し、テストをまたいで保持します。App停止時にはPGliteを破棄します。
 
 Appを起動せず `pnpm bot:test` する場合はVitest実行全体で単一の一時PGliteを共有し、全テスト終了時に閉じます。Mockのチャットは独立したまま結果表示用に報告されます。
 

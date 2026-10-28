@@ -50,6 +50,24 @@ describe("/レベル確認", () => {
     expect(reply.interaction_metadata?.user.id).toBe(user.id);
   });
 
+  test("任意のレベルを直接設定し、通常の投稿でさらにレベルアップできる", { users: "login" }, async ({ bot, user, actor }) => {
+    await bot.levels.set(user, 7);
+    expect(await bot.levels.get(user)).toBe(7);
+
+    // 既存行の更新もでき、別Guildのレベルは現在Guildに影響しない。
+    await bot.levels.set(user, 12);
+    await bot.levels.set(user, 99, "223456789000000000");
+    expect(await bot.levels.get(user)).toBe(12);
+    expect(await bot.levels.get(user, "223456789000000000")).toBe(99);
+
+    const reply = await actor.command("レベル確認");
+    expect(reply.embeds[0].fields?.[0].value).toBe("12");
+
+    await actor.sendMessage("直接設定したレベルから投稿で上げる");
+    await expect.poll(() => bot.levels.get(user)).toBe(13);
+    expect(await bot.levels.get(user, "223456789000000000")).toBe(99);
+  });
+
   test("レベル未登録なら返信もレコード作成もしない", { users: "login" }, async ({ bot }) => {
     const user = await bot.users.create({ username: "未登録ユーザー" });
     await expect(bot.as(user).command("レベル確認", { timeoutMs: 250 })).rejects.toThrow("250ms");

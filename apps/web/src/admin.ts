@@ -137,7 +137,7 @@ export class AdminPage {
       this.csrf = session.csrf;
       await this.refresh();
     }
-    if (window.discordMockDesktop) await this.initializeDesktop(window.discordMockDesktop);
+    if (typeof window !== "undefined" && window.discordMockDesktop) await this.initializeDesktop(window.discordMockDesktop);
   }
 
   private render(): void {

@@ -51,8 +51,16 @@
         "AppImage"
       ],
       "category": "Development",
-      "artifactName": "discord-mock-${version}-linux-${arch}.${ext}"
+      "artifactName": "discord-mock-${version}-linux-${arch}.${ext}",
+      "desktopName": "discord-mock",
+      "syncDesktopName": true
     },
-    "asar": true
-  }
+    "asar": true,
+    "executableName": "discord-mock"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/furimu1234/discord-mock.git"
+  },
+  "author": "discord-mock contributors"
 }

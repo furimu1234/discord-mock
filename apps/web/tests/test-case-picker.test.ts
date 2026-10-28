@@ -180,17 +180,17 @@ test("矢印キーとマウスで項目を選び、Enterで一度だけ実行す
     "●",
     "一覧が変わっても表示時間を引き継ぐ",
   );
-  picker.advance(4999);
+  picker.advance(2999);
   assert.equal(list.children[1].children[0].textContent, "●");
   picker.advance(1);
   assert.equal(
     list.children[1].children[0].textContent,
     "",
-    "テスト実行中でも5秒経過したら消す",
+    "テスト実行中でも3秒経過したら消す",
   );
 });
 
-test("ダブルクリックで実行した印は、完了後も5秒間残り再実行時に延長する", async () => {
+test("ダブルクリックした印は実行完了で消えず、再実行から3秒間表示する", async () => {
   const picker = await openPicker();
   const marker = () => picker.list.children[0].children[0].textContent;
   picker.list.children[0].ondblclick();
@@ -199,16 +199,16 @@ test("ダブルクリックで実行した印は、完了後も5秒間残り再�
   assert.equal(marker(), "●");
   await picker.acceptLaunch();
   await picker.finishRun();
-  picker.advance(3000);
+  picker.advance(2000);
   assert.equal(marker(), "●", "実行完了で印を消さない");
   picker.list.children[0].ondblclick();
   await settle();
   assert.equal(picker.starts.length, 2);
-  picker.advance(2000);
+  picker.advance(1000);
   assert.equal(marker(), "●", "再実行前のタイマーでは消えない");
   await picker.acceptLaunch();
   await picker.finishRun();
-  picker.advance(2999);
+  picker.advance(1999);
   assert.equal(marker(), "●");
   picker.advance(1);
   assert.equal(marker(), "");

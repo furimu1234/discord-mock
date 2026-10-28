@@ -24,8 +24,8 @@
   },
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --outfile=dist/index.js && esbuild src/testing.ts --bundle --platform=node --target=node24 --format=cjs --loader:.css=text --outfile=dist/testing.cjs && tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit -p tsconfig.build.json && tsc -p tsconfig.test.json",
-    "test": "tsc -p tsconfig.test.json && node --test tests/*.node.test.ts && vitest run",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tests/tsconfig.json",
+    "test": "tsc -p tests/tsconfig.json && node --test tests/*.node.test.ts && vitest run",
     "test:automation": "vitest run"
   },
   "devDependencies": {

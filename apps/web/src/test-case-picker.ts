@@ -154,7 +154,7 @@ export class TestCasePicker {
     if (!row) return;
     clearTimeout(this.markers.get(id));
     row.marker.textContent = "●";
-    // 実行完了や一覧の再取得とは独立して、操作した時点から5秒間表示する。
+    // 実行完了や一覧の再取得とは独立して、操作した時点から3秒間表示する。
     this.markers.set(
       id,
       setTimeout(() => {

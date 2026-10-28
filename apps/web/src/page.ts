@@ -95,7 +95,7 @@ export function renderPage(): string {
       <div id="test-case-list" class="test-case-list" role="listbox" tabindex="0" aria-labelledby="test-case-title" aria-describedby="test-case-help" aria-disabled="true">
         <div class="test-case-empty">読み込み中…</div>
       </div>
-      <p id="test-case-help" class="hint">矢印キーで選択 · Enter / ダブルクリックで実行 · ● は5秒間表示<br>users: "login" は右側で選んだユーザーとして実行します。</p>
+      <p id="test-case-help" class="hint">矢印キーで選択 · Enter / ダブルクリックで実行 · ● は3秒間表示<br>users: "login" は右側で選んだユーザーとして実行します。</p>
     </div>
   </main>
   <main class="main database-page hidden" id="database-panel">

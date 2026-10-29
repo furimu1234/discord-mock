@@ -1,0 +1,73 @@
+name: Web・デスクトップ配布ビルド
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "apps/server/**"
+      - "apps/web/**"
+      - "scripts/build-release.ts"
+      - "package.json"
+      - ".github/workflows/desktop-build.yml"
+jobs:
+  desktop:
+    name: Desktop (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+          - os: macos-latest
+            target: mac
+          - os: ubuntu-latest
+            target: linux
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Corepack と pnpm の準備
+        run: corepack enable
+      - name: Web / Server 依存のインストール
+        run: pnpm install --frozen-lockfile
+      - name: 画面遷移と Bot 設定のテスト
+        run: pnpm desktop:test
+      - name: Web / Server / Electron と配布物の生成
+        run: pnpm build:${{ matrix.target }}
+      - name: 配布物のアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: |
+            release/desktop/**
+            release/manifest-${{ matrix.target }}.json
+          if-no-files-found: error
+          retention-days: 7
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "11.0.0"
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:web
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: |
+            release/web/**
+            release/manifest-web.json
+          if-no-files-found: error
+          retention-days: 7

@@ -159,3 +159,10 @@ build/
 
 # Local mock data
 .discord-mock-data/
+
+# Desktop package artifacts
+*.AppImage
+/release/
+/apps/desktop/dist/
+/apps/desktop/node_modules/
+/apps/desktop/package-lock.json

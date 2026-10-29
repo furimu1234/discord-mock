@@ -1,0 +1,157 @@
+body.window-frame-host {
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+  background: #17181b;
+}
+
+.window-chrome,
+.window-chrome * {
+  box-sizing: border-box;
+}
+
+.window-chrome {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  color-scheme: dark;
+  color: #f1f2f4;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK JP",
+    system-ui, sans-serif;
+}
+
+.window-chrome .window-titlebar {
+  display: flex;
+  align-items: stretch;
+  height: 34px;
+  padding: 6px 6px 0 12px;
+  background: #17181b;
+  pointer-events: auto;
+}
+
+.window-chrome .window-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  color: #a3a7b1;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.015em;
+  white-space: nowrap;
+  -webkit-app-region: drag;
+}
+
+.window-chrome .window-controls {
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
+}
+
+.window-chrome .window-controls button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  appearance: none;
+  background: transparent;
+  color: #a3a7b1;
+  font: inherit;
+  cursor: default;
+  touch-action: manipulation;
+  transition: background-color 100ms ease, color 100ms ease;
+  -webkit-app-region: no-drag;
+}
+
+.window-chrome .window-controls button:hover {
+  background: #1c1d21;
+  color: #f1f2f4;
+}
+
+.window-chrome .window-controls button:active {
+  background: #25272c;
+  color: #f1f2f4;
+  transition: none;
+}
+
+.window-chrome .window-controls button:focus-visible {
+  outline: 2px solid #9ac0ff;
+  outline-offset: -3px;
+}
+
+.window-chrome .window-controls svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.window-chrome .window-resize {
+  position: absolute;
+  z-index: 1;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-app-region: no-drag;
+}
+
+.window-chrome [data-resize="n"],
+.window-chrome [data-resize="s"] {
+  right: 12px;
+  left: 12px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.window-chrome [data-resize="n"] { top: 0; }
+.window-chrome [data-resize="s"] { bottom: 0; }
+
+.window-chrome [data-resize="e"],
+.window-chrome [data-resize="w"] {
+  top: 12px;
+  bottom: 12px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.window-chrome [data-resize="e"] { right: 0; }
+.window-chrome [data-resize="w"] { left: 0; }
+
+.window-chrome [data-resize="ne"],
+.window-chrome [data-resize="se"],
+.window-chrome [data-resize="sw"],
+.window-chrome [data-resize="nw"] {
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+}
+
+.window-chrome [data-resize="ne"] { top: 0; right: 0; cursor: nesw-resize; }
+.window-chrome [data-resize="se"] { right: 0; bottom: 0; cursor: nwse-resize; }
+.window-chrome [data-resize="sw"] { bottom: 0; left: 0; cursor: nesw-resize; }
+.window-chrome [data-resize="nw"] { top: 0; left: 0; cursor: nwse-resize; }
+
+@media (prefers-contrast: more) {
+  .window-chrome .window-title,
+  .window-chrome .window-controls button {
+    color: #f1f2f4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .window-chrome .window-controls button {
+    transition: none;
+  }
+}

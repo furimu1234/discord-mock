@@ -6,7 +6,7 @@
 
 ```sh
 pnpm install
-pnpm build
+pnpm build:core
 pnpm bot:test       # CLIでUTを実行
 pnpm app           # 管理画面・テスト画面
 pnpm bot           # 起動済みAppへUT結果を表示

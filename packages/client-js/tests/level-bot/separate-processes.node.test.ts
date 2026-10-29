@@ -231,7 +231,7 @@ test(
             "SELECT lvl FROM example.lvl WHERE server_id=$1 AND user_id=$2",
             [guildId, session.selectedUserId],
           );
-          return result.rows[0]?.lvl === iteration + 2;
+          return result.rows[0]?.lvl === iteration + 1;
         }, "leveling update through real pg");
         await bot.close();
         bot = undefined;

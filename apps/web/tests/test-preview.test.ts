@@ -174,7 +174,7 @@ test("/test のチャットは投稿と Bot 返信だけ、実行ステップと
   assert.ok(created);
   assert.equal((created.options.headers as Record<string, string>)["x-discord-mock-csrf"], "test-csrf");
   fixture.elements.channels.children[0].onclick();
-  assert.match(textOf(fixture.elements.messages), /generalへようこそ/);
+  assert.match(textOf(fixture.elements.messages), /# general/);
   assert.match(textOf(fixture.elements["test-log-entries"]), /まだ実行ログはありません/);
   assert.equal(calls.some((call) => call.url === "/_ui/state"), true);
 
@@ -283,7 +283,7 @@ test("/test は起動直後に # general と空のチャンネル開始画面を
   await settle();
   assert.equal(fixture.elements["channel-title"].textContent, "# general");
   assert.equal(fixture.elements.channels.children[0].textContent, "#  general");
-  assert.match(textOf(fixture.elements.messages), /generalへようこそ/);
+  assert.match(textOf(fixture.elements.messages), /# general/);
   assert.doesNotMatch(textOf(fixture.elements.messages), /実行待機中|結果:/);
   assert.match(textOf(fixture.elements["test-log-entries"]), /まだ実行ログはありません/);
   const list = fixture.elements["test-case-list"];

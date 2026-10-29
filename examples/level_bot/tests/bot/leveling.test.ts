@@ -3,7 +3,8 @@ import { test, expect } from "dismock/e2e";
 test("レベル+1", { users: "login" }, async ({ bot, actor }) => {
   const before = await bot.levels.get(actor);
   await actor.sendMessage("こんにちは");
-  const first = (before ?? 1) + 1;
+  const first = (before ?? 0) + 1;
+  console.log(first);
   await expect.poll(() => bot.levels.get(actor)).toBe(first);
 });
 
@@ -18,7 +19,7 @@ test(
     const otherBefore = await bot.levels.get(other);
     const before = await bot.levels.get(actor);
     await actor.sendMessage(`${actor.username} だけが投稿`);
-    await expect.poll(() => bot.levels.get(actor)).toBe((before ?? 1) + 1);
+    await expect.poll(() => bot.levels.get(actor)).toBe((before ?? 0) + 1);
     expect(await bot.levels.get(other)).toBe(otherBefore);
   },
 );

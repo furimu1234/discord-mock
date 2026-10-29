@@ -62,6 +62,7 @@ export interface LocalMockRuntime {
   url: string;
   token: string;
   adminSecret: string;
+  issueDesktopAdminSession(): string;
   testing: MockTestController;
   close(): Promise<void>;
 }

@@ -1,6 +1,7 @@
 import type { BrowserCommand, BrowserState, IdentityResponse, SessionResponse } from "./types.js";
 import { createElement, getElement } from "./dom.js";
 import { DatabaseView } from "./database.js";
+import { AdminPage } from "./admin.js";
 import { MessageActions } from "./message-actions.js";
 import { readMessageTarget, revealMessage } from "./message-links.js";
 import { TestRunChatView, TestRunsView } from "./test-runs.js";
@@ -266,6 +267,11 @@ async function initialize(): Promise<void> {
   getElement("tests-panel", "main").classList.toggle("hidden", !isTestRuns);
   getElement("tests-sidebar", "div").classList.toggle("hidden", !isTestRuns);
   getElement("tests-link", "a").classList.toggle("active", isTestRuns);
+  for (const [id, active] of [["test-link", !isAdmin && !isDatabase && !isTestRuns], ["admin-link", isAdmin], ["database-link", isDatabase], ["tests-link", isTestRuns]] as const) {
+    const link = getElement(id, "a");
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
   if (isTestChat) {
     elements.serverTitle.textContent = "自動テスト";
     elements.channelTitle.textContent = "# general";
@@ -278,8 +284,13 @@ async function initialize(): Promise<void> {
     await new TestRunsView().initialize();
     return;
   }
+  if (isAdmin) {
+    elements.serverTitle.textContent = "管理画面";
+    await new AdminPage().initialize();
+    return;
+  }
   if (isDatabase) {
-    elements.serverTitle.textContent = "Database Explorer";
+    elements.serverTitle.textContent = "データベース";
     await new DatabaseView().initialize();
     return;
   }

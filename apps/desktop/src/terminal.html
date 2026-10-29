@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline';">
+  <title>discord-mock | Bot ターミナル</title>
+  <link rel="stylesheet" href="./terminal.css">
+  <link rel="stylesheet" href="./window-frame.css">
+  <script defer src="./terminal.js"></script>
+</head>
+<body>
+  <div class="window-chrome">
+    <header class="window-titlebar">
+      <span class="window-title">Bot ターミナル</span>
+      <div class="window-controls" role="group" aria-label="ウィンドウ操作">
+        <button id="window-minimize" type="button" aria-label="最小化" title="最小化"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8h10"/></svg></button>
+        <button id="window-maximize" type="button" aria-label="最大化・元に戻す" title="最大化・元に戻す"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="9" height="9" rx="1"/></svg></button>
+        <button id="window-close" type="button" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m4 4 8 8m0-8-8 8"/></svg></button>
+      </div>
+    </header>
+    <div class="window-resize" data-resize="n" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="ne" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="e" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="se" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="s" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="sw" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="w" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="nw" aria-hidden="true"></div>
+  </div>
+
+  <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+    <symbol id="icon-follow" viewBox="0 0 24 24"><path d="M12 4v13m-5-5 5 5 5-5M5 21h14"/></symbol>
+    <symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="icon-clear" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6m4-6v6"/></symbol>
+  </svg>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1>Bot ターミナル</h1>
+      </div>
+      <div class="process" aria-label="Bot の起動状態">
+        <span id="process-state" class="process-state" data-state="idle"><span id="process-label">待機中</span></span>
+        <p id="process-detail">起動状態を確認しています</p>
+      </div>
+    </header>
+    <section class="console" aria-label="Bot のログ">
+      <div class="toolbar">
+        <div class="filters" role="group" aria-label="出力元で絞り込み">
+          <button type="button" data-stream="all" aria-pressed="true">すべて <span class="count">0</span></button>
+          <button type="button" data-stream="stdout" aria-pressed="false">stdout <span class="count">0</span></button>
+          <button type="button" data-stream="stderr" aria-pressed="false">stderr <span class="count">0</span></button>
+          <button type="button" data-stream="system" aria-pressed="false">system <span class="count">0</span></button>
+        </div>
+        <label class="search"><svg aria-hidden="true" focusable="false"><use href="#icon-search"/></svg><input id="search" type="search" placeholder="ログを検索" aria-label="ログを検索" autocomplete="off" spellcheck="false"><kbd>⌘ / Ctrl F</kbd></label>
+      </div>
+      <div class="console-bar">
+        <div class="output-label">出力 <span id="line-count">0 行</span></div>
+        <div class="actions">
+          <button id="follow" type="button" class="follow" aria-pressed="true"><svg aria-hidden="true" focusable="false"><use href="#icon-follow"/></svg><span>自動スクロール</span></button>
+          <button id="copy" type="button" title="表示中のログをコピー" aria-label="表示中のログをコピー"><svg aria-hidden="true" focusable="false"><use href="#icon-copy"/></svg><span>コピー</span></button>
+          <button id="clear" type="button" title="表示中のログをクリア" aria-label="表示中のログをクリア"><svg aria-hidden="true" focusable="false"><use href="#icon-clear"/></svg><span>クリア</span></button>
+        </div>
+      </div>
+      <div class="log-area">
+        <main id="output" role="log" aria-label="Bot の出力ログ" aria-live="polite" tabindex="0"></main>
+        <div id="empty-state" class="empty-state"><h2 id="empty-title">ログを待っています</h2><p id="empty-description">管理画面で Bot を起動すると、ここに出力が表示されます。</p></div>
+        <button id="latest" type="button" class="latest" hidden>↓ 新しいログ</button>
+      </div>
+      <footer class="footer"><span>ANSI カラー / UTF-8</span><span id="feedback" role="status"></span><span id="retained-count">0 / 1,000 行</span></footer>
+    </section>
+    <p class="hint">過去のログをスクロールしている間も、新しいログは受信されます。</p>
+  </div>
+</body>
+</html>

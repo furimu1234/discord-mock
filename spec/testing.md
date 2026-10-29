@@ -6,6 +6,20 @@
 
 `createTestEnvironment({ fixture?, now?, timeoutMs? })` は `127.0.0.1:0` で専用の Mock を起動する。fixture は既存の Mock JSON / `snapshot()` の結果で、読み込み時にコピー・検証する。省略時は既定の Bot・単一 Guild・Alice / Bob・general・@everyone を作る。テスト環境が生成する `mock_` トークンを `connect(client)` で使用し、`.env` や本番サービスを必要としない。URL・トークン・状態を外部へ送信しない。
 
+## Electron への接続通知
+
+Electron から起動する JS ランタイムは、`DISMOCK_DESKTOP_CONNECTION_FILE`（所有者専用の絶対パス）と `DISMOCK_DESKTOP_CONNECTION_NONCE`（起動ごとの32桁hex）を受け取った場合だけ、接続通知を原子的に公開する。形式は `{schemaVersion:1, nonce, url, adminSession}`。`url` は明示的なポートを持つ `http://127.0.0.1` の origin、`adminSession` は48桁hexの管理UIセッションとする。通常CLIは通知しない。
+
+親は自分の起動要求に一致する通知だけを読み、管理セッションの有効性をローカルAPIで確認してから画面を切り替える。標準出力のURLは接続通知として信用しない。接続先のリダイレクトは許可せず、管理cookieは管理画面のpartitionにだけ設定する。プロセス切替では両partitionのCookieと接続を破棄し、停止後は待機用Mockへ戻る。nonceと管理セッションはログ・preloadの戻り値・チャットへ出さない。
+
+Electron連携時のJSONリソースは、明示的な `DISCORD_MOCK_STATE_PATH` がなければプロジェクトのデータ保存先の `state.json` に保持する。DBとテスト実行履歴の寿命はAppプロセスと同じ。既存Bot本文・REST/Gateway/Pythonの契約は変更しない。
+
+## ローカル App / Bot のロック回復
+
+JS の `runTestClient` / `startApp` は、同じローカル保存先に対する App と Bot の所有権を別々に管理する。正常終了では解放する。異常終了後は、同じ OS / PID 名前空間で所有者の PID が存在しないと確認できたロックだけを次の起動時に回復し、稼働中・権限不足・所有者情報の不正では起動を拒否する。起動時に無条件の削除はしない。
+
+完成済みの所有者情報を原子的に公開し、同時回復時にも1プロセスだけが取得できるようにする。回復した世代の情報は新しい所有者を誤って削除しないために保持する。旧形式の PID ファイルとの互換性を維持する。ローカルファイルシステムのハードリンクと非空ディレクトリの置換拒否を前提とし、異なるホスト・OS・PID 名前空間をまたぐ保存先共有は対象外。この内部処理による REST / Gateway / Python クライアントの契約変更はない。
+
 ## 操作
 
 | API | 動作 |

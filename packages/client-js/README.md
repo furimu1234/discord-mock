@@ -58,6 +58,8 @@ npx tsx testClient.ts --test-web      # 起動済みAppへテスト結果を表�
 
 テストクライアントは import されたときには設定の登録だけを行い、直接実行されたときだけ起動します。ファイル名の固定や別の App エントリーポイントは不要です。プロジェクトの `tests` を持つ `package.json` の位置を自動検出し、必要なら `root` と `tsconfig` を明示できます。待受先は `127.0.0.1`、保存先はプロジェクトの `.discord-mock-data` です。`DISCORD_MOCK_PORT` と `DISCORD_MOCK_DATA_DIR` で変更できます。実トークンは使わず、自動生成した `mock_` トークンで Bot を起動します。
 
+同じ保存先への App / Bot の二重起動は `app.lock` / `bot.lock` で防ぎます。正常終了では解放し、強制終了後に残ったロックは次の起動時に記録された PID の終了を確認できた場合だけ自動回復します。稼働中・権限不足・不正な所有者情報・別の OS / PID 名前空間の場合は削除せず、起動を拒否します。保存先は同じ PC / OS のローカルファイルシステムに置き、異なるホストやコンテナーの PID 名前空間で共有しないでください。ハードリンクとディレクトリの原子的な移動を利用します。回復時の競合を防ぐため、少量の世代情報が `*.lock.recovered/` に残る場合があります。
+
 テストランナーには利用先の Vitest 5 を使用し、共通の fixture・後片付け・対象ユーザーの検証・Appへのレポート送信は配布物が担当します。接続した Client などの Bot 固有リソースは `bot` が返す `close()` で終了します。通常の Node.js で Client や `createTestEnvironment()` だけを使う場合は Vitest を読み込みません。
 
 DB を使う Bot では `database: { sql: "CREATE TABLE ..." }` を指定します。PGlite と PostgreSQL 接続用のローカル TCP リスナーをライブラリが起動し、`bot({databaseDsn})` へ接続先を渡します。Bot 固有のテーブル定義はテストクライアントに置きます。App 稼働中はその DB を通常 Bot と全テストで共有し、App がないときはテスト実行全体で1つの一時 DB を使用します。ケース間で初期化せず、App またはテスト実行の終了時に閉じます。DB が不要なら `database` を省略できます。
@@ -69,6 +71,8 @@ Web からのケース一覧・個別実行も自動設定します。tests 直�
 既存の Vitest 設定へ組み込む場合は、引き続き `configureE2E({start, extend?})` と `defineE2EConfig({setup: "./testClient.ts"})` を使えます。独自 DB の globalSetup には `createSharedDatabaseSetup(startDatabase)` を利用できます。低レベルのケースランナーは `dismock/e2e/runner`、プログラムからの App 起動は `dismock/runtime` でも公開しています。
 
 ライブラリの統合テストは `packages/client-js/tests/level-bot/` にあり、開発時に `pnpm --filter dismock test:integration` で実行します。この検証用ツリーを npm 利用者が作成・コピーする必要はありません。
+
+Electron アプリから起動した `runTestClient` は、所有者専用ファイルで起動した Mock の接続情報を通知します。アプリ内の管理・チャット・DB画面がそのプロジェクトへ接続するため、別のブラウザを開く必要はありません。管理者セッションは HttpOnly cookie と専用セッションに限定し、テストユーザー側には渡しません。管理画面のリソース変更はプロジェクトの保存先の `state.json` に保存します。この通知はアプリから明示された場合だけで、通常のCLI起動は従来どおりです。
 
 ## 既存の main.ts を変更せずに使う
 
@@ -100,7 +104,7 @@ import 時点で自動的に本番へログインするエントリーポイン�
 
 ### npm インストール
 
-現在はレジストリ未公開です。リポジトリで `pnpm build` を明示的に実行後、配布用ファイルを作成して利用先でインストールできます。
+現在はレジストリ未公開です。リポジトリで `pnpm build:core` を明示的に実行後、配布用ファイルを作成して利用先でインストールできます。
 
 ```sh
 # このリポジトリで実行
@@ -130,7 +134,7 @@ await bot.mock.connect("mock_<CLIが発行するトークン>");
 
 SapphireClient も `disMockClient` / `disMockMixin` で同様に利用できます。**REST と基本 Gateway ハンドシェイクのみ**実装中。コマンド・モデル・音声の完全互換はありません。SDK が別経路に通信する場合に備えて、テスト実行環境は外向き通信をネットワークで遮断してください。
 
-開発: リポジトリの開発シェルで `pnpm install` と `pnpm build` を明示的に実行します。
+開発: リポジトリの開発シェルで `pnpm install` と `pnpm build:core` を明示的に実行します。
 配布・利用: 出力 `dist/index.js` を Node.js から読み込みます。pnpm は不要です。SDK はアプリ側の依存として必要です。
 
 ## Bot の自動テスト
@@ -196,7 +200,7 @@ const mock = await createTestEnvironment({ fixture });
 
 フィクスチャは実行中の app と共有せず、読み込み時にコピー・検証します。日時は `now: () => new Date("2026-01-01T00:00:00Z")`、作成するリソースの ID は `create({ id: "223456789000000001", ... })` で固定できます。`reset()` は初期フィクスチャに戻し、接続した Bot を切断します。再接続する場合は新しい Client を用意してください。
 
-このサブパスの配布物 `dist/testing.cjs` には Mock サーバー・Web・依存を同梱し、実行時の pnpm・ビルド・別サーバーは不要です。Bot とテストランナーの依存は利用側で用意します。リポジトリでは手動で `pnpm build` した後に `pnpm automation:test`、または既存テストを含む `pnpm test` で実行します。
+このサブパスの配布物 `dist/testing.cjs` には Mock サーバー・Web・依存を同梱し、実行時の pnpm・ビルド・別サーバーは不要です。Bot とテストランナーの依存は利用側で用意します。リポジトリでは手動で `pnpm build:core` した後に `pnpm automation:test`、または既存テストを含む `pnpm test` で実行します。
 
 ### 起動中の app へ実行内容を表示する
 

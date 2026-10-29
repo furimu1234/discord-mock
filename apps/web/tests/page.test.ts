@@ -171,7 +171,7 @@ test("compiled browser script renders state, switches users, posts and refreshes
   assert.equal(card.children[3].textContent, "<img src=x onerror=alert(1)>");
 });
 
-test("admin screen opens a session without subscribing to the test timeline", async () => {
+test("admin screen initializes separate admin session without subscribing to the test timeline", async () => {
   const fixture = createBrowserFixture("/admin");
   const requestedUrls = [];
   script.runInNewContext({
@@ -182,7 +182,7 @@ test("admin screen opens a session without subscribing to the test timeline", as
     },
   });
   await setImmediate();
-  assert.deepEqual(requestedUrls, ["/_ui/session"]);
+  assert.deepEqual(requestedUrls, ["/_admin/ui/session"]);
   assert.equal(fixture.streams.length, 0);
   assert.equal(fixture.elements["test-panel"].classes.has("hidden"), true);
   assert.equal(fixture.elements["admin-panel"].classes.has("hidden"), false);

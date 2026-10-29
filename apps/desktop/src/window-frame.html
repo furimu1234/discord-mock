@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>discord-mock</title>
+  <link rel="stylesheet" href="./window-frame.css">
+  <script defer src="./window-frame.js"></script>
+</head>
+<body class="window-frame-host">
+  <div class="window-chrome">
+    <header class="window-titlebar">
+      <span class="window-title">discord-mock</span>
+      <div class="window-controls" role="group" aria-label="ウィンドウ操作">
+        <button id="window-minimize" type="button" aria-label="最小化" title="最小化"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M3 8h10"/></svg></button>
+        <button id="window-maximize" type="button" aria-label="最大化・元に戻す" title="最大化・元に戻す"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="9" height="9" rx="1"/></svg></button>
+        <button id="window-close" type="button" aria-label="閉じる" title="閉じる"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m4 4 8 8m0-8-8 8"/></svg></button>
+      </div>
+    </header>
+    <div class="window-resize" data-resize="n" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="ne" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="e" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="se" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="s" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="sw" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="w" aria-hidden="true"></div>
+    <div class="window-resize" data-resize="nw" aria-hidden="true"></div>
+  </div>
+</body>
+</html>

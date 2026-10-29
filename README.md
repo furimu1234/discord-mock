@@ -3,7 +3,15 @@
 **discord-mock** は、Discord Bot を自分の PC または自分で管理する VPS 上で手動・自動テストするための、セルフホスト型 Mock 環境です。**SaaS として公開・提供しません。** 本番の Discord API・認証情報を使用せず、ローカルで生成したダミーデータとテスト用トークンを扱います。
 
 > [!IMPORTANT]
-> **現在は開発途中です。** REST / Gateway の基本接続、メッセージ操作の一部、テスト用 Interaction とその応答記録を実装しています。`/test` は **操作可能なテスト画面**になり、ダミーユーザーの切り替え、テキスト投稿、Slash Command 発火、Bot 投稿のリアルタイム同期を行えます。`/admin` はまだ簡易案内画面で、管理 CRUD・DM・実際に聴ける VC 音声などは未実装です。全 Discord API との互換性を保証するものでもありません。
+> **現在は開発途中です。** REST / Gateway の基本接続、メッセージ操作の一部、テスト用 Interaction とその応答記録を実装しています。`/test` ではダミーユーザーの切り替えと個別のBotテスト実行、投稿・返信・実行ログのリアルタイム表示を行えます。`/admin` は管理者認証付きの環境設定画面で、ユーザー・チャンネル・ロール・権限の編集とJSON保存に対応しています。DM・実際に聴けるVC音声などは未実装で、全Discord APIとの互換性を保証するものではありません。
+
+## 画面の構成
+
+テスト・データベース・実行履歴・管理は、上部のナビゲーションから切り替えます。暗色の共通UIを使い、一覧・フォーム・ログを余白とシンプルな区切り線で整理しています。外部フォントや画像は読み込みません。
+
+`/test` は左にチャンネル、中央に投稿とBot応答、右に実行ログ／ユーザー、下部にテストケースを表示します。狭い画面ではチャンネルと実行ユーザーを上部にまとめ、ログをチャットの下へ配置します。各領域をスクロールでき、テストケースは矢印キーで選び、Enterまたはダブルクリックで実行します。実行時の「●」は3秒間表示されます。
+
+管理画面ではサーバー設定、ユーザー、ロール、チャンネル、所属を縦に表示します。デスクトップのBotログ画面も同じ配色で、検索・出力元の絞り込み・コピー・自動スクロールを利用できます。キーボードのフォーカス表示とOSのモーション軽減設定に対応しています。
 
 ## アーキテクチャ
 
@@ -11,7 +19,7 @@
 
 | ディレクトリ | 言語 | 役割 |
 | --- | --- | --- |
-| `apps/web/` | TypeScript | ブラウザで開くテスト画面・管理画面。ローカル Bot テスト画面（投稿・ユーザー切替・SSE 更新）と管理画面案内 |
+| `apps/web/` | TypeScript | ブラウザで開くBotテスト画面（ユーザー切替・SSE更新）と管理者認証付きの環境設定画面 |
 | `apps/server/` | TypeScript | CLI、HTTP REST、Gateway WebSocket、Mock 状態管理、JSON 保存 |
 | `packages/client-js/` | TypeScript | npm パッケージ `dismock`。既存 Client のアダプター、E2E テスト、ローカル App・DB の起動 |
 | `packages/client-py/` | Python | 既存 `discord.Client` / `commands.Bot` のインスタンス・継承アダプター |
@@ -93,7 +101,7 @@ Web は `apps/web/src/page.ts`（HTML）、`styles.css`（見た目）、`browse
 
 DB 画面は `apps/web/src/database.ts`、PGlite の参照実装は `packages/client-js/src/database-inspector.ts` に分けています。
 
-ルートの `pnpm build` は Web の JavaScript を先に生成し、その内容と CSS をサーバー配布物へ組み込みます。個別にビルドする場合も Web → Server の順で実行してください。配布後は従来どおり `discord-mock.cjs` 単体で起動できます。`pnpm test` はビルド済みのブラウザ処理を DOM フィクスチャで検証し、実ブラウザによる表示確認は行いません。
+ルートの `pnpm build:core` は Web の JavaScript を先に生成し、その内容と CSS をサーバー配布物へ組み込みます。個別にビルドする場合も Web → Server の順で実行してください。配布後は従来どおり `discord-mock.cjs` 単体で起動できます。`pnpm test` はビルド済みのブラウザ処理を DOM フィクスチャで検証し、実ブラウザによる表示確認は行いません。
 
 ### テスト実行フロー（Mermaid）
 
@@ -137,7 +145,7 @@ Appなしの `pnpm bot:test` でも、Vitestの一連のテストは共通の一
 test("レベル確認", { users: "login" }, async ({ bot, actor }) => {
   const before = await bot.levels.get(actor);
   await actor.sendMessage("こんにちは");
-  const expected = (before ?? 1) + 1;
+  const expected = (before ?? 0) + 1;
   await expect.poll(() => bot.levels.get(actor)).toBe(expected);
   const reply = await actor.command("レベル確認");
   expect(reply.embeds[0].fields?.[0].value).toBe(String(expected));
@@ -170,7 +178,7 @@ test("指定した2人の投稿", {
 リポジトリ直下で、必要な依存を `pnpm install` 済みであることを確認して実行します。
 
 ```sh
-pnpm build
+pnpm build:core
 pnpm app
 ```
 
@@ -186,7 +194,7 @@ pnpm bot
 
 テスト一覧は `examples/level_bot/tests/**/*.test.ts` を再帰的に検索してTypeScriptの構文解析で読み、静的な名前の `describe(...)` 階層内の `test(...)` / `it(...)` を取得します。`tests` 直下にも任意名のサブフォルダーにも配置できます。ネストした `describe` は `親 › 子 › テスト名` と表示され、個別実行は親から子までの完全名で絞り込みます。同名ファイルは相対パスで区別し、シンボリックリンクは追跡しません。コメント・文字列中の疑似テストや動的な名前は対象にせず、同一階層の重複名は検出します。個別実行 API はローカル管理セッションと CSRF を必須とし、リポジトリ外のファイルや任意の OS コマンドは受け付けません。複数テストの同時実行は防止します。実行状況を定期取得しても選択中のケースは維持されます。
 
-**アプリの再起動でテスト実行履歴はリセット**されます。画面を開いたままの再接続にも対応しますが、ビルド済み JavaScript を差し替えた場合はブラウザを再読み込みしてください。ソースを変更したときは `pnpm build` を再実行し、`pnpm app` を再起動してください。Mockのチャット履歴はテストケースごとに独立します。一方、DBレコードはAppのPGliteに蓄積され、Appを停止するまで保持します。
+**アプリの再起動でテスト実行履歴はリセット**されます。画面を開いたままの再接続にも対応しますが、ビルド済み JavaScript を差し替えた場合はブラウザを再読み込みしてください。ソースを変更したときは `pnpm build:core` を再実行し、`pnpm app` を再起動してください。Mockのチャット履歴はテストケースごとに独立します。一方、DBレコードはAppのPGliteに蓄積され、Appを停止するまで保持します。
 
 ## Vitest / Jest 形式で Bot を自動テストする（JS / TS）
 
@@ -214,7 +222,7 @@ try {
 Vitest の `beforeEach`・`afterEach`・`it`・`expect` で Bot の応答まで検証する例は、[JS SDK の使い方](packages/client-js/README.md#bot-の自動テスト) と [実行できるテスト](packages/client-js/tests/automation.test.ts) にあります。API はテストランナーに依存しません。Jest を使う場合も同じ非同期 API を利用できますが、このリポジトリでの実行確認は Vitest で行っています。
 
 ```sh
-pnpm build           # ソースを変更したときに手動でビルド
+pnpm build:core           # ソースを変更したときに手動でビルド
 pnpm automation:test # SDK のテスト例 + Bot テスト
 ```
 
@@ -238,18 +246,18 @@ import { test, expect } from 'dismock/e2e';
 test('投稿でレベルが上がる', { users: 'login' }, async ({ bot, actor }) => {
   const before = await bot.levels.get(actor);
   await actor.sendMessage('こんにちは');
-  await expect.poll(() => bot.levels.get(actor)).toBe((before ?? 1) + 1);
+  await expect.poll(() => bot.levels.get(actor)).toBe((before ?? 0) + 1);
 });
 ```
 
-[レベル確認の UT](examples/level_bot/tests/bot/showLvl.test.ts) と [投稿によるレベル更新の UT](examples/level_bot/tests/bot/leveling.test.ts) を用意しています。機能が増えたら同じフォルダーへ `*.test.ts` を追加すると、同じコマンドでまとめて実行できます。Bot の TypeScript は直接読み込みます。Mock のソースを変更したときは、従来どおり手動で `pnpm build` してください。
+[レベル確認の UT](examples/level_bot/tests/bot/showLvl.test.ts) と [投稿によるレベル更新の UT](examples/level_bot/tests/bot/leveling.test.ts) を用意しています。機能が増えたら同じフォルダーへ `*.test.ts` を追加すると、同じコマンドでまとめて実行できます。Bot の TypeScript は直接読み込みます。Mock のソースを変更したときは、従来どおり手動で `pnpm build:core` してください。
 
 `pnpm sample:test` は利用側の Bot テストを実行します。app・DB・起動処理の統合テストはライブラリ側の `packages/client-js/tests/level-bot/` に移し、`pnpm --filter dismock test:integration` または `pnpm test` で実行します。
 
 普段の app に実行内容を表示する場合:
 
 ```sh
-pnpm build          # 変更後に手動ビルド
+pnpm build:core          # 変更後に手動ビルド
 pnpm app            # 起動済みなら Ctrl+C で止めて再起動
 
 # 別ターミナル
@@ -271,7 +279,7 @@ UTは各ケースごとに専用Mock・Botを使いますが、**DBはApp稼働�
 - 対応 OS: **Windows / Ubuntu・その他の Linux / macOS / NixOS**。ただし NixOS 固有の設定は下記 `nix-shell` を使用します。
 - Node.js **24.17.0 以上**、pnpm **11 系**。TypeScript、esbuild などは `pnpm install` でプロジェクト内に入ります。
 - Python クライアントを開発・テストする場合は Python **3.11 以上**と **uv** が必要です。
-- **依存インストールとビルドは手動**です。シェルに入るだけ・`pnpm dev` を実行するだけでは、自動で `pnpm install` や `pnpm build` は走りません。
+- **依存インストールとビルドは手動**です。シェルに入るだけ・`pnpm dev` を実行するだけでは、自動で `pnpm install` や `pnpm build:core` は走りません。
 
 #### NixOS（推奨：`nix-shell`）
 
@@ -302,12 +310,20 @@ pnpm install
 uv sync --project packages/client-py
 
 # 必要なときに手動ビルド
-pnpm build
+pnpm build:core
 ```
 
 `nix-shell` の外ではこれらのツールをシステム全体へ追加しません。`configuration.nix` や `environment.systemPackages` は変更不要です。`exit` でシェルを抜けるとツールの PATH 設定は元に戻ります。依存インストール済みの `node_modules` / `.venv` は、シェルを抜けても作業ディレクトリに残ります。
 
 `shell.nix` は uv に Nix 提供の Python を使わせ、一般 Linux 用 Python を自動ダウンロードさせないよう設定します。NixOS では **`corepack enable` は不要**です。
+
+ビルド済みのデスクトップアプリを起動する場合は、リポジトリ直下で次を実行します。
+
+```sh
+./run-nixos.sh
+```
+
+`release/desktop` の Linux AppImage を、Nix と日本語フォントの設定付きで起動します。別のAppImageは `./run-nixos.sh "/path/to/app.AppImage"` で指定できます。ビルドは自動実行しません。詳しくは [NixOS の起動手順](apps/desktop/README.md#wsl2--nixos-で起動する) を参照してください。
 
 #### Windows / Ubuntu / macOS（Nix を使わない場合）
 
@@ -324,10 +340,10 @@ corepack enable
 corepack pnpm install
 
 # ビルド（手動）
-corepack pnpm build
+corepack pnpm build:core
 ```
 
-Corepack を使用しない場合は、別途 pnpm 11 を用意し、`pnpm install` と `pnpm build` を実行します。Python 側を開発する場合は uv をインストールした後に `uv sync --project packages/client-py` を実行します。
+Corepack を使用しない場合は、別途 pnpm 11 を用意し、`pnpm install` と `pnpm build:core` を実行します。Python 側を開発する場合は uv をインストールした後に `uv sync --project packages/client-py` を実行します。
 
 > サンプル Bot の移植が未マージの場合は、対応する PR の作業ブランチをチェックアウトしてからビルドしてください。
 
@@ -341,7 +357,7 @@ NixOS 以外の Linux で Nix が入っていない場合は、VS Code のター
 
 ### 開発サーバーの起動と停止
 
-初回は上記の `pnpm install` と `pnpm build` を済ませてください。
+初回は上記の `pnpm install` と `pnpm build:core` を済ませてください。
 
 ```sh
 # リポジトリ直下（NixOS では nix-shell 内）
@@ -356,12 +372,12 @@ pnpm --filter @discord-mock/server dev -- --port 3001
 | URL（既定のポート 3000） | 用途 |
 | --- | --- |
 | `http://127.0.0.1:3000/test` | Discord 風のチャット（ユーザー・Bot のメッセージ）・チャンネル一覧・独立した実行ログ・テストケース選択・実行 |
-| `http://127.0.0.1:3000/admin` | 管理画面（現時点では案内画面） |
+| `http://127.0.0.1:3000/admin` | 管理者認証付きの環境設定画面 |
 | `http://127.0.0.1:3000/health` | ヘルスチェック |
 | `http://127.0.0.1:3000/api/v10/...` | 対応済みの Mock REST API |
 | `ws://127.0.0.1:3000/gateway` | Mock Gateway WebSocket |
 
-**`pnpm dev` はビルド済みファイルを起動するだけ**です。TypeScript を編集した場合は `pnpm build` を実行し、サーバーを再起動してください。停止する場合はターミナルで `Ctrl+C` を押します。
+**`pnpm dev` はビルド済みファイルを起動するだけ**です。TypeScript を編集した場合は `pnpm build:core` を実行し、サーバーを再起動してください。停止する場合はターミナルで `Ctrl+C` を押します。
 
 ### 静的チェック・テスト
 
@@ -385,7 +401,7 @@ Biome は既存のサンプル設定と同じ `1.9.4` を開発依存として�
 実行テストは手動でビルドした後に実行してください。
 
 ```sh
-pnpm build
+pnpm build:core
 pnpm test
 pnpm sample:test
 uv run --project packages/client-py pytest packages/client-py/tests
@@ -399,7 +415,7 @@ uv run --project packages/client-py pytest packages/client-py/tests
 
 ### 1. ビルド済みファイルを用意する
 
-開発者が `pnpm build` すると、Mock サーバーの起動用ファイル **`apps/server/dist/discord-mock.cjs`** が生成されます。このファイルは、必要な JavaScript 依存関係をまとめた配布用の Node.js スクリプトです。
+開発者が `pnpm build:core` すると、Mock サーバーの起動用ファイル **`apps/server/dist/discord-mock.cjs`** が生成されます。このファイルは、必要な JavaScript 依存関係をまとめた配布用の Node.js スクリプトです。
 
 一般ユーザーは、**開発者から受け取った `discord-mock.cjs`** を任意のフォルダーに置いてください。単一の JS ファイルなので、実行時は pnpm のワークスペースや `node_modules` は不要です。
 
@@ -429,7 +445,7 @@ nix shell nixpkgs#nodejs_24 -c node discord-mock.cjs
 
 ### 3. ブラウザで開く・終了する
 
-CLI に表示された URL をブラウザで開きます。既定では `http://127.0.0.1:3000/test`（テスト画面）と `http://127.0.0.1:3000/admin`（管理画面）です。`/test` は下部の一覧でテストケースを選び、Enterまたはダブルクリックで実行できます。既存のデモを手動で一括起動する場合は `pnpm demo` を使用してください。`/admin` の管理操作は今後実装予定です。終了は起動ターミナルの `Ctrl+C` です。
+CLI に表示された URL をブラウザで開きます。既定では `http://127.0.0.1:3000/test`（テスト画面）と `http://127.0.0.1:3000/admin`（管理画面）です。`/test` は下部の一覧でテストケースを選び、Enterまたはダブルクリックで実行できます。既存のデモを手動で一括起動する場合は `pnpm demo` を使用してください。`/admin` はCLIに表示される管理者シークレットでログインし、リソースを編集します。終了は起動ターミナルの `Ctrl+C` です。
 
 Mock の API に Bot を接続する際は、CLI に表示された **`mock_` で始まるテスト用トークン**だけを使用し、Discord 本番の Bot トークンは使用しないでください。管理用シークレットも第三者に共有しないでください。
 
@@ -482,3 +498,32 @@ Python の `discord.py` / `commands.Bot` は、[`packages/client-py/README.md`](
 **現時点でDiscord本番APIとの完全互換を保証するものではありません。**
 `multipart/form-data` の `payload_json` と `files[n]` によるバイナリ添付にも対応します。添付ファイルはMockがメモリ内で保持してローカルURLから取得できますが、App再起動で消えます。Poll投票、コンポーネント押下、レートリミットなどは未実装です。フィールド対応と機能の実動作は区別してください。
 詳細は [Message API対応範囲](spec/messages.md) を参照してください。
+
+
+## Electron デスクトップ版（Windows / macOS / Linux）
+
+Webと全OSの配布物は、依存インストール後にリポジトリ直下で次の1コマンドから生成できます。現在の WSL / NixOS でも一括生成できます。
+
+```sh
+pnpm build
+```
+
+`release/` に Web 用サーバー、Windows exe、Mac の Intel / Apple Silicon 用 `.app` ZIP、Linux AppImage、成果物のSHA-256を含む `manifest.json` を出力します。Web・Server・JS SDK・サンプルBotのソースもビルドします。署名・公証・外部公開は行いません。Windows 上での全OS一括生成は WSL を使用します。初回に必要な Desktop の依存はコマンド内で準備します。
+
+| コマンド | 配布物 |
+| --- | --- |
+| `pnpm build` | Web・Windows・macOS・Linuxすべて |
+| `pnpm build:web` | Web用サーバー |
+| `pnpm build:win` | Windows x64 exe |
+| `pnpm build:mac` | macOS Intel / Apple Silicon用ZIP |
+| `pnpm build:linux` | Linux x64 AppImage |
+
+開発・SDKテスト用のソース一式だけをビルドする場合は `pnpm build:core` を使用します。`pnpm build:all` は全体ビルドの互換エイリアスです。
+
+アプリは管理画面で起動し、チャットと同じウィンドウ内で切り替えます。Botターミナルは別ウィンドウです。ブラウザでは **ADMIN** を押すと同じタブの管理画面へ遷移し、CLIに表示される管理シークレットでログインします。ユーザー・チャンネル・ロール・権限の編集、Mock状態のJSON保存、ループバック限定、テストセッションと管理セッションの分離を維持します。配布物の実行手順・制約は [apps/desktop/README.md](apps/desktop/README.md) を参照してください。
+
+両ウィンドウは枠なしで、四辺・四隅からサイズを変更できます。管理画面の **ウィンドウ** から起動ディスプレイを個別に設定でき、各ディスプレイの最後の位置・サイズ・最大化状態を自動保存します。WSL / Linuxでは位置復元にX11を使い、Waylandの制約も設定画面に表示します。
+
+TEST・ADMINはネイビーとシアンを使う共通テーマです。TESTはチャット・実行ログ・ケース一覧をそれぞれの領域内でスクロールでき、ADMINは起動設定を上部に置き、実データのリソース数と編集カードを表示します。狭い画面ではナビゲーションとパネルを組み替えます。表示テーマは `apps/web/src/workspace.css` に分離し、外部のフォント・画像・スクリプトは読み込みません。
+
+管理画面の **自動取得** で同じフォルダーの `runTestClient` 起動ファイルを選び、**起動** を押すと、そのプロジェクトの Mock にアプリ内の管理・チャット・DB画面が接続します。チャットでテスト一覧を選んで実行でき、停止後は待機用の管理画面へ戻ります。

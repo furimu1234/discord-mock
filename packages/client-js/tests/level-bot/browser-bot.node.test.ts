@@ -78,7 +78,7 @@ test(
             "SELECT lvl FROM example.lvl WHERE server_id = $1 AND user_id = $2",
             [guildId, session.selectedUserId],
           );
-          return result.rows[0]?.lvl === i + 2;
+          return result.rows[0]?.lvl === i + 1;
         });
       }
       const ui = (await (
@@ -113,7 +113,7 @@ test(
       assert.ok(actor);
       assert.equal(levelReply.embeds[0].title, `${actor.username} | lvl`);
       assert.equal(levelReply.embeds[0].fields[0].name, "今のレベルはこれだ");
-      assert.equal(levelReply.embeds[0].fields[0].value, "3");
+      assert.equal(levelReply.embeds[0].fields[0].value, "2");
       assert.equal(levelReply.embeds[0].footer.text, `by ${actor.id}`);
       assert.equal(levelReply.interactionMetadata.user.id, actor.id);
       const embedState = await (
@@ -121,7 +121,7 @@ test(
       ).json();
       assert.equal(
         embedState.messages[channelId].at(-1).embeds[0].fields[0].value,
-        "3",
+        "2",
       );
       assert.equal(
         embedState.messages[channelId].at(-1).interaction.name,

@@ -91,7 +91,7 @@ export class DatabaseView {
     });
     if (!session.databaseAvailable) {
       this.clear();
-      this.elements.noticeText.textContent = "このサーバーには DB が接続されていません。pnpm app で起動してください。";
+      this.elements.noticeText.textContent = "この環境には DB が接続されていません。DB を使用するテストクライアントを起動してください。";
       return;
     }
     if (!session.authenticated) throw new AccessExpired("ローカル接続を確認して、再読み込みしてください。");
@@ -244,8 +244,8 @@ export class DatabaseView {
       cell.setAttribute("aria-sort", this.sort === column.name ? this.direction === "asc" ? "ascending" : "descending" : "none");
       const button = createElement("button", "column-sort");
       button.type = "button";
-      button.append(createElement("strong", "", `${column.primaryKey ? "⚿ " : ""}${column.name}${this.sort === column.name ? this.direction === "asc" ? " ↑" : " ↓" : ""}`));
-      button.append(createElement("small", "", `${column.type}${column.nullable ? " · nullable" : ""}`));
+      button.append(createElement("strong", "", `${column.name}${this.sort === column.name ? this.direction === "asc" ? " ↑" : " ↓" : ""}`));
+      button.append(createElement("small", "", `${column.type}${column.primaryKey ? "（主キー）" : ""}${column.nullable ? " / NULL可" : ""}`));
       button.onclick = () => {
         this.direction = this.sort === column.name && this.direction === "asc" ? "desc" : "asc";
         this.sort = column.name;

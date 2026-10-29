@@ -8,7 +8,13 @@
     "node": ">=24.17.0"
   },
   "scripts": {
-    "build": "pnpm --filter @discord-mock/web build && pnpm --filter @discord-mock/server build && pnpm --filter dismock build && pnpm --filter @discord-mock/level-bot build",
+    "build": "node scripts/build-release.ts",
+    "build:web": "node scripts/build-release.ts --target web",
+    "build:win": "node scripts/build-release.ts --target win",
+    "build:mac": "node scripts/build-release.ts --target mac",
+    "build:linux": "node scripts/build-release.ts --target linux",
+    "build:all": "pnpm build",
+    "build:core": "pnpm --filter @discord-mock/web build && pnpm --filter @discord-mock/server build && pnpm --filter dismock build && pnpm --filter @discord-mock/level-bot build",
     "dev": "pnpm --filter @discord-mock/server dev",
     "app": "pnpm --filter @discord-mock/level-bot app",
     "bot": "pnpm --filter @discord-mock/level-bot test:bot:web",
@@ -28,7 +34,13 @@
     "bot:test": "pnpm --filter @discord-mock/level-bot test:bot",
     "bot:test:web": "pnpm --filter @discord-mock/level-bot test:bot:web",
     "check:ts": "node --experimental-strip-types scripts/check-typescript.ts",
-    "bot:client": "pnpm --filter @discord-mock/level-bot start"
+    "bot:client": "pnpm --filter @discord-mock/level-bot start",
+    "desktop:test": "node --experimental-transform-types --test apps/desktop/tests/*.test.ts",
+    "desktop:build": "npm --prefix apps/desktop run build",
+    "desktop:dev": "npm --prefix apps/desktop run start",
+    "desktop:dist:win": "npm --prefix apps/desktop run dist:win",
+    "desktop:dist:mac": "npm --prefix apps/desktop run dist:mac",
+    "desktop:dist:linux": "npm --prefix apps/desktop run dist:linux"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

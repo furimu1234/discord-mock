@@ -1,8 +1,9 @@
-import { access, realpath, stat, mkdir, open, rm } from "node:fs/promises";
+import { access, realpath, stat } from "node:fs/promises";
 import { dirname, resolve, parse } from "node:path";
 import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 import { readE2ERuntime, localOrigin } from "./e2e-runtime.js";
+import { acquireProcessLock } from "./process-lock.js";
 
 export function entryPath(value: string | URL): string {
   return value instanceof URL || String(value).startsWith("file:")
@@ -88,33 +89,7 @@ export async function acquireBotLock(
   root: string,
 ): Promise<() => Promise<void>> {
   const paths = appPaths(undefined, root);
-  await mkdir(paths.directory, { recursive: true, mode: 0o700 });
-  const file = await open(paths.botLock, "wx", 0o600).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === "EEXIST")
-        throw new Error(
-          `Bot is already running; recover ${paths.botLock} only after checking the process has stopped.`,
-        );
-      throw error;
-    },
-  );
-  let released = false;
-  const release = async () => {
-    if (released) return;
-    released = true;
-    try {
-      await file.close();
-    } finally {
-      await rm(paths.botLock, { force: true });
-    }
-  };
-  try {
-    await file.writeFile(String(process.pid));
-  } catch (error) {
-    await release();
-    throw error;
-  }
-  return release;
+  return acquireProcessLock(paths.botLock, "Bot");
 }
 export async function botConnection(root: string) {
   const connection = await readE2ERuntime(appPaths(undefined, root).runtime);

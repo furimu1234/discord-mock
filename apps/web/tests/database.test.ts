@@ -86,7 +86,7 @@ test("database tab explains unavailable DB", async () => {
   script.runInNewContext({ ...fixture.globals, fetch: async () => ({ ok: true, json: async () => ({ authenticated: false, databaseAvailable: false }) }) });
   await setImmediate();
   assert.equal(fixture.elements["database-notice"].classes.has("hidden"), false);
-  assert.match(fixture.elements["database-notice-text"].textContent, /pnpm app/);
+  assert.match(fixture.elements["database-notice-text"].textContent, /テストクライアントを起動/);
 });
 
 test("DB画面で最新のテスト用DBを選択し、AppのDBとの混在を防ぐ", async () => {

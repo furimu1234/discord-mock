@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { validateConfig } from "../src/bot-process.js";
+import { validateConfig } from "../src/bot-process.ts";
 
 test("Bot コマンド設定は絶対作業ディレクトリと引数配列だけを受理する", () => {
   const cwd = process.platform === "win32" ? "C:\\tests" : "/tmp/tests";

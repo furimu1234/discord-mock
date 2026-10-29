@@ -1,4 +1,5 @@
 import { getElement } from "./dom.js";
+import { initializeWindowSettings, type WindowSettingsBridge } from "./desktop-windows.js";
 
 interface User { id: string; username: string; bot: boolean; }
 interface Role { id: string; name: string; permissions: string; color: number; }
@@ -10,10 +11,15 @@ interface AdminState {
   users: User[];
   members: Member[];
 }
-interface BotConfig { command: string; args: string[]; cwd: string; }
-interface BotStatus { running: boolean; pid?: number; }
+interface BotConfig { command: string; args: string[]; cwd: string; runtime?: "test-client"; }
+interface BotStatus { running: boolean; pid?: number; connecting?: boolean; url?: string; }
 interface DesktopBridge {
+  windowSettings?: WindowSettingsBridge["windowSettings"];
+  saveWindowSettings?: WindowSettingsBridge["saveWindowSettings"];
+  moveWindow?: WindowSettingsBridge["moveWindow"];
   config(): Promise<BotConfig>;
+  discoveryDirectory(): Promise<string>;
+  discover(): Promise<Array<{ file: string; config: BotConfig }>>;
   saveConfig(value: BotConfig): Promise<BotConfig>;
   start(): Promise<BotStatus>;
   stop(): Promise<BotStatus>;
@@ -56,6 +62,7 @@ function input(value = "", placeholder = ""): HTMLInputElement {
 function action(title: string, handler: () => void): HTMLButtonElement {
   const item = element("button", title);
   item.type = "button";
+  if (title === "削除") item.className = "danger";
   item.onclick = handler;
   return item;
 }
@@ -144,6 +151,9 @@ export class AdminPage {
     if (!this.snapshot) return;
     const state = this.snapshot;
     getElement("admin-guild-title", "strong").textContent = state.guild.name;
+    getElement("admin-user-count", "strong").textContent = String(state.users.length);
+    getElement("admin-channel-count", "strong").textContent = String(state.guild.channels.length);
+    getElement("admin-role-count", "strong").textContent = String(state.guild.roles.length);
     const guildName = getElement("admin-guild-name", "input");
     if (document.activeElement !== guildName) guildName.value = state.guild.name;
     getElement("admin-guild-save", "button").onclick = () =>
@@ -158,16 +168,18 @@ export class AdminPage {
   private renderUsers(state: AdminState): void {
     const list = getElement("admin-users", "div");
     list.replaceChildren();
+    if (!state.users.some((user) => user.id === this.selectedUser)) this.selectedUser = state.users[0]?.id ?? "";
     for (const user of state.users) {
       const line = element("div");
       line.className = "admin-item";
-      line.append(action(`${user.username} · ${user.id}`, () => {
+      const button = action(`${user.username} · ${user.id}`, () => {
         this.selectedUser = user.id;
         this.renderUsers(state);
-      }));
+      });
+      button.setAttribute("aria-pressed", String(user.id === this.selectedUser));
+      line.append(button);
       list.append(line);
     }
-    if (!state.users.some((user) => user.id === this.selectedUser)) this.selectedUser = state.users[0]?.id ?? "";
     const user = state.users.find((item) => item.id === this.selectedUser);
     const editor = getElement("admin-user-editor", "div");
     editor.replaceChildren();
@@ -213,10 +225,12 @@ export class AdminPage {
     for (const role of state.guild.roles) {
       const line = element("div");
       line.className = "admin-item";
-      line.append(action(`${role.name} · ${role.id}`, () => {
+      const button = action(`${role.name} · ${role.id}`, () => {
         this.selectedRole = role.id;
         this.renderRoles(state);
-      }));
+      });
+      button.setAttribute("aria-pressed", String(role.id === this.selectedRole));
+      line.append(button);
       list.append(line);
     }
     const role = state.guild.roles.find((item) => item.id === this.selectedRole);
@@ -264,10 +278,12 @@ export class AdminPage {
     list.replaceChildren();
     if (!state.guild.channels.some((c) => c.id === this.selectedChannel)) this.selectedChannel = state.guild.channels[0]?.id ?? "";
     for (const channel of state.guild.channels) {
-      list.append(action(`${channel.type === 2 ? "🔊 " : "# "}${channel.name}`, () => {
+      const button = action(`${channel.type === 2 ? "🔊 " : "# "}${channel.name}`, () => {
         this.selectedChannel = channel.id;
         this.renderChannels(state);
-      }));
+      });
+      button.setAttribute("aria-pressed", String(channel.id === this.selectedChannel));
+      list.append(button);
     }
     const channel = state.guild.channels.find((c) => c.id === this.selectedChannel);
     const editor = getElement("admin-channel-editor", "div");
@@ -343,23 +359,75 @@ export class AdminPage {
   }
 
   private async initializeDesktop(bridge: DesktopBridge): Promise<void> {
+    if (bridge.windowSettings && bridge.saveWindowSettings && bridge.moveWindow)
+      await initializeWindowSettings({ windowSettings: bridge.windowSettings, saveWindowSettings: bridge.saveWindowSettings, moveWindow: bridge.moveWindow });
     getElement("desktop-controls", "section").classList.remove("hidden");
     const command = getElement("desktop-command", "input");
     const args = getElement("desktop-args", "textarea");
     const cwd = getElement("desktop-cwd", "input");
     const status = getElement("desktop-status", "p");
+    const detectionStatus = getElement("desktop-detection-status", "p");
+    const detect = getElement("desktop-detect", "button");
+    const dialog = getElement("desktop-detect-dialog", "dialog");
+    const candidates = getElement("desktop-candidates", "select");
+    const candidateField = getElement("desktop-candidate-field", "label");
     const config = await bridge.config();
-    command.value = config.command;
-    args.value = JSON.stringify(config.args);
-    cwd.value = config.cwd;
+    let runtime: BotConfig["runtime"];
+    const fill = (value: BotConfig): void => {
+      command.value = value.command;
+      args.value = JSON.stringify(value.args);
+      cwd.value = value.cwd;
+      runtime = value.runtime;
+    };
+    fill(config);
+    detect.onclick = () => {
+      detect.disabled = true;
+      void bridge.discoveryDirectory().then(directory => {
+        getElement("desktop-detect-directory", "p").textContent = `対象フォルダー: ${directory}`;
+        dialog.showModal();
+      }).catch(error => { detectionStatus.textContent = error instanceof Error ? error.message : String(error); })
+        .finally(() => { detect.disabled = false; });
+    };
+    getElement("desktop-detect-cancel", "button").onclick = () => dialog.close();
+    getElement("desktop-detect-confirm", "button").onclick = () => {
+      dialog.close();
+      detect.disabled = true;
+      candidateField.classList.add("hidden");
+      detectionStatus.textContent = "起動ファイルを探しています…";
+      void bridge.discover().then(results => {
+        const use = (index: number): void => {
+          const found = results[index];
+          if (!found) return;
+          fill(found.config);
+          detectionStatus.textContent = `${found.file} の起動設定を入力しました。「起動」で実行できます。`;
+        };
+        if (!results.length) {
+          detectionStatus.textContent = "runTestClient を呼び出す起動ファイルが、このフォルダー直下に見つかりませんでした。";
+        } else if (results.length === 1) use(0);
+        else {
+          candidates.replaceChildren(option("", "起動するファイルを選択してください"), ...results.map((result, index) => option(String(index), result.file)));
+          candidates.value = "";
+          candidates.onchange = () => { if (candidates.value !== "") use(Number(candidates.value)); };
+          candidateField.classList.remove("hidden");
+          candidates.focus();
+          detectionStatus.textContent = `${results.length}件見つかりました。起動ファイルを選択してください。`;
+        }
+      }).catch(error => { detectionStatus.textContent = error instanceof Error ? error.message : String(error); })
+        .finally(() => { detect.disabled = false; });
+    };
     const updateStatus = async (): Promise<void> => {
       const info = await bridge.status();
-      status.textContent = info.running ? `Bot 実行中 (PID: ${info.pid})` : "Bot 停止中";
+      status.setAttribute("data-state", info.running ? info.connecting ? "connecting" : "running" : "idle");
+      status.textContent = info.running ? info.connecting ? `テストクライアントの接続を待っています (PID: ${info.pid})` : info.url ? `テストクライアント接続中: ${info.url} (PID: ${info.pid})` : `Bot 実行中 (PID: ${info.pid})` : "Bot 停止中";
     };
-    getElement("desktop-save", "button").onclick = () => void this.run(async () => {
+    const save = async (): Promise<void> => {
       const value = JSON.parse(args.value) as unknown;
       if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) throw new Error("引数は JSON 文字列配列にしてください");
-      await bridge.saveConfig({ command: command.value, args: value, cwd: cwd.value });
+      await bridge.saveConfig({ command: command.value, args: value, cwd: cwd.value,
+        ...(runtime && command.value === "node" ? { runtime } : {}) });
+    };
+    getElement("desktop-save", "button").onclick = () => void this.run(async () => {
+      await save();
       await updateStatus();
     });
     for (const [id, run] of [
@@ -367,8 +435,18 @@ export class AdminPage {
       ["desktop-stop", () => bridge.stop()],
       ["desktop-restart", () => bridge.restart()],
     ] as const) {
-      getElement(id, "button").onclick = () => void this.run(async () => { await run(); await updateStatus(); });
+      const button = getElement(id, "button");
+      button.onclick = () => {
+        button.disabled = true;
+        void this.run(async () => {
+          if (id !== "desktop-stop") await save();
+          await run();
+          await updateStatus();
+        }).finally(() => { button.disabled = false; });
+      };
     }
     await updateStatus();
+    const statusTimer = setInterval(() => { void updateStatus().catch(() => {}); }, 1000);
+    addEventListener("pagehide", () => clearInterval(statusTimer), { once: true });
   }
 }

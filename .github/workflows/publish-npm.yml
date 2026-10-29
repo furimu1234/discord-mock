@@ -16,7 +16,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: {version: "11.0.0", run_install: false}
       - run: pnpm install --no-frozen-lockfile
-      - run: pnpm build
+      - run: pnpm build:core
       - run: pnpm --filter dismock test
       - name: Verify release version and package state
         run: node -e 'const p=require("./packages/client-js/package.json"); if(p.private||process.env.GITHUB_REF_NAME!=="js-v"+p.version) process.exit(1)'

@@ -5,14 +5,14 @@
 #
 # Use the local <nixpkgs> from NIX_PATH; the revision above is recorded
 # for reference and is NOT pinned by this file.
-{ pkgs ? import <nixpkgs> { } }:
+{ pkgs ? import <nixpkgs> { }, desktop ? false }:
 
 let
   node = pkgs.nodejs_24;
   pnpm = pkgs.pnpm_11;
   python = pkgs.python313;
 in
-pkgs.mkShellNoCC {
+pkgs.mkShellNoCC ({
   name = "discord-mock-dev";
 
   packages = [
@@ -20,7 +20,7 @@ pkgs.mkShellNoCC {
     pnpm
     python
     pkgs.uv
-  ];
+  ] ++ pkgs.lib.optionals desktop [ pkgs.electron_43 pkgs.appimage-run ];
 
   # Use the Nix-provided Python. uv-managed CPython binaries downloaded
   # for conventional Linux distributions are not guaranteed to work on NixOS.
@@ -32,4 +32,11 @@ pkgs.mkShellNoCC {
   # mentioned by package.json (it might differ within major version 11).
   pnpm_config_pm_on_fail = "ignore";
 
-}
+} // pkgs.lib.optionalAttrs desktop {
+  # npm 版の汎用 Linux バイナリではなく、Nix の実行ラッパーを使用する。
+  ELECTRON_OVERRIDE_DIST_PATH = "${pkgs.electron_43}/bin";
+  ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
+  FONTCONFIG_FILE = pkgs.makeFontsConf {
+    fontDirectories = [ pkgs.noto-fonts-cjk-sans pkgs.noto-fonts-color-emoji ];
+  };
+})

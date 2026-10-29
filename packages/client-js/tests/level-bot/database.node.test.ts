@@ -281,7 +281,7 @@ test(
     const app = await startApp({ port: 0, dataDir: directory });
     const pool = new pg.Pool({ connectionString: app.database.dsn, max: 1 });
     try {
-      for (const expected of [2, 3]) {
+      for (const expected of [1, 2]) {
         const mock = await startMock({ port: 0 });
         let bot: Awaited<ReturnType<typeof startLevelBot>> | undefined;
         try {
@@ -336,7 +336,7 @@ test(
       assert.equal(result.status, 200);
       const data = (await result.json()) as DatabasePage;
       assert.equal(data.totalRows, 1);
-      assert.equal(data.rows[0][3], 3);
+      assert.equal(data.rows[0][3], 2);
     } finally {
       await pool.end();
       await app.close();

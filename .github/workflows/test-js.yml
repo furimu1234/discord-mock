@@ -7,6 +7,21 @@ on:
     paths: ["packages/client-js/**", "examples/level_bot/**", "apps/web/**", "apps/server/**", "spec/**", "tests/**", "package.json", "biome.json", "tsconfig.base.json", "tsconfig.tools.json", "scripts/**", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md", ".cursor/rules/**", "pnpm-workspace.yaml", "pnpm-lock.yaml", ".github/workflows/test-js.yml"]
 permissions: {contents: read}
 jobs:
+  process-lock:
+    name: Process lock (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "24"}
+      - uses: pnpm/action-setup@v4
+        with: {version: "11.0.0", run_install: false}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter dismock exec vitest run tests/process-lock.test.ts
   test:
     runs-on: ubuntu-latest
     steps:
@@ -17,6 +32,6 @@ jobs:
         with: {version: "11.0.0", run_install: false}
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm check
-      - run: pnpm build
+      - run: pnpm build:core
       - run: pnpm --filter dismock test
       - run: pnpm sample:test

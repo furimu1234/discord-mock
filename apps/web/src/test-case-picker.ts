@@ -61,6 +61,8 @@ export class TestCasePicker {
     return this.unavailable;
   }
 
+  get hasCases(): boolean { return this.cases.length > 0; }
+
   setDisabled(disabled: boolean): void {
     this.unavailable = disabled || this.cases.length === 0;
     this.list.setAttribute("aria-disabled", String(this.unavailable));

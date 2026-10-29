@@ -493,8 +493,9 @@ export class TestRunChatView {
         ? "テスト実行中…"
         : result.error ?? `${result.cases.length} 件のテストケース`;
     } catch {
-      this.casePicker.setDisabled(true);
-      this.status.textContent = "テストケース一覧を取得できません（pnpm app を確認）";
+      if (this.casePicker.hasCases) this.casePicker.setDisabled(true);
+      else this.casePicker.update([], true);
+      this.status.textContent = "テストクライアントの起動・接続を確認してください";
     }
   }
 
@@ -618,11 +619,11 @@ export class TestRunChatView {
     const welcome = createElement("section", "test-chat-welcome");
     welcome.append(
       createElement("div", "test-chat-symbol", "#"),
-      createElement("h2", "", `# ${name}へようこそ！`),
+      createElement("h2", "", `# ${name}`),
       createElement(
         "p",
         "",
-        `ここはテスト用チャンネル「#${name}」の始まりです。テストケースを実行するとユーザーの投稿と Bot の返信が表示されます。`,
+        "下の一覧からテストケースを選んで実行します。ユーザーの投稿と Bot の応答をここに表示します。",
       ),
     );
     this.messages.append(welcome);

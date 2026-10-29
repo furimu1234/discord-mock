@@ -8,6 +8,7 @@ export class Element {
   clientHeight = 300;
   style: Record<string, string> = {};
   disabled = false;
+  open = false;
   attributes = new Map<string, string>();
   classes = new Set<string>();
   declare tagName: string;
@@ -43,18 +44,69 @@ export class Element {
   setAttribute(name: string, value: string) { this.attributes.set(name, value); }
   removeAttribute(name: string) { this.attributes.delete(name); }
   focus() { this.focused = true; }
+  showModal() { this.open = true; }
+  close() { this.open = false; }
   scrollIntoView() { this.scrolledIntoView = true; }
 }
 
 export function createBrowserFixture(pathname = "/") {
   const tags = {
+    "desktop-window-settings": "section",
+    "window-mock-display": "select",
+    "window-terminal-display": "select",
+    "window-settings-save": "button",
+    "window-mock-move": "button",
+    "window-terminal-move": "button",
+    "window-settings-refresh": "button",
+    "window-settings-status": "p",
+    "window-position-note": "p",
     "test-panel": "main",
     "admin-panel": "section",
     "admin-status": "p",
     "admin-login": "form",
     "admin-secret": "input",
     "admin-content": "div",
+    "admin-guild-title": "strong",
+    "admin-user-count": "strong",
+    "admin-channel-count": "strong",
+    "admin-role-count": "strong",
+    "admin-guild-name": "input",
+    "admin-guild-save": "button",
+    "admin-users": "div",
+    "admin-user-editor": "div",
+    "admin-user-create": "form",
+    "admin-new-user": "input",
+    "admin-new-user-id": "input",
+    "admin-roles": "div",
+    "admin-role-editor": "div",
+    "admin-role-create": "form",
+    "admin-new-role": "input",
+    "admin-new-role-id": "input",
+    "admin-channels": "div",
+    "admin-channel-editor": "div",
+    "admin-channel-create": "form",
+    "admin-new-channel": "input",
+    "admin-new-channel-type": "select",
+    "admin-new-channel-id": "input",
+    "admin-member-select": "select",
+    "admin-member-roles": "div",
     "desktop-controls": "section",
+    "desktop-command": "input",
+    "desktop-args": "textarea",
+    "desktop-cwd": "input",
+    "desktop-status": "p",
+    "desktop-detection-status": "p",
+    "desktop-detect": "button",
+    "desktop-detect-dialog": "dialog",
+    "desktop-detect-directory": "p",
+    "desktop-detect-cancel": "button",
+    "desktop-detect-confirm": "button",
+    "desktop-candidates": "select",
+    "desktop-candidate-field": "label",
+    "desktop-save": "button",
+    "desktop-start": "button",
+    "desktop-stop": "button",
+    "desktop-restart": "button",
     "database-panel": "main",
     "tests-panel": "main",
     "tests-sidebar": "div",
@@ -171,6 +223,7 @@ export function createBrowserFixture(pathname = "/") {
       setTimeout,
       clearTimeout,
       setInterval: () => 1,
+      clearInterval,
       navigator: { clipboard: { writeText: async (text: string) => { copied.push(text); } } },
     },
   };

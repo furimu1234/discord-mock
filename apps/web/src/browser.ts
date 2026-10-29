@@ -267,6 +267,11 @@ async function initialize(): Promise<void> {
   getElement("tests-panel", "main").classList.toggle("hidden", !isTestRuns);
   getElement("tests-sidebar", "div").classList.toggle("hidden", !isTestRuns);
   getElement("tests-link", "a").classList.toggle("active", isTestRuns);
+  for (const [id, active] of [["test-link", !isAdmin && !isDatabase && !isTestRuns], ["admin-link", isAdmin], ["database-link", isDatabase], ["tests-link", isTestRuns]] as const) {
+    const link = getElement(id, "a");
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
   if (isTestChat) {
     elements.serverTitle.textContent = "自動テスト";
     elements.channelTitle.textContent = "# general";
@@ -285,7 +290,7 @@ async function initialize(): Promise<void> {
     return;
   }
   if (isDatabase) {
-    elements.serverTitle.textContent = "Database Explorer";
+    elements.serverTitle.textContent = "データベース";
     await new DatabaseView().initialize();
     return;
   }

@@ -2,19 +2,20 @@
   "name": "@discord-mock/desktop",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "main": "dist/main.cjs",
   "description": "Local Discord mock desktop controller",
   "scripts": {
-    "build": "esbuild src/main.ts src/preload.ts src/terminal-preload.ts --bundle --platform=node --target=node24 --format=cjs --outdir=dist --out-extension:.js=.cjs --external:electron && esbuild src/terminal.ts --bundle --platform=browser --target=es2022 --format=iife --outfile=dist/terminal.js && node -e \"require('node:fs').copyFileSync('src/terminal.html','dist/terminal.html')\"",
+    "build": "node scripts/build.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "start": "electron .",
+    "start": "node scripts/start.ts",
     "dist:win": "electron-builder --win portable",
     "dist:mac": "electron-builder --mac dir",
     "dist:linux": "electron-builder --linux AppImage"
   },
   "devDependencies": {
-    "electron": "^39.0.0",
-    "electron-builder": "^26.0.0",
+    "electron": "43.7.11",
+    "electron-builder": "26.18.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.9.0",
     "@types/node": "^24.0.0"
@@ -42,6 +43,7 @@
       "artifactName": "discord-mock-${version}-windows-${arch}.${ext}"
     },
     "mac": {
+      "artifactName": "discord-mock-${version}-macos-${arch}.${ext}",
       "target": [
         "dir"
       ]
@@ -60,5 +62,10 @@
     "type": "git",
     "url": "https://github.com/furimu1234/discord-mock.git"
   },
-  "author": "discord-mock contributors"
+  "author": "discord-mock contributors",
+  "allowScripts": {
+    "electron@43.7.11": true,
+    "esbuild@0.25.12": true,
+    "electron-winstaller@5.4.0": true
+  }
 }

@@ -3,7 +3,6 @@ import { spawn, type ChildProcess } from "node:child_process";
 import {
   access,
   mkdir,
-  open,
   readFile,
   realpath,
   rename,
@@ -37,6 +36,8 @@ import { createDatabaseInspector } from "./database-inspector.js";
 import { startLocalMock, type LocalMockRuntime } from "./testing.js";
 import { monitorApp } from "./app-monitor.js";
 import { shutdownBot } from "./bot-shutdown.js";
+import { acquireProcessLock } from "./process-lock.js";
+import { desktopConnectionRequest, publishDesktopConnection } from "./desktop-connection.js";
 export { startEphemeralDatabase } from "./embedded-database.js";
 export type * from "./embedded-database.js";
 export {
@@ -139,15 +140,7 @@ export async function startApp(options: AppOptions) {
   const { LocalTestCaseRunner } = await import("dismock/e2e/runner");
   const paths = appPaths(options.dataDir, project.root);
   await mkdir(paths.directory, { recursive: true, mode: 0o700 });
-  const lock = await open(paths.lock, "wx", 0o600).catch(
-    (error: NodeJS.ErrnoException) => {
-      if (error.code === "EEXIST")
-        throw new Error(
-          `App is already running or ${paths.lock} needs recovery`,
-        );
-      throw error;
-    },
-  );
+  const releaseLock = await acquireProcessLock(paths.lock, "App");
   let database: EmbeddedDatabase | undefined;
   let mock: LocalMockRuntime | undefined;
   let botProcess: ChildProcess | undefined;
@@ -170,11 +163,7 @@ export async function startApp(options: AppOptions) {
         database?.close(),
         rm(temporary, { force: true }),
       ]);
-      try {
-        await lock.close();
-      } finally {
-        await rm(paths.lock, { force: true });
-      }
+      await releaseLock();
       const failures = results.filter((result) => result.status === "rejected");
       if (failures.length)
         throw new AggregateError(
@@ -185,7 +174,6 @@ export async function startApp(options: AppOptions) {
     return closed;
   };
   try {
-    await lock.writeFile(String(process.pid));
     await rm(paths.runtime, { force: true });
     const hadCredentials = await readFile(paths.credentials).then(
       () => true,
@@ -400,20 +388,14 @@ export async function executeTestClient(
     );
   if (args.length > 1) throw new Error("起動設定は環境変数で指定してください");
   await loadLocalEnvironment(project.root);
+  const desktop = desktopConnectionRequest();
   const app = await startApp({
     entry: project.entry,
     port: Number(process.env.DISCORD_MOCK_PORT ?? 3000),
-    statePath: process.env.DISCORD_MOCK_STATE_PATH,
+    statePath: process.env.DISCORD_MOCK_STATE_PATH ?? (desktop ? join(appPaths(undefined, project.root).directory, "state.json") : undefined),
     autoStartBot: process.env.DISCORD_MOCK_AUTOSTART_BOT !== "off",
     alwaysStartBot: !mode,
   });
-  console.log(`Browser: ${app.mock.url}/test | Admin: ${app.mock.url}/admin`);
-  console.log(`Database: ${app.mock.url}/database`);
-  console.log(`Token JSON: ${app.paths.credentials}`);
-  console.log(app.botStartup);
-  console.log(
-    "テスト実行: 起動ファイルに --test を付けて実行（個別テストは /test から実行）",
-  );
   let stopping = false;
   for (const signal of ["SIGINT", "SIGTERM"])
     process.on(signal, () => {
@@ -427,4 +409,13 @@ export async function executeTestClient(
         },
       );
     });
+  try { if (desktop) await publishDesktopConnection(desktop, app.mock); }
+  catch (error) { await app.close(); throw error; }
+  console.log(`Browser: ${app.mock.url}/test | Admin: ${app.mock.url}/admin`);
+  console.log(`Database: ${app.mock.url}/database`);
+  console.log(`Token JSON: ${app.paths.credentials}`);
+  console.log(app.botStartup);
+  console.log(
+    "テスト実行: 起動ファイルに --test を付けて実行（個別テストは /test から実行）",
+  );
 }

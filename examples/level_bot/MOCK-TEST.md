@@ -21,7 +21,7 @@
 
 ```sh
 pnpm install
-pnpm build
+pnpm build:core
 pnpm app
 ```
 
@@ -41,7 +41,7 @@ pnpm --dir examples/level_bot exec tsx --tsconfig packages/bot/tsconfig.json pac
 pnpm bot
 ```
 
-テストケースはMock・Botを分離しますがDBはAppのPGliteと共有するため、テスト操作で作ったレコードは次のケースにも残ります。App 再起動時には結果一覧がリセットされます。ブラウザを開いたままでも再接続を試み、変更の反映に `pnpm build` と App 再起動、必要に応じたブラウザ更新が必要です。
+テストケースはMock・Botを分離しますがDBはAppのPGliteと共有するため、テスト操作で作ったレコードは次のケースにも残ります。App 再起動時には結果一覧がリセットされます。ブラウザを開いたままでも再接続を試み、変更の反映に `pnpm build:core` と App 再起動、必要に応じたブラウザ更新が必要です。
 
 `pnpm demo` は従来の単独デモ起動として引き続き利用できます。Bot 本体の `packages/bot/src/commands/` には従来どおり TypeScript のコマンドを追加できます。コマンド登録・DB 接続は今までの Drizzle / `pg` を使い、疑似 DB に差し替えません。
 
@@ -50,6 +50,8 @@ pnpm bot
 コマンド返信の上には実行ユーザーと `/コマンド名` を表示します。サイドバーの「データベース」からは、キー入力なしで Bot が更新する `example.lvl` を表形式で参照できます。読み取り専用で検索・並び替え・ページ切替・手動更新に対応します。app を止めると DB が消える動作は変わりません。
 
 `pnpm bot:client` は `bot.lock` で同じ app 保存先への重複起動を拒否します。初期返信を複数の Bot が同時に送った場合も、Mock は1件だけを受理し、2件目からは `40060` を返します。別のコマンド実行として送信された返信までまとめる処理は行いません。
+
+強制終了で `app.lock` / `bot.lock` が残っても、次の App / Bot 起動時に所有者の PID が終了済みなら自動回復します。動作中のロックや、所有者を確認できないロックを無条件に削除することはありません。AppImage の「起動」からテストクライアントを実行する場合も同じ処理を使います。
 
 app を先に Ctrl+C で停止しても、接続済み Bot は `/health` の停止を検知して終了します。DB 接続エラーのオブジェクト全体は出力しません。SDK と DB の終了処理を開始し、SDK の再接続待ちが長引いた場合も最大3秒の待機後にロックを解放して CLI を終了します。通常は app が Bot を自動起動します。手動で分ける場合のみ app → `pnpm bot:client` の順です。実際の SIGINT、DB 使用後の切断、DB 未使用時の停止検知、同じ保存先での再起動をテストします。
 
@@ -89,7 +91,7 @@ test("レベル確認で7を返す", { users: "login" }, async ({ bot, actor }) 
 
 今後の機能も `tests/**/*.test.ts` に追加すれば `pnpm bot:test` で実行します。`tests/bot` の名前は固定ではなく、`tests` 直下にも任意のサブフォルダーにも配置できます。利用側の `tests` にはテストケースだけを置きます。Bot のソースは直接実行し、テスト時に暗黙のビルドを行いません。
 
-起動中の app に表示したい場合は `pnpm bot` を実行します。**`http://127.0.0.1:3000/test` を開いたままでも**、ユーザー投稿と Bot の返信がチャットに、テストの実行ステップと成功／失敗が右側の実行ログにリアルタイムで反映されます。`/tests` では過去の実行一覧・詳細も確認できます。通常の `pnpm bot:test` も app があれば自動で反映します。表示先は runtime.json の URL、または DISCORD_MOCK_REPORT_URL を使用します。テストは独立したMockを使用しますが、DBはApp本体と共有し、実際のBot更新が反映されます。結果は app が起動している間、最大20件保持します。Web の変更を反映するには `pnpm build` と `pnpm app` の再起動、および開いている `/test` の再読み込みが必要です。
+起動中の app に表示したい場合は `pnpm bot` を実行します。**`http://127.0.0.1:3000/test` を開いたままでも**、ユーザー投稿と Bot の返信がチャットに、テストの実行ステップと成功／失敗が右側の実行ログにリアルタイムで反映されます。`/tests` では過去の実行一覧・詳細も確認できます。通常の `pnpm bot:test` も app があれば自動で反映します。表示先は runtime.json の URL、または DISCORD_MOCK_REPORT_URL を使用します。テストは独立したMockを使用しますが、DBはApp本体と共有し、実際のBot更新が反映されます。結果は app が起動している間、最大20件保持します。Web の変更を反映するには `pnpm build:core` と `pnpm app` の再起動、および開いている `/test` の再読み込みが必要です。
 
 `pnpm sample:test` は利用側の Bot テストを実行します。app・DB・起動処理の統合テストは `packages/client-js/tests/level-bot/` に移し、`pnpm --filter dismock test:integration` で検証します。`pnpm automation:test` は SDK の自動テスト例と Bot テストの両方を実行します。既存の `pnpm level:test` / `pnpm level:test:web` は新コマンドの別名として利用できます。
 

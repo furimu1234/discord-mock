@@ -7,7 +7,7 @@ describe("/レベル確認", () => {
     async ({ bot, actor }) => {
       const before = await bot.levels.get(actor);
       await actor.sendMessage("こんにちは");
-      const expected = (before ?? 1) + 1;
+      const expected = (before ?? 0) + 1;
       await expect.poll(() => bot.levels.get(actor)).toBe(expected);
 
       const reply = await actor.command("レベル確認");
@@ -36,7 +36,7 @@ describe("/レベル確認", () => {
     async ({ bot, actor }) => {
       const before = await bot.levels.get(actor);
       await actor.sendMessage("複数ユーザーのレベル確認");
-      const expected = (before ?? 1) + 1;
+      const expected = (before ?? 0) + 1;
       await expect.poll(() => bot.levels.get(actor)).toBe(expected);
       const reply = await actor.command("レベル確認");
       expect(reply.embeds[0].title).toBe(`${actor.username} | lvl`);

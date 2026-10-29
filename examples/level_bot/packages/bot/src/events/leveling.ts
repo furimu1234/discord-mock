@@ -1,6 +1,6 @@
-import { createLeveling, getLevel, updateLeveling } from '@ex/db';
-import { Events, type Message } from 'discord.js';
-import { container } from '../container';
+import { createLeveling, getLevel, updateLeveling } from "@ex/db";
+import { Events, type Message } from "discord.js";
+import { container } from "../container";
 
 export const name = Events.MessageCreate;
 export const once = false;
@@ -31,8 +31,8 @@ export async function execute(message: Message): Promise<void> {
         serverId: guild.id,
         userId: message.author.id,
       });
+    } else {
+      await updateLeveling(db, model.lvl + 1, guild.id, message.author.id);
     }
-    if (!model) return;
-    await updateLeveling(db, model.lvl + 1, guild.id, message.author.id);
   });
 }

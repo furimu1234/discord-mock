@@ -27,7 +27,12 @@ export class Element {
   declare id: string;
   contains(target: unknown): boolean { return target === this || this.children.some((child) => child.contains(target)); }
   classList = {
-    toggle: (name: string, enabled: boolean) => enabled ? this.classes.add(name) : this.classes.delete(name),
+    toggle: (name: string, enabled?: boolean) => {
+      const add = enabled ?? !this.classes.has(name);
+      if (add) this.classes.add(name);
+      else this.classes.delete(name);
+      return add;
+    },
     contains: (name: string) => this.classes.has(name),
     add: (name: string) => { this.classes.add(name); },
     remove: (name: string) => { this.classes.delete(name); },
@@ -118,6 +123,9 @@ export function createBrowserFixture(pathname = "/") {
     "test-run-messages": "div",
     "test-run-error": "div",
     "test-runs-refresh": "button",
+    "sidebar-toggle-button": "button",
+    "composer-tab-chat": "button",
+    "composer-tab-cases": "button",
     "manual-composer": "div",
     "test-case-composer": "div",
     "test-case-list": "div",

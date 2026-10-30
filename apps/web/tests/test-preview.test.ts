@@ -289,4 +289,31 @@ test("/test は起動直後に # general と空のチャンネル開始画面を
   const list = fixture.elements["test-case-list"];
   assert.equal(list.attributes.get("aria-disabled"), "true");
   assert.equal(list.children[0].textContent, "テストケースがありません");
+
+  // 右サイドバーのトグル開閉テスト
+  const logPanel = fixture.elements["test-log-panel"];
+  const toggleBtn = fixture.elements["sidebar-toggle-button"];
+  assert.equal(logPanel.classes.has("collapsed"), false);
+  toggleBtn.onclick();
+  assert.equal(logPanel.classes.has("collapsed"), true);
+  toggleBtn.onclick();
+  assert.equal(logPanel.classes.has("collapsed"), false);
+
+  // 下部コンポーザーのチャット/テストケース切り替えテスト
+  const tabChat = fixture.elements["composer-tab-chat"];
+  const tabCases = fixture.elements["composer-tab-cases"];
+  const manualComposer = fixture.elements["manual-composer"];
+  const testCaseComposer = fixture.elements["test-case-composer"];
+  assert.equal(testCaseComposer.classes.has("hidden"), false);
+  assert.equal(manualComposer.classes.has("hidden"), true);
+
+  tabChat.onclick();
+  assert.equal(testCaseComposer.classes.has("hidden"), true);
+  assert.equal(manualComposer.classes.has("hidden"), false);
+  assert.equal(tabChat.attributes.get("aria-selected"), "true");
+
+  tabCases.onclick();
+  assert.equal(testCaseComposer.classes.has("hidden"), false);
+  assert.equal(manualComposer.classes.has("hidden"), true);
+  assert.equal(tabCases.attributes.get("aria-selected"), "true");
 });

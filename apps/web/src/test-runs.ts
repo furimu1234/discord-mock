@@ -242,6 +242,37 @@ export class TestRunChatView {
     this.logTab.onclick = () => this.selectSidebarTab("log");
     this.usersTab.onclick = () => this.selectSidebarTab("users");
     this.selectSidebarTab("log");
+
+    const sidebarToggleBtn = document.getElementById("sidebar-toggle-button");
+    if (sidebarToggleBtn) {
+      sidebarToggleBtn.onclick = () => {
+        this.logPanel.classList.toggle("collapsed");
+      };
+    }
+
+    const tabChat = document.getElementById("composer-tab-chat");
+    const tabCases = document.getElementById("composer-tab-cases");
+    const manualComposer = document.getElementById("manual-composer");
+    const testCaseComposer = document.getElementById("test-case-composer");
+    if (tabChat && tabCases && manualComposer && testCaseComposer) {
+      tabChat.onclick = () => {
+        tabChat.classList.add("active");
+        tabChat.setAttribute("aria-selected", "true");
+        tabCases.classList.remove("active");
+        tabCases.setAttribute("aria-selected", "false");
+        manualComposer.classList.remove("hidden");
+        testCaseComposer.classList.add("hidden");
+      };
+      tabCases.onclick = () => {
+        tabCases.classList.add("active");
+        tabCases.setAttribute("aria-selected", "true");
+        tabChat.classList.remove("active");
+        tabChat.setAttribute("aria-selected", "false");
+        manualComposer.classList.add("hidden");
+        testCaseComposer.classList.remove("hidden");
+      };
+    }
+
     this.createChannelButton.onclick = () => {
       this.createChannelForm.classList.toggle("hidden", false);
       this.createChannelName.focus();
